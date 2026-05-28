@@ -845,6 +845,147 @@ const STORY_WIN = {
   ],
 };
 
+// 因縁ペア (carrier_id|defender_id ソート済 string)
+// 各 entry は 1-3 panel の短い掛け合い VN。 contact 時に確率で挿入。
+const RIVALRY_DIALOGUES = {
+  "reimu|remilia": [
+    { speaker: "remilia", text: "博麗の巫女、紅霧異変の借りを今宵返す。運命ごと吹き飛ばしてあげる。", cast: ["reimu", "remilia"] },
+    { speaker: "reimu",   text: "夜のうちに片付けないと、面倒くさい吸血鬼。あの時と同じ、結界で抑え込む。", cast: ["reimu", "remilia"] },
+  ],
+  "marisa|patchouli": [
+    { speaker: "patchouli", text: "魔理沙……返却期限を 18 ヶ月過ぎてる本が、まだ我が館に大量にあるのよね。", cast: ["marisa", "patchouli"] },
+    { speaker: "marisa",    text: "それを言うなって。研究中なんだぜ。今日はサッカーで利息を返す。", cast: ["marisa", "patchouli"] },
+  ],
+  "marisa|flandre": [
+    { speaker: "flandre",   text: "魔理沙ー、お姉さまが言ってたよ。「あいつは私の友達」って。手加減してあげる！", cast: ["marisa", "flandre"] },
+    { speaker: "marisa",    text: "おう、フランは可愛いから手加減してくれよな。レーヴァテインだけは勘弁な。", cast: ["marisa", "flandre"] },
+  ],
+  "marisa|meiling": [
+    { speaker: "meiling",   text: "また門を勝手にすり抜けて図書館に行く気だな、魔理沙！今日は通さん！", cast: ["marisa", "meiling"] },
+    { speaker: "marisa",    text: "美鈴、サッカーで真面目に守ろうとするの初めて見たぜ。きっと寝てたんだろ普段。", cast: ["marisa", "meiling"] },
+  ],
+  "sanae|kanako": [
+    { speaker: "kanako",   text: "早苗、守矢の血脈、母の前で見せてごらん。神々しき御柱、ロングシュートで貫く。", cast: ["sanae", "kanako"] },
+    { speaker: "sanae",    text: "神奈子様、子孫として恥ずかしくない走りをします。奇跡のスルーパス、神の上を行きます！", cast: ["sanae", "kanako"] },
+  ],
+  "sanae|suwako": [
+    { speaker: "suwako",   text: "ケロケロ、早苗ちゃん、土着神は身軽だよー。ピョン！", cast: ["sanae", "suwako"] },
+    { speaker: "sanae",    text: "諏訪子様、その身軽さで上を狙うのですね。私もボールを神の如く扱います！", cast: ["sanae", "suwako"] },
+  ],
+  "sanae|byakuren": [
+    { speaker: "byakuren", text: "早苗、神道と仏教、今宵フィールドで決着しましょう。", cast: ["sanae", "byakuren"] },
+    { speaker: "sanae",    text: "聖さん、宗教論争は試合後にしましょう。今は純粋にサッカーで挑みます。", cast: ["sanae", "byakuren"] },
+  ],
+  "kaguya|mokou": [
+    { speaker: "mokou",   text: "輝夜……このピッチで千年の決着を。私の不死鳥ボレー、お前の永遠を断ち切る。", cast: ["kaguya", "mokou"] },
+    { speaker: "kaguya", text: "妹紅、サッカーで歴史を変える気？永遠の夜の中で、お前は何度蘇るのかしら。", cast: ["kaguya", "mokou"] },
+  ],
+  "mokou|eirin": [
+    { speaker: "mokou",  text: "永琳……お前を恨むのは 1000 年ほど前にやめた。だが今日は別だ。", cast: ["mokou", "eirin"] },
+    { speaker: "eirin",  text: "妹紅、あの薬の罪は今もこの胸にある。せめてフィールドで償わせて。", cast: ["mokou", "eirin"] },
+  ],
+  "kaguya|eirin": [
+    { speaker: "eirin",  text: "輝夜様、後ろは私が固めます。蓬莱の薬を一千年分、足腰に効かせてください。", cast: ["kaguya", "eirin"] },
+    { speaker: "kaguya", text: "永琳、月の頃の話みたいね。あなたが居れば、夜は永遠よ。", cast: ["kaguya", "eirin"] },
+  ],
+  "suika|yuugi": [
+    { speaker: "yuugi",  text: "萃香！四天王の鬼同士、フィールドで本気の角ぶつけ合おうじゃないか！", cast: ["suika", "yuugi"] },
+    { speaker: "suika",  text: "勇儀！地下から出てきたな！萃集無能力で散らかしたあと、酒で乾杯だ！", cast: ["suika", "yuugi"] },
+  ],
+  "reimu|satori": [
+    { speaker: "satori", text: "霊夢、次の動きが見えますよ……ふふ、心を読まれる気分はいかが？", cast: ["reimu", "satori"] },
+    { speaker: "reimu",  text: "さとり、読めても止められないわよ。私の動きは私の心より速い。", cast: ["reimu", "satori"] },
+  ],
+  "marisa|satori": [
+    { speaker: "satori", text: "魔理沙、次もマスタースパーク？読みやすすぎますよ。", cast: ["marisa", "satori"] },
+    { speaker: "marisa", text: "読まれてもいいんだ。マスタースパークは光速、避けられないからな。", cast: ["marisa", "satori"] },
+  ],
+  "utsuho|kanako": [
+    { speaker: "utsuho", text: "おかーさま！八咫烏の力、ぜんぶ使うね！核熱シュート、見ててね！", cast: ["utsuho", "kanako"] },
+    { speaker: "kanako", text: "お空、その力は授けた私が責任を持って受け止める。お母さんの胸に飛び込んで来なさい。", cast: ["utsuho", "kanako"] },
+  ],
+  "byakuren|miko": [
+    { speaker: "byakuren", text: "太子……仏教を排した道教者として、千年越しの遺恨があるけれど、今はピッチの上。", cast: ["byakuren", "miko"] },
+    { speaker: "miko",     text: "聖、私は十七条で「和を以て貴しと為す」と書いた。フィールドの上では和を破ろう。", cast: ["byakuren", "miko"] },
+  ],
+  "byakuren|futo": [
+    { speaker: "futo",     text: "仏教徒め、千四百年経ってもこの皿陣の前では止まるしかない！", cast: ["byakuren", "futo"] },
+    { speaker: "byakuren", text: "布都、物部の名にかけてもサッカーは別物。仏の慈悲はフィールド外で。", cast: ["byakuren", "futo"] },
+  ],
+  "futo|tojiko": [
+    { speaker: "futo",   text: "屠自古め、お前と組まされるのは 1400 年経っても気が進まんがな。", cast: ["futo", "tojiko"] },
+    { speaker: "tojiko", text: "フ、ン。私もだ。だが太子様の御為だ、雷鳴ミドル、お前の頭上をかすめて飛ばすぞ。", cast: ["futo", "tojiko"] },
+  ],
+  "miko|futo": [
+    { speaker: "miko",   text: "布都、皿陣の左を抑えて。屠自古の雷鳴を活かす道を作る。", cast: ["miko", "futo"] },
+    { speaker: "futo",   text: "御意、太子様。物部一族、フィールドの上でも忠誠は揺るぎませぬ。", cast: ["miko", "futo"] },
+  ],
+  "miko|tojiko": [
+    { speaker: "miko",   text: "屠自古、お前の感電シュートで決める。蘇我の名誉、ピッチで示せ。", cast: ["miko", "tojiko"] },
+    { speaker: "tojiko", text: "太子様の御為、千年経っても変わりません。雷鳴、行きます。", cast: ["miko", "tojiko"] },
+  ],
+  "shinmyoumaru|reimu": [
+    { speaker: "shinmyoumaru", text: "博麗の巫女！輝針城の異変では追い詰められたけど、今日はサッカーで反逆するよ！", cast: ["shinmyoumaru", "reimu"] },
+    { speaker: "reimu",        text: "針妙丸、小槌で大きくならないように見張ってる。サッカーは小さい方が有利じゃないわよ。", cast: ["shinmyoumaru", "reimu"] },
+  ],
+  "shinmyoumaru|marisa": [
+    { speaker: "marisa",       text: "針妙丸、その小槌、また見られるとはな。輝針城ぶりだぜ。", cast: ["shinmyoumaru", "marisa"] },
+    { speaker: "shinmyoumaru", text: "魔理沙！あの時の仕返し、トリックシュートでGKを抜いてやる！", cast: ["shinmyoumaru", "marisa"] },
+  ],
+  "seija|reimu": [
+    { speaker: "seija", text: "霊夢、天邪鬼に常識通用しないよ？私の動き、リバースだから読むの無駄。", cast: ["reimu", "seija"] },
+    { speaker: "reimu", text: "正邪、常識じゃ動かない方が読みやすいわよ。逆を予想すればいいだけ。", cast: ["reimu", "seija"] },
+  ],
+  "seija|marisa": [
+    { speaker: "seija",  text: "魔理沙ー、輝針城のあの仕打ち、忘れてないわよ。今日はひっくり返してやる。", cast: ["marisa", "seija"] },
+    { speaker: "marisa", text: "リバースフェイント、面白いじゃん。だがマスタースパークは真っ直ぐだぜ。", cast: ["marisa", "seija"] },
+  ],
+  "kagerou|momiji": [
+    { speaker: "kagerou", text: "椛、白い狼と灰色の狼、結局は同じ月を見上げてる。今夜は満月、本気だよ。", cast: ["kagerou", "momiji"] },
+    { speaker: "momiji",  text: "影狼、白狼天狗の千里眼、お前の動きは全部見えてる。月の力に頼るなら、私の眼に頼られる。", cast: ["kagerou", "momiji"] },
+  ],
+  "aya|momiji": [
+    { speaker: "aya",    text: "椛、新聞の取材中の判定は私にお任せ。あなたは後ろを固めて。", cast: ["aya", "momiji"] },
+    { speaker: "momiji", text: "文先輩、その「取材」って言葉、走り回るための言い訳ですよね。", cast: ["aya", "momiji"] },
+  ],
+  "kanako|suwako": [
+    { speaker: "kanako",  text: "諏訪子、御柱と土着神、守矢神社の二柱で 11 人を圧倒する。", cast: ["kanako", "suwako"] },
+    { speaker: "suwako",  text: "ケロちゃん、ロングシュートとカエル跳び、コンビネーション決めようね。", cast: ["kanako", "suwako"] },
+  ],
+  "ringo|reisen": [
+    { speaker: "ringo",  text: "鈴仙先輩！同じ月の兎として、私も負けません！", cast: ["ringo", "reisen"] },
+    { speaker: "reisen", text: "鈴瑚、月から地上へ降りて来てなお団子を持ってるの、貴女くらいよ。狂気で行くわ。", cast: ["ringo", "reisen"] },
+  ],
+  "seiran|reisen": [
+    { speaker: "seiran", text: "鈴仙先輩、月の戦士として、地上のスペル抜きで本気のドリブル見せます！", cast: ["seiran", "reisen"] },
+    { speaker: "reisen", text: "清蘭、月の俊敏さ……月から見ていたあの頃と変わらないわね。", cast: ["seiran", "reisen"] },
+  ],
+  "youmu|murasa": [
+    { speaker: "murasa", text: "妖夢、亡霊と半霊、海と地、似て非なるものね。沈没アンカーで沈めてあげる。", cast: ["youmu", "murasa"] },
+    { speaker: "youmu",  text: "村紗、亡霊同士礼儀正しく勝負しよう。半霊と二人分で挑む。", cast: ["youmu", "murasa"] },
+  ],
+  "youmu|shinmyoumaru": [
+    { speaker: "shinmyoumaru", text: "妖夢のお姉さま！その楼観剣、小槌でひっくり返してやる！", cast: ["youmu", "shinmyoumaru"] },
+    { speaker: "youmu",        text: "針妙丸、剣と小槌、刃物 vs 玩具の図だな。だが斬る方が勝つ。", cast: ["youmu", "shinmyoumaru"] },
+  ],
+  "yuugi|byakuren": [
+    { speaker: "yuugi",    text: "聖、地下の鬼が浮かれて出てきたぞ！パンチング、お経で止めてみるか？", cast: ["yuugi", "byakuren"] },
+    { speaker: "byakuren", text: "勇儀、地下に閉じ込められていた頃の同志として、今日は本気でぶつかる。", cast: ["yuugi", "byakuren"] },
+  ],
+  "patchouli|sanae": [
+    { speaker: "patchouli", text: "五行を司る私の前で、神道の祝詞がどこまで通用するか拝見しましょう。", cast: ["patchouli", "sanae"] },
+    { speaker: "sanae",     text: "パチュリーさん、魔法と神術、ここで五分五分にしますよ！", cast: ["patchouli", "sanae"] },
+  ],
+};
+
+function rivalryKey(a, b) {
+  return [a.id, b.id].sort().join("|");
+}
+
+function findRivalryDialogue(a, b) {
+  return RIVALRY_DIALOGUES[rivalryKey(a, b)] || null;
+}
+
 const STORY_ENDING = [
   { speaker: "reimu",    text: "幻想郷トーナメント、優勝。賞金で本殿の屋根が直せそうね。", cast: ["reimu", "marisa", "sanae"] },
   { speaker: "marisa",   text: "マスタースパーク何発撃ったかもう数えてないぜ。最高のサッカーだった。", cast: ["marisa", "youmu", "suika"] },
@@ -1017,6 +1158,7 @@ function startMatchCore(options = {}) {
     rewardMessage: "",
     preMatchDialogue: preMatchDialogue(home, away),
     halftimeShown: false,
+    rivalryShown: {},
     stats: {
       home: { shots: 0, passes: 0, dribbles: 0, tackles: 0, saves: 0, intercepts: 0, goals: 0, spellsUsed: 0 },
       away: { shots: 0, passes: 0, dribbles: 0, tackles: 0, saves: 0, intercepts: 0, goals: 0, spellsUsed: 0 },
@@ -1371,19 +1513,32 @@ function renderPassPicker() {
   `;
 }
 
-function openBattle(type) {
+function openBattle(type, skipRivalry = false) {
   if (state.match.finished) return;
-  if (type === "pass" && state.match.possession === "home") {
-    // home の pass はピッカーを開く
+  if (type === "pass" && state.match.possession === "home" && !state.battle) {
+    // home の pass はピッカーを開く (但し rivalry VN 復帰時はスキップ)
     openPassPicker();
     return;
   }
-  audio.play("battle");
-  audio.play("encounter");
   const carrier = getCarrier();
   const defender = type === "shoot"
     ? teamBySide(opponentSide(carrier.side)).players.find((player) => player.role === "GK")
     : nearestOpponent(carrier);
+  // 因縁掛け合い VN (1 試合 1 ペア 1 回まで、 50% 確率)
+  if (!skipRivalry && carrier && defender && state.match && state.match.rivalryShown) {
+    const key = rivalryKey(carrier, defender);
+    const dialogue = findRivalryDialogue(carrier, defender);
+    if (dialogue && !state.match.rivalryShown[key] && Math.random() < 0.5) {
+      state.match.rivalryShown[key] = true;
+      audio.play("encounter");
+      startVn(dialogue, `因縁: ${carrier.name} vs ${defender.name}`, () => {
+        openBattle(type, true); // 通常 flow へ
+      });
+      return;
+    }
+  }
+  audio.play("battle");
+  audio.play("encounter");
   state.battle = { type, carrierId: carrier.id, defenderId: defender.id };
   state.vsScreen = { attacker: carrier, defender, label: VS_LABELS[type] || "VS" };
   window.clearTimeout(state.vsScreenTimer);
@@ -1766,8 +1921,19 @@ function enemyTurn() {
     setTimeout(() => resolveBattle(tier), 720);
     return;
   }
+  // AI 用に rivalry VN を skip 可能、 但しユーザーに見せたい場合は通す
   openBattle(action);
-  setTimeout(() => resolveBattle(tier), 760);
+  // VN が出てる間 resolveBattle が空 battle を触らないよう待機
+  const tryResolve = () => {
+    if (state.vnScene) {
+      setTimeout(tryResolve, 240);
+    } else if (state.battle) {
+      setTimeout(() => resolveBattle(tier), 760);
+    } else {
+      setTimeout(tryResolve, 240);
+    }
+  };
+  setTimeout(tryResolve, 200);
 }
 
 function aiPickAction(carrier) {
@@ -1888,7 +2054,12 @@ function resolveInterrupt(option) {
         return;
       }
       openBattle(action);
-      setTimeout(() => resolveBattle(tier), 760);
+      const tryResolve = () => {
+        if (state.vnScene) setTimeout(tryResolve, 240);
+        else if (state.battle) setTimeout(() => resolveBattle(tier), 760);
+        else setTimeout(tryResolve, 240);
+      };
+      setTimeout(tryResolve, 200);
     }, 320);
     return;
   }
