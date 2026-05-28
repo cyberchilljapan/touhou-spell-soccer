@@ -1,0 +1,19 @@
+node_modules/
+test-results/
+playwright-report/
+playthrough/
+.DS_Store
+*.log
+screenshot_*.png
+contact_sheet_*.jpg
+release/
+release/touhou_spell_futsal/
+release/touhou_spell_futsal.zip
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local dev only
+.vscode/
+.idea/

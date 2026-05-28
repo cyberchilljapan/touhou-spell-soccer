@@ -1,0 +1,19 @@
+{
+  "name": "touhou_spell_futsal",
+  "version": "1.0.0",
+  "description": "キャプテン翼2/3系の「スポーツに見えるRPG」を、東方サッカー二次創作として作るプロトタイプ。11vs11 / 8チーム88キャラ / 30ターン制。",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "playwright test tests/smoke.spec.js --reporter=line",
+    "package": "powershell -ExecutionPolicy Bypass -File scripts/package_release.ps1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}

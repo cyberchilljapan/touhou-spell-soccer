@@ -1,0 +1,3072 @@
+const TEAMS = [
+  {
+    id: "hakurei",
+    name: "博麗神社",
+    style: "万能型",
+    formation: "4-4-2",
+    members: [
+      p("reimu", "霊夢", "GK", { shoot: 68, pass: 74, dribble: 76, tackle: 70, block: 75, keep: 82, speed: 72, guts: 135 }, "夢想封印セーブ", "結界で軌道をねじ伏せる守護技"),
+      p("suika", "萃香", "DF", { shoot: 74, pass: 58, dribble: 62, tackle: 86, block: 88, keep: 58, speed: 54, guts: 145 }, "鬼神チャージ", "守備とこぼれ球に強いパワーブロック"),
+      p("daiyousei", "大妖精", "DF", { shoot: 52, pass: 72, dribble: 64, tackle: 76, block: 80, keep: 42, speed: 70, guts: 122 }, "妖精ガード", "DFラインに安定をもたらす補助技"),
+      p("rumia", "ルーミア", "DF", { shoot: 64, pass: 52, dribble: 70, tackle: 78, block: 80, keep: 38, speed: 72, guts: 118 }, "宵闇マーキング", "相手の視界を奪う影の守備"),
+      p("wriggle", "リグル", "DF", { shoot: 62, pass: 64, dribble: 68, tackle: 82, block: 76, keep: 40, speed: 76, guts: 120 }, "蛍光フォーメーション", "蛍の群れで進路を塞ぐ"),
+      p("sanae", "早苗", "MF", { shoot: 70, pass: 84, dribble: 72, tackle: 58, block: 62, keep: 36, speed: 70, guts: 132 }, "奇跡のスルーパス", "次の味方行動に大きな補正を渡すパス"),
+      p("youmu", "妖夢", "MF", { shoot: 78, pass: 66, dribble: 86, tackle: 74, block: 64, keep: 26, speed: 84, guts: 124 }, "半霊ダブルタッチ", "接触戦を抜けやすい高速ドリブル"),
+      p("kasen", "茨木華扇", "MF", { shoot: 70, pass: 80, dribble: 76, tackle: 78, block: 70, keep: 42, speed: 72, guts: 138 }, "仙人の采配", "攻守万能の中盤司令塔技"),
+      p("cirno", "チルノ", "MF", { shoot: 72, pass: 60, dribble: 80, tackle: 70, block: 64, keep: 34, speed: 78, guts: 126 }, "アイシクルフォール", "敵フィールドを凍結させる⑨技"),
+      p("marisa", "魔理沙", "FW", { shoot: 90, pass: 68, dribble: 78, tackle: 52, block: 48, keep: 20, speed: 82, guts: 128 }, "マスタースパークシュート", "直線火力でGKを押し切る超威力シュート"),
+      p("lily", "リリーホワイト", "FW", { shoot: 78, pass: 60, dribble: 76, tackle: 50, block: 48, keep: 22, speed: 88, guts: 110 }, "春告げシュート", "シーズン到来とともに撃ち抜く快速ボレー"),
+    ],
+  },
+  {
+    id: "kouma",
+    name: "紅魔館",
+    style: "高火力型",
+    formation: "4-4-2",
+    members: [
+      p("patchouli", "パチュリー", "GK", { shoot: 80, pass: 78, dribble: 50, tackle: 48, block: 76, keep: 84, speed: 38, guts: 105 }, "五行ウォール", "属性壁でシュート威力を削るGK技"),
+      p("meiling", "美鈴", "DF", { shoot: 62, pass: 62, dribble: 72, tackle: 88, block: 82, keep: 48, speed: 76, guts: 140 }, "彩光タックル", "接触戦の守備値を大きく上げる"),
+      p("koakuma", "小悪魔", "DF", { shoot: 60, pass: 76, dribble: 66, tackle: 78, block: 82, keep: 44, speed: 64, guts: 118 }, "魔界補佐", "後方からスペル補助で味方守備を底上げ"),
+      p("lunasa", "ルナサ", "DF", { shoot: 64, pass: 78, dribble: 68, tackle: 76, block: 80, keep: 40, speed: 62, guts: 120 }, "メランコリック弦", "重低音で相手の意気を削るDF技"),
+      p("tokiko", "朱鷺子", "DF", { shoot: 56, pass: 70, dribble: 64, tackle: 84, block: 78, keep: 38, speed: 66, guts: 122 }, "本能の壁", "本に喰い込ませる予測ブロック"),
+      p("sakuya", "咲夜", "MF", { shoot: 72, pass: 88, dribble: 78, tackle: 78, block: 66, keep: 32, speed: 80, guts: 122 }, "時止めインターセプト", "パスカットとショートパスが強い司令塔技"),
+      p("merlin", "メルラン", "MF", { shoot: 76, pass: 78, dribble: 70, tackle: 64, block: 60, keep: 40, speed: 72, guts: 122 }, "ホーンアタック", "活発な高音ラッパで前線を駆ける"),
+      p("lyrica", "リリカ", "MF", { shoot: 72, pass: 80, dribble: 68, tackle: 62, block: 58, keep: 42, speed: 74, guts: 118 }, "鍵盤の旋律", "鍵盤で繋ぐ可変パス"),
+      p("hecatia", "ヘカーティア", "MF", { shoot: 84, pass: 74, dribble: 72, tackle: 70, block: 66, keep: 38, speed: 70, guts: 138 }, "三相の地獄", "地獄の女神らしい多段攻撃"),
+      p("remilia", "レミリア", "FW", { shoot: 88, pass: 70, dribble: 82, tackle: 62, block: 56, keep: 26, speed: 84, guts: 130 }, "運命の槍シュート", "低確率で防御補正を無視する決定力"),
+      p("flandre", "フラン", "FW", { shoot: 96, pass: 48, dribble: 72, tackle: 66, block: 54, keep: 18, speed: 72, guts: 110 }, "禁忌レーヴァテイン", "燃費は悪いが全技中トップ級の火力"),
+    ],
+  },
+  {
+    id: "youkai_mountain",
+    name: "妖怪山",
+    style: "高速連携型",
+    formation: "4-4-2",
+    members: [
+      p("suwako", "諏訪子", "GK", { shoot: 74, pass: 76, dribble: 82, tackle: 64, block: 70, keep: 86, speed: 74, guts: 128 }, "土着神キャッチ", "低弾道シュートに強い変則セーブ"),
+      p("momiji", "椛", "DF", { shoot: 58, pass: 68, dribble: 66, tackle: 86, block: 84, keep: 42, speed: 78, guts: 132 }, "千里眼カット", "相手パスの成功率を落とす守備技"),
+      p("hina", "雛", "DF", { shoot: 62, pass: 68, dribble: 64, tackle: 80, block: 84, keep: 40, speed: 70, guts: 128 }, "厄回しスピン", "回転で相手の流れを逸らす守備技"),
+      p("shizuha", "静葉", "DF", { shoot: 60, pass: 70, dribble: 62, tackle: 82, block: 80, keep: 38, speed: 68, guts: 124 }, "落葉ブロック", "秋葉で視界と進路を塞ぐ"),
+      p("medicine", "メディスン", "DF", { shoot: 64, pass: 60, dribble: 66, tackle: 78, block: 82, keep: 42, speed: 70, guts: 120 }, "毒霧フェンス", "近づく相手の判定を毒で削る"),
+      p("aya", "文", "MF", { shoot: 72, pass: 82, dribble: 88, tackle: 62, block: 52, keep: 22, speed: 96, guts: 126 }, "天狗風ドリブル", "距離を一気に詰める最速突破"),
+      p("nitori", "にとり", "MF", { shoot: 68, pass: 84, dribble: 74, tackle: 60, block: 64, keep: 30, speed: 70, guts: 118 }, "河童ギミックパス", "ランダム補正の振れ幅が大きいトリックパス"),
+      p("kogasa", "多々良小傘", "MF", { shoot: 70, pass: 72, dribble: 80, tackle: 64, block: 60, keep: 32, speed: 74, guts: 120 }, "オドロカシ突破", "驚かせで相手DFの判断を鈍らせる"),
+      p("yuuka", "風見幽香", "MF", { shoot: 82, pass: 74, dribble: 78, tackle: 76, block: 70, keep: 36, speed: 70, guts: 142 }, "マスタースパーク散布", "向日葵の畑で前線を制圧"),
+      p("kanako", "神奈子", "FW", { shoot: 86, pass: 70, dribble: 66, tackle: 82, block: 80, keep: 50, speed: 58, guts: 150 }, "御柱ロングシュート", "遠距離でも威力が落ちにくい"),
+      p("minoriko", "穣子", "FW", { shoot: 80, pass: 64, dribble: 74, tackle: 56, block: 50, keep: 24, speed: 76, guts: 118 }, "豊穣ボレー", "秋の実りで威力を膨らませる"),
+    ],
+  },
+  {
+    id: "eientei",
+    name: "永遠亭",
+    style: "妨害回復型",
+    formation: "4-4-2",
+    members: [
+      p("eirin", "永琳", "GK", { shoot: 64, pass: 88, dribble: 58, tackle: 62, block: 78, keep: 90, speed: 50, guts: 136 }, "月薬リカバー", "味方の霊力を戻す守護者"),
+      p("tei", "てゐ", "DF", { shoot: 58, pass: 72, dribble: 84, tackle: 76, block: 68, keep: 32, speed: 88, guts: 118 }, "幸運スティール", "低コストで番狂わせを起こす奪取"),
+      p("junko", "純狐", "DF", { shoot: 72, pass: 70, dribble: 68, tackle: 84, block: 80, keep: 38, speed: 66, guts: 132 }, "純化の盾", "怒りで研ぎ澄ます後方守備"),
+      p("ringo", "玉兎・烏丸", "DF", { shoot: 60, pass: 66, dribble: 72, tackle: 78, block: 76, keep: 36, speed: 78, guts: 120 }, "団子バリア", "兎の連携で穴を埋める"),
+      p("clownpiece", "クラウンピース", "DF", { shoot: 68, pass: 64, dribble: 78, tackle: 76, block: 72, keep: 34, speed: 80, guts: 122 }, "星条狂気", "守備中に相手の集中を奪う"),
+      p("kaguya", "輝夜", "MF", { shoot: 76, pass: 86, dribble: 70, tackle: 54, block: 66, keep: 36, speed: 52, guts: 138 }, "永夜の時間稼ぎ", "ターン消費を抑えつつ位置を整える"),
+      p("reisen", "鈴仙", "MF", { shoot: 78, pass: 76, dribble: 78, tackle: 70, block: 58, keep: 28, speed: 76, guts: 122 }, "狂気のフェイント", "相手守備を乱すドリブル技"),
+      p("ringo2", "鈴瑚", "MF", { shoot: 70, pass: 78, dribble: 72, tackle: 66, block: 60, keep: 32, speed: 74, guts: 120 }, "月の柏餅パス", "癒し系の安定したパス"),
+      p("seiran", "清蘭", "MF", { shoot: 74, pass: 72, dribble: 76, tackle: 68, block: 62, keep: 30, speed: 78, guts: 122 }, "うさみみショット", "兎の俊敏さで決定的なパスを通す"),
+      p("mokou", "妹紅", "FW", { shoot: 88, pass: 60, dribble: 76, tackle: 74, block: 66, keep: 24, speed: 76, guts: 150 }, "不死鳥ボレー", "失敗後もこぼれ球判定が強い"),
+      p("iku", "衣玖", "FW", { shoot: 84, pass: 68, dribble: 72, tackle: 60, block: 56, keep: 26, speed: 74, guts: 128 }, "雷雲シュート", "稲妻のような曲線弾"),
+    ],
+  },
+  {
+    id: "chireiden",
+    name: "地霊殿",
+    style: "読心火力型",
+    formation: "4-4-2",
+    members: [
+      p("yuugi", "勇儀", "GK", { shoot: 82, pass: 58, dribble: 60, tackle: 90, block: 92, keep: 84, speed: 52, guts: 155 }, "怪力パンチング", "弾くが失点しにくいパワーセーブ"),
+      p("parsee", "パルスィ", "DF", { shoot: 64, pass: 68, dribble: 70, tackle: 84, block: 80, keep: 38, speed: 68, guts: 128 }, "嫉妬の橋", "近づく相手の士気を削る守備技"),
+      p("yamame", "ヤマメ", "DF", { shoot: 62, pass: 66, dribble: 72, tackle: 82, block: 78, keep: 40, speed: 72, guts: 124 }, "土蜘蛛ネット", "蜘蛛糸で相手の足を絡める"),
+      p("kisume", "キスメ", "DF", { shoot: 58, pass: 60, dribble: 68, tackle: 80, block: 84, keep: 42, speed: 64, guts: 120 }, "釣瓶落とし", "上空からの圧で侵入を阻止"),
+      p("kuroni", "黒影の鬼", "DF", { shoot: 70, pass: 64, dribble: 70, tackle: 86, block: 82, keep: 38, speed: 70, guts: 134 }, "鬼影ブロック", "影の中から守る大型DF"),
+      p("satori", "さとり", "MF", { shoot: 68, pass: 88, dribble: 66, tackle: 74, block: 72, keep: 40, speed: 54, guts: 126 }, "読心パスカット", "相手の次手を読んで守備補正"),
+      p("orin", "お燐", "MF", { shoot: 72, pass: 76, dribble: 82, tackle: 68, block: 58, keep: 24, speed: 84, guts: 122 }, "火車スルーパス", "前線へ押し込む速攻パス"),
+      p("kasha", "火車隊員", "MF", { shoot: 70, pass: 72, dribble: 78, tackle: 70, block: 62, keep: 28, speed: 80, guts: 118 }, "業火ダッシュ", "横入りカウンターの先頭"),
+      p("jigoku", "地獄烏", "MF", { shoot: 78, pass: 70, dribble: 74, tackle: 64, block: 60, keep: 30, speed: 78, guts: 120 }, "業炎フィード", "高温のロングフィード"),
+      p("koishi", "こいし", "FW", { shoot: 82, pass: 62, dribble: 92, tackle: 58, block: 48, keep: 18, speed: 88, guts: 120 }, "無意識ドリブル", "マークをすり抜ける突破技"),
+      p("utsuho", "お空", "FW", { shoot: 98, pass: 44, dribble: 64, tackle: 70, block: 72, keep: 22, speed: 60, guts: 132 }, "核熱シュート", "最大火力だが霊力消費が重い"),
+    ],
+  },
+  {
+    id: "myouren",
+    name: "命蓮寺",
+    style: "支援守備型",
+    formation: "4-4-2",
+    members: [
+      p("murasa", "村紗", "GK", { shoot: 70, pass: 66, dribble: 64, tackle: 72, block: 80, keep: 88, speed: 62, guts: 128 }, "沈没アンカー", "相手シュートの速度を落とすGK技"),
+      p("ichirin", "一輪", "DF", { shoot: 68, pass: 60, dribble: 58, tackle: 86, block: 88, keep: 54, speed: 56, guts: 138 }, "雲山ブロック", "シュートブロックが強い壁役"),
+      p("unzan", "雲山", "DF", { shoot: 72, pass: 62, dribble: 60, tackle: 88, block: 90, keep: 50, speed: 52, guts: 142 }, "鉄拳の壁", "一輪と同期する重圧パンチング守備"),
+      p("mamizou", "マミゾウ", "DF", { shoot: 70, pass: 72, dribble: 74, tackle: 80, block: 78, keep: 42, speed: 70, guts: 134 }, "化け狸の影", "化身でDFラインを補強"),
+      p("myouon", "妙音", "DF", { shoot: 64, pass: 70, dribble: 66, tackle: 78, block: 80, keep: 40, speed: 66, guts: 122 }, "梵鐘ブロック", "鐘の響きで相手の集中を散らす"),
+      p("shou", "星", "MF", { shoot: 76, pass: 82, dribble: 70, tackle: 74, block: 76, keep: 38, speed: 68, guts: 134 }, "宝塔レーザーパス", "長距離パスの精度が高い"),
+      p("nazrin", "ナズーリン", "MF", { shoot: 58, pass: 80, dribble: 82, tackle: 72, block: 60, keep: 24, speed: 84, guts: 116 }, "ダウジングカット", "こぼれ球を拾いやすい"),
+      p("kyouko", "響子", "MF", { shoot: 74, pass: 74, dribble: 78, tackle: 68, block: 62, keep: 30, speed: 80, guts: 122 }, "山彦パス", "声で味方位置を補正するエコー技"),
+      p("nue", "封獣ぬえ", "MF", { shoot: 82, pass: 70, dribble: 82, tackle: 70, block: 64, keep: 32, speed: 78, guts: 128 }, "正体不明シュート", "弾道が読みにくいトリックシュート"),
+      p("byakuren", "聖", "FW", { shoot: 86, pass: 80, dribble: 74, tackle: 76, block: 74, keep: 44, speed: 72, guts: 145 }, "魔人経巻シュート", "万能型の高威力シュート"),
+      p("disciple", "寅丸星弟子", "FW", { shoot: 80, pass: 66, dribble: 76, tackle: 60, block: 54, keep: 22, speed: 78, guts: 120 }, "光輪シュート", "聖の指導で磨かれた弟子の決定力"),
+    ],
+  },
+  {
+    id: "shinreibyo",
+    name: "神霊廟",
+    style: "状態異常型",
+    formation: "4-4-2",
+    members: [
+      p("yoshika", "芳香", "GK", { shoot: 58, pass: 42, dribble: 48, tackle: 86, block: 90, keep: 82, speed: 36, guts: 160 }, "キョンシー壁", "低速だがしぶとい肉壁セーブ"),
+      p("seiga", "青娥", "DF", { shoot: 66, pass: 78, dribble: 80, tackle: 78, block: 70, keep: 36, speed: 72, guts: 118 }, "邪仙トラップ", "ドリブル相手を止めやすい"),
+      p("sogashadow", "蘇我影武者", "DF", { shoot: 64, pass: 68, dribble: 64, tackle: 84, block: 80, keep: 38, speed: 66, guts: 126 }, "影武者ブロック", "屠自古の影で防御を増強"),
+      p("mononobe", "物部従士", "DF", { shoot: 68, pass: 64, dribble: 66, tackle: 82, block: 80, keep: 40, speed: 68, guts: 128 }, "皿陣の構え", "布都の皿陣を継承する守備技"),
+      p("guardian", "神霊衛兵", "DF", { shoot: 70, pass: 62, dribble: 62, tackle: 86, block: 84, keep: 36, speed: 64, guts: 130 }, "廟堂ガード", "廟を守る古参の鉄壁"),
+      p("futo", "布都", "MF", { shoot: 74, pass: 78, dribble: 76, tackle: 72, block: 68, keep: 28, speed: 78, guts: 124 }, "皿回しパス", "守備方向をズラす曲線パス"),
+      p("tojiko", "屠自古", "MF", { shoot: 82, pass: 72, dribble: 70, tackle: 76, block: 66, keep: 30, speed: 70, guts: 120 }, "雷鳴ミドル", "中距離から強い感電シュート"),
+      p("futatsuiwa", "二岩荒神", "MF", { shoot: 76, pass: 74, dribble: 74, tackle: 70, block: 64, keep: 32, speed: 72, guts: 122 }, "二岩連携", "獣の感応で繋ぐ中盤パス"),
+      p("tsukuyomi", "月夜見使者", "MF", { shoot: 78, pass: 80, dribble: 72, tackle: 68, block: 62, keep: 34, speed: 70, guts: 120 }, "月読パス", "夜の精度で通すフィード"),
+      p("miko", "神子", "FW", { shoot: 88, pass: 82, dribble: 76, tackle: 68, block: 66, keep: 32, speed: 74, guts: 136 }, "十七条レーザー", "高精度のエースシュート"),
+      p("byoudou", "廟堂戦士", "FW", { shoot: 82, pass: 60, dribble: 74, tackle: 58, block: 54, keep: 22, speed: 76, guts: 122 }, "聖徳の槍", "神子直系の前線アタッカー"),
+    ],
+  },
+  {
+    id: "rebel_beast",
+    name: "反逆獣連合",
+    style: "変則奇襲型",
+    formation: "4-4-2",
+    members: [
+      p("mayumi", "磨弓", "GK", { shoot: 70, pass: 68, dribble: 62, tackle: 84, block: 88, keep: 86, speed: 62, guts: 140 }, "埴輪陣形セーブ", "組織守備で枠内シュートを止める"),
+      p("kagerou", "影狼", "DF", { shoot: 72, pass: 60, dribble: 78, tackle: 84, block: 76, keep: 40, speed: 82, guts: 130 }, "満月プレス", "近距離接触に強い守備"),
+      p("oniko", "鬼っ子", "DF", { shoot: 70, pass: 62, dribble: 68, tackle: 82, block: 80, keep: 38, speed: 72, guts: 132 }, "鬼火ガード", "鬼の血で覚醒する防壁"),
+      p("bakeneko", "化け猫頭目", "DF", { shoot: 68, pass: 66, dribble: 74, tackle: 80, block: 78, keep: 36, speed: 74, guts: 126 }, "猫又千鳥", "九尾の獣で多方向防御"),
+      p("kageyachie", "影八千慧", "DF", { shoot: 72, pass: 70, dribble: 70, tackle: 86, block: 82, keep: 40, speed: 68, guts: 138 }, "影武者の采配", "八千慧の影で守備を采配"),
+      p("seija", "正邪", "MF", { shoot: 72, pass: 76, dribble: 86, tackle: 72, block: 58, keep: 24, speed: 78, guts: 120 }, "リバースフェイント", "攻守補正を入れ替える変則技"),
+      p("yachie", "八千慧", "MF", { shoot: 80, pass: 84, dribble: 74, tackle: 76, block: 72, keep: 38, speed: 68, guts: 138 }, "組長の采配", "味方全体を底上げする指揮技"),
+      p("baketanuki", "化け狸", "MF", { shoot: 74, pass: 74, dribble: 78, tackle: 70, block: 64, keep: 30, speed: 76, guts: 124 }, "変身フェイク", "次の判定の予測を狂わせる"),
+      p("oniwaka", "鬼若", "MF", { shoot: 78, pass: 70, dribble: 72, tackle: 72, block: 66, keep: 32, speed: 74, guts: 130 }, "鬼若ラッシュ", "若鬼の俊敏なミドルレンジ攻撃"),
+      p("shinmyoumaru", "針妙丸", "FW", { shoot: 78, pass: 70, dribble: 88, tackle: 54, block: 46, keep: 18, speed: 86, guts: 112 }, "小槌トリックシュート", "サイズ差でGKのタイミングを外す"),
+      p("hangyakushi", "反逆獣戦士", "FW", { shoot: 86, pass: 60, dribble: 74, tackle: 58, block: 50, keep: 22, speed: 76, guts: 126 }, "反逆突撃", "獣連合最強の若手アタッカー"),
+    ],
+  },
+];
+
+const FORMATIONS = {
+  "4-4-2": {
+    GK: [{ x: 6, y: 50 }],
+    DF: [{ x: 18, y: 22 }, { x: 18, y: 42 }, { x: 18, y: 58 }, { x: 18, y: 78 }],
+    MF: [{ x: 36, y: 22 }, { x: 36, y: 42 }, { x: 36, y: 58 }, { x: 36, y: 78 }],
+    FW: [{ x: 54, y: 36 }, { x: 54, y: 64 }],
+  },
+  "4-3-3": {
+    GK: [{ x: 6, y: 50 }],
+    DF: [{ x: 18, y: 22 }, { x: 18, y: 42 }, { x: 18, y: 58 }, { x: 18, y: 78 }],
+    MF: [{ x: 36, y: 32 }, { x: 36, y: 50 }, { x: 36, y: 68 }],
+    FW: [{ x: 54, y: 26 }, { x: 54, y: 50 }, { x: 54, y: 74 }],
+  },
+  "3-5-2": {
+    GK: [{ x: 6, y: 50 }],
+    DF: [{ x: 18, y: 30 }, { x: 18, y: 50 }, { x: 18, y: 70 }],
+    MF: [{ x: 32, y: 18 }, { x: 32, y: 36 }, { x: 32, y: 54 }, { x: 32, y: 72 }, { x: 42, y: 50 }],
+    FW: [{ x: 54, y: 36 }, { x: 54, y: 64 }],
+  },
+};
+
+const TACTICS = {
+  normal:    { offset: 0,  label: "通常",       aiBias: { shoot: 1.0, pass: 1.0, dribble: 1.0, team: 1.0 } },
+  offensive: { offset: 7,  label: "攻撃的",     aiBias: { shoot: 1.35, pass: 1.0, dribble: 1.2, team: 0.7 } },
+  defensive: { offset: -7, label: "守備的",     aiBias: { shoot: 0.7, pass: 1.25, dribble: 0.8, team: 1.3 } },
+  counter:   { offset: -4, label: "カウンター", aiBias: { shoot: 1.4, pass: 0.95, dribble: 1.4, team: 0.5 } },
+};
+
+const state = {
+  screen: "setup",
+  homeTeamId: "hakurei",
+  awayTeamId: "kouma",
+  mode: "campaign",
+  campaign: null,
+  match: null,
+  battle: null,
+  cutin: null,
+  actionScene: null,
+  actionSceneTimer: null,
+  previousScreen: "setup",
+  progress: loadProgress(),
+  logs: [],
+  judge: null,
+  judgeTimer: null,
+  fieldShake: false,
+  fieldShakeTimer: null,
+  vsScreen: null,
+  vsScreenTimer: null,
+  passPicker: null,
+  interrupt: null,
+  gkChoice: null,
+  vnScene: null,
+  halftimeReport: false,
+  halftimeReportTimer: null,
+};
+
+const SAVE_KEY = "touhouSpellFutsalSaveV1";
+const MATCH_SAVE_KEY = "touhouSpellSoccerMatchV1";
+
+function saveMatch() {
+  if (!state.match || state.match.finished) return;
+  try {
+    window.localStorage.setItem(MATCH_SAVE_KEY, JSON.stringify({
+      match: state.match,
+      mode: state.mode,
+      campaign: state.campaign,
+      timestamp: Date.now(),
+    }));
+  } catch (_error) {}
+}
+
+function loadMatch() {
+  try {
+    const raw = window.localStorage.getItem(MATCH_SAVE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed.match || parsed.match.finished) return null;
+    return parsed;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function clearMatchSave() {
+  try { window.localStorage.removeItem(MATCH_SAVE_KEY); } catch (_error) {}
+}
+
+function resumeMatch(saved) {
+  state.match = saved.match;
+  state.mode = saved.mode || "campaign";
+  state.campaign = saved.campaign || null;
+  state.screen = "match";
+  audio.ensure();
+  audio.startMusic();
+  render();
+}
+const DIFFICULTY_REWARDS = {
+  easy: { label: "EASY制覇", spiritBonus: 4, message: "EASY報酬: 次回以降、自チーム全員の初期霊力+4。" },
+  normal: { label: "NORMAL制覇", spiritBonus: 8, message: "NORMAL報酬: 次回以降、自チーム全員の初期霊力+8。" },
+  hard: { label: "HARD制覇", spiritBonus: 12, message: "HARD報酬: 次回以降、自チーム全員の初期霊力+12。" },
+};
+
+function loadProgress() {
+  const fallback = {
+    unlockedTeams: ["hakurei"],
+    campaignClears: 0,
+    lastUnlocked: "hakurei",
+    audioMuted: false,
+    difficulty: "normal",
+    difficultyClears: { easy: false, normal: false, hard: false },
+    formation: "4-4-2",
+    tactic: "normal",
+    playerXp: {},
+  };
+  try {
+    const raw = window.localStorage.getItem("touhouSpellFutsalSaveV1");
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    const unlockedTeams = Array.isArray(parsed.unlockedTeams) && parsed.unlockedTeams.length
+      ? [...new Set(parsed.unlockedTeams)]
+      : fallback.unlockedTeams;
+    return {
+      unlockedTeams,
+      campaignClears: Number(parsed.campaignClears || 0),
+      lastUnlocked: parsed.lastUnlocked || unlockedTeams[unlockedTeams.length - 1],
+      audioMuted: Boolean(parsed.audioMuted),
+      difficulty: ["easy", "normal", "hard"].includes(parsed.difficulty) ? parsed.difficulty : "normal",
+      difficultyClears: {
+        easy: Boolean(parsed.difficultyClears && parsed.difficultyClears.easy),
+        normal: Boolean(parsed.difficultyClears && parsed.difficultyClears.normal),
+        hard: Boolean(parsed.difficultyClears && parsed.difficultyClears.hard),
+      },
+      formation: ["4-4-2", "4-3-3", "3-5-2"].includes(parsed.formation) ? parsed.formation : "4-4-2",
+      tactic: ["normal", "offensive", "defensive", "counter"].includes(parsed.tactic) ? parsed.tactic : "normal",
+      playerXp: (parsed.playerXp && typeof parsed.playerXp === "object") ? parsed.playerXp : {},
+    };
+  } catch (_error) {
+    return fallback;
+  }
+}
+
+function saveProgress() {
+  try {
+    window.localStorage.setItem(SAVE_KEY, JSON.stringify(state.progress));
+  } catch (_error) {
+    // The game remains playable if browser storage is unavailable.
+  }
+}
+
+function unlockTeam(teamId) {
+  if (!teamId || state.progress.unlockedTeams.includes(teamId)) return false;
+  state.progress.unlockedTeams.push(teamId);
+  state.progress.lastUnlocked = teamId;
+  saveProgress();
+  return true;
+}
+
+function resetProgress() {
+  state.progress = {
+    unlockedTeams: ["hakurei"],
+    campaignClears: 0,
+    lastUnlocked: "hakurei",
+    audioMuted: state.progress.audioMuted,
+    difficulty: state.progress.difficulty,
+    difficultyClears: { easy: false, normal: false, hard: false },
+  };
+  saveProgress();
+}
+
+const BGM_MELODIES = {
+  normal:  [392, 440, 523, 587, 523, 440, 392, 330],
+  defense: [294, 330, 349, 330, 294, 247, 220, 247],
+  intense: [523, 587, 659, 698, 659, 587, 523, 440],
+  result:  [523, 659, 784, 1046, 880, 698, 587, 523],
+};
+const BGM_TEMPO = { normal: 360, defense: 420, intense: 280, result: 320 };
+
+const audio = {
+  ctx: null,
+  musicTimer: null,
+  step: 0,
+  currentBgm: null,
+  ensure() {
+    if (state.progress.audioMuted) return null;
+    if (!this.ctx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return null;
+      this.ctx = new AudioContext();
+    }
+    if (this.ctx.state === "suspended") this.ctx.resume();
+    return this.ctx;
+  },
+  tone(freq, duration = 0.08, type = "square", gain = 0.035, when = 0) {
+    const ctx = this.ensure();
+    if (!ctx || state.progress.audioMuted) return;
+    const osc = ctx.createOscillator();
+    const amp = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime + when);
+    amp.gain.setValueAtTime(0.0001, ctx.currentTime + when);
+    amp.gain.exponentialRampToValueAtTime(gain, ctx.currentTime + when + 0.01);
+    amp.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + when + duration);
+    osc.connect(amp).connect(ctx.destination);
+    osc.start(ctx.currentTime + when);
+    osc.stop(ctx.currentTime + when + duration + 0.02);
+  },
+  noise(duration = 0.08, gain = 0.025) {
+    const ctx = this.ensure();
+    if (!ctx || state.progress.audioMuted) return;
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
+    const source = ctx.createBufferSource();
+    const amp = ctx.createGain();
+    amp.gain.setValueAtTime(gain, ctx.currentTime);
+    amp.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+    source.buffer = buffer;
+    source.connect(amp).connect(ctx.destination);
+    source.start();
+  },
+  play(name) {
+    if (state.progress.audioMuted) return;
+    if (name === "select") this.tone(660, 0.05, "triangle", 0.025);
+    if (name === "battle") {
+      this.tone(220, 0.06, "square", 0.03);
+      this.tone(330, 0.08, "square", 0.025, 0.055);
+    }
+    if (name === "spell") {
+      this.tone(440, 0.08, "sawtooth", 0.035);
+      this.tone(660, 0.1, "sawtooth", 0.035, 0.08);
+      this.tone(990, 0.14, "triangle", 0.03, 0.18);
+    }
+    if (name === "goal") {
+      [523, 659, 784, 1046].forEach((freq, index) => this.tone(freq, 0.11, "triangle", 0.04, index * 0.08));
+    }
+    if (name === "save") {
+      this.tone(784, 0.07, "triangle", 0.025);
+      this.tone(1175, 0.09, "triangle", 0.025, 0.08);
+    }
+    if (name === "result") this.tone(392, 0.18, "triangle", 0.03);
+    if (name === "error") this.tone(140, 0.12, "sawtooth", 0.025);
+    if (name === "kick") this.noise(0.06, 0.02);
+    if (name === "pass-success") {
+      this.tone(660, 0.05, "triangle", 0.025);
+      this.tone(990, 0.07, "triangle", 0.025, 0.05);
+    }
+    if (name === "intercept") {
+      this.tone(140, 0.08, "sawtooth", 0.025);
+      this.noise(0.04, 0.015);
+    }
+    if (name === "encounter") {
+      [880, 1100, 1320].forEach((f, i) => this.tone(f, 0.04, "square", 0.018, i * 0.05));
+    }
+    if (name === "whistle") {
+      this.tone(2200, 0.16, "triangle", 0.025);
+    }
+    if (name === "ovation") {
+      this.noise(0.4, 0.012);
+      this.tone(440, 0.18, "sine", 0.015, 0.05);
+      this.tone(550, 0.22, "sine", 0.012, 0.18);
+    }
+    if (name === "dribble-break") {
+      this.tone(520, 0.04, "square", 0.022);
+      this.tone(780, 0.05, "square", 0.022, 0.04);
+    }
+    if (name === "tackle") {
+      this.noise(0.05, 0.025);
+      this.tone(180, 0.06, "sawtooth", 0.025, 0.02);
+    }
+    if (name === "page-turn") {
+      this.tone(880, 0.02, "triangle", 0.018);
+      this.tone(1320, 0.025, "triangle", 0.012, 0.02);
+    }
+  },
+  playBgm(name) {
+    if (state.progress.audioMuted) return;
+    this.stopMusic();
+    const melody = BGM_MELODIES[name] || BGM_MELODIES.normal;
+    const tempo = BGM_TEMPO[name] || 360;
+    this.currentBgm = name;
+    this.step = 0;
+    this.musicTimer = window.setInterval(() => {
+      if (state.progress.audioMuted) return;
+      const freq = melody[this.step % melody.length];
+      this.tone(freq, 0.11, "triangle", 0.012);
+      if (this.step % 2 === 0) this.tone(freq / 2, 0.14, "sine", 0.01);
+      this.step += 1;
+    }, tempo);
+  },
+  startMusic() {
+    if (state.progress.audioMuted || this.musicTimer) return;
+    this.playBgm("normal");
+  },
+  stopMusic() {
+    if (this.musicTimer) window.clearInterval(this.musicTimer);
+    this.musicTimer = null;
+    this.currentBgm = null;
+  },
+  setMuted(muted) {
+    state.progress.audioMuted = muted;
+    saveProgress();
+    if (muted) this.stopMusic();
+    else {
+      this.play("select");
+      if (state.screen === "match") this.startMusic();
+    }
+  },
+};
+
+const AVAILABLE_PORTRAITS = new Set([
+  "aya",
+  "bakeneko",
+  "baketanuki",
+  "byakuren",
+  "byoudou",
+  "cirno",
+  "clownpiece",
+  "daiyousei",
+  "disciple",
+  "eirin",
+  "flandre",
+  "futatsuiwa",
+  "futo",
+  "guardian",
+  "hangyakushi",
+  "hecatia",
+  "hina",
+  "ichirin",
+  "iku",
+  "jigoku",
+  "junko",
+  "kagerou",
+  "kageyachie",
+  "kaguya",
+  "kanako",
+  "kasen",
+  "kasha",
+  "kisume",
+  "koakuma",
+  "kogasa",
+  "koishi",
+  "kuroni",
+  "kyouko",
+  "lily",
+  "lunasa",
+  "lyrica",
+  "mamizou",
+  "marisa",
+  "mayumi",
+  "medicine",
+  "meiling",
+  "merlin",
+  "miko",
+  "minoriko",
+  "mokou",
+  "momiji",
+  "mononobe",
+  "murasa",
+  "myouon",
+  "nazrin",
+  "nitori",
+  "nue",
+  "oniko",
+  "oniwaka",
+  "orin",
+  "parsee",
+  "patchouli",
+  "reimu",
+  "reisen",
+  "remilia",
+  "ringo",
+  "ringo2",
+  "rumia",
+  "sakuya",
+  "sanae",
+  "satori",
+  "seiga",
+  "seija",
+  "seiran",
+  "shinmyoumaru",
+  "shizuha",
+  "shou",
+  "sogashadow",
+  "suika",
+  "suwako",
+  "tei",
+  "tojiko",
+  "tokiko",
+  "tsukuyomi",
+  "unzan",
+  "utsuho",
+  "wriggle",
+  "yachie",
+  "yamame",
+  "yoshika",
+  "youmu",
+  "yuugi",
+  "yuuka",
+]);
+
+const AVAILABLE_CUTINS = new Set([
+  "aya",
+  "bakeneko",
+  "baketanuki",
+  "byakuren",
+  "byoudou",
+  "cirno",
+  "clownpiece",
+  "daiyousei",
+  "disciple",
+  "eirin",
+  "flandre",
+  "futatsuiwa",
+  "futo",
+  "guardian",
+  "hangyakushi",
+  "hecatia",
+  "hina",
+  "ichirin",
+  "iku",
+  "jigoku",
+  "junko",
+  "kagerou",
+  "kageyachie",
+  "kaguya",
+  "kanako",
+  "kasen",
+  "kasha",
+  "kisume",
+  "koakuma",
+  "kogasa",
+  "koishi",
+  "kuroni",
+  "kyouko",
+  "lily",
+  "lunasa",
+  "lyrica",
+  "mamizou",
+  "marisa",
+  "mayumi",
+  "medicine",
+  "meiling",
+  "merlin",
+  "miko",
+  "minoriko",
+  "mokou",
+  "momiji",
+  "mononobe",
+  "murasa",
+  "myouon",
+  "nazrin",
+  "nitori",
+  "nue",
+  "oniko",
+  "oniwaka",
+  "orin",
+  "parsee",
+  "patchouli",
+  "reimu",
+  "reisen",
+  "remilia",
+  "ringo",
+  "ringo2",
+  "rumia",
+  "sakuya",
+  "sanae",
+  "satori",
+  "seiga",
+  "seija",
+  "seiran",
+  "shinmyoumaru",
+  "shizuha",
+  "shou",
+  "sogashadow",
+  "suika",
+  "suwako",
+  "tei",
+  "tojiko",
+  "tokiko",
+  "tsukuyomi",
+  "unzan",
+  "utsuho",
+  "wriggle",
+  "yachie",
+  "yamame",
+  "yoshika",
+  "youmu",
+  "yuugi",
+  "yuuka",
+]);
+
+const RESULT_DIALOGUES = {
+  hakurei: {
+    speaker: "reimu",
+    win: "よし、異変解決に一歩前進ね。この調子で全部勝つわ。",
+    lose: "まだ終わりじゃないわ。次は守り方を変える。",
+    draw: "決着は持ち越しね。もう一試合やるわよ。",
+  },
+  kouma: {
+    speaker: "remilia",
+    win: "運命は最初からこちらに傾いていたのよ。",
+    lose: "面白いじゃない。紅魔館を本気にさせたわね。",
+    draw: "引き分けなんて退屈ね。次は決着をつけるわ。",
+  },
+  youkai_mountain: {
+    speaker: "aya",
+    win: "今の突破、号外にできますね。風向きは完全にこちらです。",
+    lose: "記事にはしません。再戦で上書きしますから。",
+    draw: "いい試合でした。けど見出しには勝利が必要です。",
+  },
+  eientei: {
+    speaker: "kaguya",
+    win: "永い夜の中では、焦った方から崩れるのよ。",
+    lose: "少し遊びすぎたわね。次は月の策でいくわ。",
+    draw: "退屈しない勝負ね。もう少し続けましょう。",
+  },
+  chireiden: {
+    speaker: "satori",
+    win: "次に何をするか、全部読めていました。",
+    lose: "読めても止められない力がありますね。",
+    draw: "心の揺れがそのままスコアに出ました。",
+  },
+  myouren: {
+    speaker: "byakuren",
+    win: "力だけではなく、信じる連携が勝利を呼びました。",
+    lose: "敗北も修行です。次は迷いなく踏み込みます。",
+    draw: "互いに譲らぬ良い試合でした。",
+  },
+  shinreibyo: {
+    speaker: "miko",
+    win: "人の声もボールの流れも、私には聞こえています。",
+    lose: "この敗北、次の布石として受け取りましょう。",
+    draw: "まだ天命は結論を出していないようですね。",
+  },
+  rebel_beast: {
+    speaker: "shinmyoumaru",
+    win: "小さくても勝てるって、これで証明できたでしょ。",
+    lose: "くやしい。でも反逆はここからだよ。",
+    draw: "引き分けなら、まだひっくり返せるってことだね。",
+  },
+};
+
+const PRE_MATCH_DIALOGUES = {
+  kouma: {
+    speaker: "remilia",
+    message: "夜の芝に出るなんて悪くないわ。博麗の巫女、運命ごと蹴り返してあげる。",
+  },
+  youkai_mountain: {
+    speaker: "aya",
+    message: "天狗の取材対象として最高ですね。勝敗まで含めて一面にします。",
+  },
+  eientei: {
+    speaker: "kaguya",
+    message: "焦るほど足元が乱れるわ。永い夜のペースについてこられるかしら。",
+  },
+  chireiden: {
+    speaker: "satori",
+    message: "作戦はもう読めています。あとはボールが心の通りに動くかどうかです。",
+  },
+  myouren: {
+    speaker: "byakuren",
+    message: "勝負は修行、連携は信仰。正々堂々、最後まで走りましょう。",
+  },
+  shinreibyo: {
+    speaker: "miko",
+    message: "歓声も迷いも聞こえています。この試合の流れ、私が導きます。",
+  },
+  rebel_beast: {
+    speaker: "shinmyoumaru",
+    message: "大きいチームだけが勝つなんて決まり、ひっくり返してみせるよ。",
+  },
+};
+
+function p(id, name, role, stats, spell, spellText) {
+  return { id, name, role, stats, spell, spellText };
+}
+
+const STORY_OPENING = [
+  { speaker: "reimu",   text: "また異変ね。「幻想郷フットボール協会」だって？聞いたこともない団体が、賞金付きの大会を勝手に開いてる。胡散臭いったらない。", cast: ["reimu", "marisa"] },
+  { speaker: "marisa",  text: "胡散臭いから面白いんじゃないか。賞金は祠の修繕費、私のキノコ採取資金、お賽銭箱の補強……山分けでいいよな霊夢？", cast: ["reimu", "marisa"] },
+  { speaker: "reimu",   text: "山分けじゃなくて全部神社の金庫よ。ともかく、相手は紅魔館、永遠亭、命蓮寺、神霊廟……どれも一筋縄じゃいかない連中ばかり。", cast: ["reimu", "marisa", "sanae"] },
+  { speaker: "sanae",   text: "外の世界では11対11、90分。私たちは霊力で30ターン制にアレンジしました。守矢一同、必勝の祝詞を上げてきます！", cast: ["sanae", "kanako", "suwako"] },
+  { speaker: "youmu",   text: "幽々子様より「優勝旗は美味しそうだから持ち帰ってきて」とのご命令を承りました。半霊と二人分、ご期待に応えます。", cast: ["youmu", "reimu"] },
+  { speaker: "suika",   text: "DFラインは鬼の私に任せろ。萃集無能力で相手を集めて、ぜんぶまとめて吹き飛ばすからな。お酒も忘れずに……。", cast: ["suika", "youmu", "reimu"] },
+  { speaker: "reimu",   text: "幻想郷トーナメント、博麗神社一同で挑む。覚悟しなさい、相手チームたち。", cast: ["reimu", "marisa", "sanae", "youmu", "suika"] },
+];
+
+const STORY_PRE = {
+  kouma: [
+    { speaker: "remilia",   text: "夜の芝に出てくるなんて運命の悪戯ね、博麗の巫女。紅霧異変で私を退治した借りは、ここで返してもらうわ。", cast: ["remilia", "sakuya", "flandre", "patchouli"] },
+    { speaker: "sakuya",    text: "時を止められない試合は不慣れですが、お嬢様のために完璧なメイドが完璧な司令塔を演じます。", cast: ["sakuya", "remilia"] },
+    { speaker: "patchouli", text: "魔理沙……無断借用された蔵書全72冊、そろそろ返すか、シュート1本ごとに利息を払いなさい。", cast: ["patchouli", "marisa"] },
+    { speaker: "marisa",    text: "図書館の本？まあ……研究中だぜ。利息は試合で払ってやる。マスタースパーク、避けるなよ？", cast: ["marisa", "patchouli"] },
+    { speaker: "flandre",   text: "お姉さま、観客席の壊し方は知ってる？4枚の羽根、ピッチの上で全開にしていい？", cast: ["flandre", "remilia"] },
+    { speaker: "reimu",     text: "1回戦から紅魔館とはツイてない。でも吸血鬼相手なら、ただ太陽が出るまで耐えればいい。30ターン押し切る。", cast: ["reimu", "marisa", "suika"] },
+  ],
+  youkai_mountain: [
+    { speaker: "aya",     text: "文々。新聞 号外！『博麗チーム、紅魔館撃破！次なる獲物は妖怪山か』──見出しはこれで決まりですね。", cast: ["aya", "momiji", "nitori"] },
+    { speaker: "kanako",  text: "守矢の名にかけて、神奈子は御柱ロングシュートで天を裂く。早苗、見ているか？母なる神の本気を。", cast: ["kanako", "sanae", "suwako"] },
+    { speaker: "sanae",   text: "神奈子様……守矢の御柱と博麗の御幣、どちらが強いか今日決めましょう。子孫として恥ずかしくない戦いをします。", cast: ["sanae", "kanako"] },
+    { speaker: "suwako",  text: "ケロちゃん、土着神は柔軟だから何でもありね。GKでもFWでもこなしてみせるよ。", cast: ["suwako", "kanako"] },
+    { speaker: "momiji",  text: "白狼天狗の千里眼カット、絶対に外しません。文先輩、私が後ろは固めますから。", cast: ["momiji", "aya"] },
+    { speaker: "marisa",  text: "風読みの天狗か。マスタースパークは光速だ。読まれる前に撃ち抜くだけだぜ。", cast: ["marisa", "aya"] },
+  ],
+  eientei: [
+    { speaker: "kaguya",  text: "永い夜の中では、焦った方から崩れるのよ。蓬莱の薬を一千年飲み続けた私の前で、巫女ごときが息切れせずにいられて？", cast: ["kaguya", "eirin", "reisen"] },
+    { speaker: "eirin",   text: "1300年前、私が妹紅にも飲ませた薬。その因縁の試合を、今宵もう一度。妹紅、君も覚悟はあるね？", cast: ["eirin", "mokou", "kaguya"] },
+    { speaker: "mokou",   text: "永琳……お前を恨むのは1000年ほど前にやめた。輝夜、お前への恨みも忘れた。だがフィールドの上では遠慮しない。私の不死鳥ボレーで決める。", cast: ["mokou", "kaguya", "eirin"] },
+    { speaker: "reisen",  text: "狂気のフェイントで、皆さまの目を狂わせます。月の兎、敗北は知りません。", cast: ["reisen", "tei"] },
+    { speaker: "youmu",   text: "幽々子様のお友達である輝夜様……失礼ながら、楼観剣の切れ味は変わりません。半霊で月の夜を断ち切ります。", cast: ["youmu", "kaguya"] },
+    { speaker: "sanae",   text: "奇跡のスルーパス、永遠の夜を切り裂けるかは私たちの団結次第です！", cast: ["sanae", "youmu", "reimu"] },
+  ],
+  chireiden: [
+    { speaker: "satori",  text: "全員の作戦、もう読めています。霊夢、貴女の最初のコマンドが見える……ふふ、わかってしまえば怖くないでしょう？", cast: ["satori", "koishi", "orin", "utsuho"] },
+    { speaker: "koishi",  text: "お姉様、私は心を閉じてるから読めないわよ。無意識ドリブルでマーカーすり抜けて、ふらっとゴール決めるだけ。", cast: ["koishi", "satori"] },
+    { speaker: "utsuho",  text: "神奈子様にもらった八咫烏の力で、核熱シュートを撃つわ。芝が燃えても気にしないでね。", cast: ["utsuho", "orin"] },
+    { speaker: "yuugi",   text: "萃香、また会えたな！四天王の鬼同士、フィールドでも力比べだ！怪力パンチング、もちろん耐えてくれよな！", cast: ["yuugi", "suika"] },
+    { speaker: "suika",   text: "勇儀！！長いこと地下でくすぶってないで、今日は鬼神同士で本気の角ぶつけ合おうぜ。萃集無能力、解禁だ。", cast: ["suika", "yuugi"] },
+    { speaker: "youmu",   text: "半霊は心を持たない。さとり様が読めるのは私の生身だけ。半身に任せれば、思考も気持ちも空欄のまま勝負できます。", cast: ["youmu", "satori"] },
+  ],
+  myouren: [
+    { speaker: "byakuren",  text: "勝負は修行、連携は信仰。仏の道に背くことなく、命蓮寺一同、全力で挑みます。早苗、神道側との因縁、今日決着しましょう。", cast: ["byakuren", "shou", "ichirin", "murasa", "nazrin"] },
+    { speaker: "sanae",     text: "聖さん、神道と仏教の代理戦争にする気はありませんが……守矢の血脈、ここで負けるわけにはいきません！", cast: ["sanae", "byakuren"] },
+    { speaker: "shou",      text: "毘沙門天の眷属として、宝塔レーザーパスで聖さまの道を開きます。ナズーリン、ダウジングで的確に。", cast: ["shou", "nazrin", "byakuren"] },
+    { speaker: "ichirin",   text: "雲山、信じてるよ。あなたの鉄拳ブロック、何本でも止めて。", cast: ["ichirin", "unzan"] },
+    { speaker: "murasa",    text: "沈没アンカーで全シュートを海の底に沈める。妖夢、私は船幽霊、亡霊同士、礼儀正しく勝負しよう。", cast: ["murasa", "youmu"] },
+    { speaker: "marisa",    text: "聖はマジで強い。封印されてた千年妖怪だぜ。準決勝にふさわしい相手だな、霊夢！", cast: ["marisa", "reimu"] },
+  ],
+  shinreibyo: [
+    { speaker: "miko",      text: "聖徳道士、豊聡耳神子。十七条の条文ごとに、十七人分の声を聞き分ける耳で、貴女方の作戦も全て見抜く。", cast: ["miko", "futo", "tojiko", "seiga"] },
+    { speaker: "futo",      text: "蘇我のあやつらにこの皿陣を破られて以来、何百年。今日は物部一族の名誉をかけて、屠自古めを抑えながら勝つ。", cast: ["futo", "miko"] },
+    { speaker: "tojiko",    text: "布都……お前と組まされるのは1400年経っても気が進まんがな。雷鳴ミドル、お前の頭上をかすめて飛ばすぞ。", cast: ["tojiko", "futo"] },
+    { speaker: "seiga",     text: "邪仙トラップで、ドリブルしてくる相手の足を地面に縫い付けてあげる。芳香、後ろは任せたわよ。", cast: ["seiga", "yoshika"] },
+    { speaker: "byakuren",  text: "(観戦中) 太子……仏教を排した道教者として、千年越しの遺恨があるが……今は応援する側ではない。霊夢、頼んだ。", cast: ["byakuren", "miko"] },
+    { speaker: "reimu",     text: "十七条のレーザー、当たれば終わり。早苗、サナエ・スルーパスで先手必勝。一気に決める。", cast: ["reimu", "sanae", "suika", "marisa"] },
+  ],
+  rebel_beast: [
+    { speaker: "shinmyoumaru", text: "決勝の舞台に小さい私が立ってる。ひっくり返ってるでしょ？それが反逆獣連合よ。輝針城の主の意地、見せてあげる。", cast: ["shinmyoumaru", "seija", "yachie", "kagerou"] },
+    { speaker: "seija",        text: "「常識を破る天邪鬼」、ここで博麗の巫女を倒すのが私の悲願よ。リバースフェイントで攻守逆転、楽しみだわ。", cast: ["seija", "shinmyoumaru"] },
+    { speaker: "yachie",       text: "獣の道に従う者として、組長の采配で全員が動く。霊夢、退治屋として歴代の獣たちを倒してきた貴女、覚悟は？", cast: ["yachie", "kagerou", "shinmyoumaru"] },
+    { speaker: "kagerou",      text: "椛、お前は白狼天狗で、私は妖狼……月が満ちる夜、結局狼は走る。満月プレスで止めてみせる。", cast: ["kagerou", "yachie"] },
+    { speaker: "mayumi",       text: "埴輪兵団の名にかけて、決勝戦の枠内シュートはひとつも入れさせません。", cast: ["mayumi", "shinmyoumaru"] },
+    { speaker: "marisa",       text: "輝針城の異変からずっと待ってたぜ。あの小槌、また見られるとはな。", cast: ["marisa", "shinmyoumaru"] },
+    { speaker: "reimu",        text: "ここまで来た。決勝戦。博麗神社が幻想郷を代表する。負けるわけにはいかない。", cast: ["reimu", "marisa", "sanae", "youmu", "suika"] },
+  ],
+};
+
+const STORY_WIN = {
+  kouma: [
+    { speaker: "remilia",   text: "面白いじゃない。1回戦で散る紅魔館は紅魔館じゃないけれど……運命を打ち返した巫女、認めてあげる。", cast: ["remilia", "flandre", "sakuya"] },
+    { speaker: "patchouli", text: "(本を渡しながら) 魔理沙、利息分の本、今日返してくれた。次は新しい呪文書を貸してあげる。但しシュート1本につき1ページよ。", cast: ["patchouli", "marisa"] },
+    { speaker: "flandre",   text: "お姉さま、また外で遊ばせてね。今度はゴルフがいいかな……ボール壊しちゃうかも。", cast: ["flandre", "remilia"] },
+    { speaker: "marisa",    text: "夜より先に決まる勝負はないって聞いてたぜ。次は妖怪山だ。", cast: ["marisa", "reimu"] },
+  ],
+  youkai_mountain: [
+    { speaker: "kanako",  text: "御柱は折れた。だが守矢は再建する。早苗、母の負けを糧にもっと強くなりなさい。", cast: ["kanako", "sanae", "suwako"] },
+    { speaker: "sanae",   text: "神奈子様……勝てました。守矢の血、博麗神社で恥じない働きができた、と思います。", cast: ["sanae", "kanako"] },
+    { speaker: "aya",     text: "号外！博麗チーム快進撃中、優勝候補に躍り出る、と書きましょう。文々。新聞、博麗チームの応援に転向です。", cast: ["aya", "marisa"] },
+    { speaker: "reimu",   text: "風読みも結局は走るしかなかった。永遠亭、次に来なさい。", cast: ["reimu", "sanae"] },
+  ],
+  eientei: [
+    { speaker: "kaguya",  text: "少し遊びすぎたわね。月の策でなく、地上の意地に押し切られたわ。蓬莱の薬の名折れね、永琳。", cast: ["kaguya", "eirin"] },
+    { speaker: "mokou",   text: "輝夜……負けたが、お前と肩を並べて戦ったのは妙な気分だった。1000年の恨みは……まあ、もう少し預ける。", cast: ["mokou", "kaguya"] },
+    { speaker: "eirin",   text: "妹紅、お前を不老不死にした罪滅ぼしに、薬学を授けようか。月の薬じゃない、地の薬を。", cast: ["eirin", "mokou"] },
+    { speaker: "sanae",   text: "奇跡を信じる勝負、私たちが上でした。次は地霊殿……心を読まれます。", cast: ["sanae", "youmu", "reimu"] },
+  ],
+  chireiden: [
+    { speaker: "satori",  text: "読めても、止められない力がありますね。完敗です。心を持つということ、力でもあると今日学びました。", cast: ["satori", "koishi"] },
+    { speaker: "yuugi",   text: "萃香！いい試合だった！次は地下で一杯やろう！萃集無能力もパンチングも、酒のつまみだったな！", cast: ["yuugi", "suika"] },
+    { speaker: "utsuho",  text: "(神奈子に向かって) おかーさまから貰った力、ぜんぶ使ったのに負けちゃった……ごめんなさい。", cast: ["utsuho", "kanako", "satori"] },
+    { speaker: "youmu",   text: "半霊は心を持たないと言ったが、皆の心が私を勝たせてくれた。半身に礼を言うべきは、こちら側だな。", cast: ["youmu", "reimu"] },
+  ],
+  myouren: [
+    { speaker: "byakuren",  text: "敗北も修行。次に向けて、命蓮寺で皆を鍛え直しましょう。早苗、神道側の勝利、今日は素直に祝福します。", cast: ["byakuren", "shou", "sanae"] },
+    { speaker: "shou",      text: "(ナズーリンに) 毘沙門天の眷属としても、敗北の重みを受け止めねば。命蓮寺、来年こそ。", cast: ["shou", "nazrin"] },
+    { speaker: "ichirin",   text: "雲山、ありがとう。あなたの拳は最後まで止まらなかった。", cast: ["ichirin", "unzan"] },
+    { speaker: "marisa",    text: "聖を倒した！残り神霊廟と反逆獣連合だぜ霊夢！", cast: ["marisa", "reimu", "suika"] },
+  ],
+  shinreibyo: [
+    { speaker: "miko",   text: "この敗北、次の布石として受け取りましょう。十七条憲法、いずれサッカーにも条文を追加します。", cast: ["miko", "futo", "tojiko"] },
+    { speaker: "futo",   text: "屠自古め、お前の雷鳴で皿陣が崩れた瞬間、まあ……協力したな。一度だけ礼を言うぞ、千四百年ぶりに。", cast: ["futo", "tojiko"] },
+    { speaker: "tojiko", text: "(布都に) フ、ン。1400年ぶりの礼で気が抜けるとは、お前らしくないな布都。次は逆に私が敗ける番、ということだ。", cast: ["tojiko", "futo"] },
+    { speaker: "suika",  text: "決勝に手が届いた！反逆獣、ぶっ飛ばすぞ霊夢！萃集無能力も全開だ！", cast: ["suika", "reimu", "marisa"] },
+  ],
+  rebel_beast: [
+    { speaker: "shinmyoumaru", text: "くやしい……でも反逆はここからだよ。小さくても次は勝つ。覚えてなさい博麗の巫女！", cast: ["shinmyoumaru", "seija"] },
+    { speaker: "seija",        text: "天邪鬼として『今日は負ける』と言うのが本来の私……ふん、敗北の天邪鬼、舐めるな。", cast: ["seija", "shinmyoumaru"] },
+    { speaker: "yachie",       text: "組長として一礼。博麗神社、幻想郷の頂、お見事。獣連合、貴女方を認める。", cast: ["yachie", "shinmyoumaru", "kagerou"] },
+    { speaker: "kagerou",      text: "(椛に向かって) 椛、白い狼と灰色の狼、結局は同じ月を見上げてるな。次は満月の夜に勝負だ。", cast: ["kagerou", "momiji"] },
+  ],
+};
+
+const STORY_ENDING = [
+  { speaker: "reimu",    text: "幻想郷トーナメント、優勝。賞金で本殿の屋根が直せそうね。", cast: ["reimu", "marisa", "sanae"] },
+  { speaker: "marisa",   text: "マスタースパーク何発撃ったかもう数えてないぜ。最高のサッカーだった。", cast: ["marisa", "youmu", "suika"] },
+  { speaker: "sanae",    text: "守矢の名にもかけて、外の世界の競技を持ち込んだ意義、ありました！", cast: ["sanae", "kanako", "suwako"] },
+  { speaker: "remilia",  text: "私たちも次は本気の本気を見せるわ。覚悟しておきなさい。", cast: ["remilia", "sakuya", "flandre", "patchouli"] },
+  { speaker: "byakuren", text: "敗北を経て、次の修行が始まる。命蓮寺、再起します。", cast: ["byakuren", "shou", "ichirin", "murasa"] },
+  { speaker: "miko",     text: "天命に逆らえぬが、次回大会では十七条の真の意味を見せよう。", cast: ["miko", "futo", "tojiko"] },
+  { speaker: "shinmyoumaru", text: "今日の敗北は、明日の反逆だよ。覚えてなさい博麗の巫女！", cast: ["shinmyoumaru", "seija", "yachie", "kagerou"] },
+  { speaker: "reimu",    text: "全員、また異変があれば呼んでね。今度は別の競技で。次回作にご期待ください。", cast: ["reimu", "marisa", "sanae", "youmu", "suika"] },
+  { speaker: "marisa",   text: "  ─── 完 ─── 幻想郷フットボール協会 公認 / 制作: 博麗神社 / 開発: Claude × Stayg", cast: ["reimu", "marisa", "sanae", "youmu", "suika", "suwako", "kanako", "byakuren"] },
+];
+
+
+function mirrorSlot(slot) {
+  return { x: 100 - slot.x, y: slot.y };
+}
+
+function formationSlots(formation, side) {
+  const base = FORMATIONS[formation] || FORMATIONS["4-4-2"];
+  const mirror = side === "away";
+  const tactic = side === "home" ? TACTICS[(state.progress && state.progress.tactic) || "normal"] : TACTICS.normal;
+  const offset = tactic.offset;
+  const shiftX = (s, isGk) => ({ x: isGk ? s.x : clamp(s.x + offset, 8, 58), y: s.y });
+  return {
+    GK: base.GK.map((s) => (mirror ? mirrorSlot(shiftX(s, true)) : shiftX(s, true))),
+    DF: base.DF.map((s) => (mirror ? mirrorSlot(shiftX(s, false)) : shiftX(s, false))),
+    MF: base.MF.map((s) => (mirror ? mirrorSlot(shiftX(s, false)) : shiftX(s, false))),
+    FW: base.FW.map((s) => (mirror ? mirrorSlot(shiftX(s, false)) : shiftX(s, false))),
+  };
+}
+
+function redistributeForFormation(members, formationKey) {
+  const formation = FORMATIONS[formationKey] || FORMATIONS["4-4-2"];
+  const required = { GK: formation.GK.length, DF: formation.DF.length, MF: formation.MF.length, FW: formation.FW.length };
+  const buckets = {
+    GK: members.filter((m) => m.role === "GK"),
+    DF: members.filter((m) => m.role === "DF"),
+    MF: members.filter((m) => m.role === "MF"),
+    FW: members.filter((m) => m.role === "FW"),
+  };
+  function promote(from, to, key) {
+    while (buckets[from].length > required[from] && buckets[to].length < required[to]) {
+      buckets[from].sort((a, b) => b.stats[key] - a.stats[key]);
+      const promoted = buckets[from].shift();
+      buckets[to].push({ ...promoted, role: to, originalRole: promoted.originalRole || promoted.role });
+    }
+  }
+  function demote(from, to, key) {
+    while (buckets[from].length > required[from] && buckets[to].length < required[to]) {
+      buckets[from].sort((a, b) => a.stats[key] - b.stats[key]);
+      const demoted = buckets[from].shift();
+      buckets[to].push({ ...demoted, role: to, originalRole: demoted.originalRole || demoted.role });
+    }
+  }
+  // 4-3-3 needs 3 MF + 3 FW (vs 4 MF + 2 FW): promote 1 MF→FW by shoot
+  promote("MF", "FW", "shoot");
+  // 3-5-2 needs 3 DF + 5 MF (vs 4 DF + 4 MF): promote 1 DF→MF by pass
+  promote("DF", "MF", "pass");
+  // Reverse direction for completeness (currently no formation needs it but future-proof)
+  demote("FW", "MF", "shoot");
+  demote("MF", "DF", "pass");
+  return [...buckets.GK, ...buckets.DF, ...buckets.MF, ...buckets.FW];
+}
+
+function cloneTeam(team, side) {
+  const userFormation = side === "home" ? (state.progress && state.progress.formation) || team.formation || "4-4-2" : team.formation || "4-4-2";
+  const slots = formationSlots(userFormation, side);
+  const usedSlots = { GK: 0, DF: 0, MF: 0, FW: 0 };
+  const redistributed = redistributeForFormation(team.members, userFormation);
+  return {
+    ...team,
+    side,
+    formation: userFormation,
+    players: redistributed.map((member) => {
+      const roleSlots = slots[member.role] || slots.MF;
+      const slot = roleSlots[usedSlots[member.role] % roleSlots.length];
+      usedSlots[member.role] += 1;
+      // XP boost: home 側 only、登録済み xp から stat ↑
+      const xpInfo = (side === "home" && state.progress.playerXp[member.id]) || null;
+      const boost = xpInfo ? Math.min((xpInfo.level - 1) * 2, 20) : 0;
+      const boostedStats = boost > 0 ? Object.fromEntries(
+        Object.entries(member.stats).map(([k, v]) => [k, Math.min(99, v + boost)])
+      ) : member.stats;
+      const guts = boostedStats.guts;
+      return {
+        ...member,
+        stats: boostedStats,
+        side,
+        teamName: team.name,
+        guts,
+        maxGuts: guts,
+        x: slot.x,
+        y: slot.y,
+        initialSlot: { x: slot.x, y: slot.y },
+        xpLevel: xpInfo ? xpInfo.level : 1,
+        xpTotal: xpInfo ? xpInfo.xp : 0,
+        statBoost: boost,
+      };
+    }),
+  };
+}
+
+const XP_TABLE = {
+  goal: 60,
+  save: 18,
+  tackle: 12,
+  intercept: 14,
+  pass: 4,
+  dribble: 4,
+  spell: 8,
+  ultimate: 16,
+  win: 80,
+};
+
+function gainXp(player, key) {
+  if (!player || player.side !== "home") return; // home roster のみ成長
+  const amt = XP_TABLE[key] || 0;
+  if (!amt) return;
+  if (!state.progress.playerXp) state.progress.playerXp = {};
+  if (!state.progress.playerXp[player.id]) state.progress.playerXp[player.id] = { xp: 0, level: 1 };
+  const x = state.progress.playerXp[player.id];
+  const oldLevel = x.level;
+  x.xp += amt;
+  x.level = 1 + Math.floor(x.xp / 100);
+  if (x.level > oldLevel) {
+    log(`✨ ${player.name} がレベル ${x.level} に成長！全ステ +${(x.level - 1) * 2} (cap +20)`);
+  }
+}
+
+function rewardSpiritBonus() {
+  if (state.progress.difficultyClears.hard) return DIFFICULTY_REWARDS.hard.spiritBonus;
+  if (state.progress.difficultyClears.normal) return DIFFICULTY_REWARDS.normal.spiritBonus;
+  if (state.progress.difficultyClears.easy) return DIFFICULTY_REWARDS.easy.spiritBonus;
+  return 0;
+}
+
+function applyClearReward(team) {
+  const bonus = rewardSpiritBonus();
+  if (!bonus) return;
+  team.players.forEach((player) => {
+    player.maxGuts += bonus;
+    player.guts += bonus;
+  });
+}
+
+function startMatchCore(options = {}) {
+  audio.ensure();
+  audio.play("kick");
+  audio.playBgm("normal");
+  const homeId = options.homeTeamId || state.homeTeamId;
+  const awayId = options.awayTeamId || state.awayTeamId;
+  state.homeTeamId = homeId;
+  state.awayTeamId = awayId;
+  const home = cloneTeam(findTeam(homeId), "home");
+  const away = cloneTeam(findTeam(awayId), "away");
+  applyClearReward(home);
+  const carrier = home.players.find((player) => player.role === "MF") || home.players[1];
+  state.match = {
+    home,
+    away,
+    turn: 1,
+    maxTurns: 30,
+    score: { home: 0, away: 0 },
+    possession: "home",
+    carrierId: carrier.id,
+    boost: 0,
+    finished: false,
+    winner: null,
+    unlockedTeamId: null,
+    rewardMessage: "",
+    preMatchDialogue: preMatchDialogue(home, away),
+    halftimeShown: false,
+    stats: {
+      home: { shots: 0, passes: 0, dribbles: 0, tackles: 0, saves: 0, intercepts: 0, goals: 0, spellsUsed: 0 },
+      away: { shots: 0, passes: 0, dribbles: 0, tackles: 0, saves: 0, intercepts: 0, goals: 0, spellsUsed: 0 },
+    },
+  };
+  const bonus = rewardSpiritBonus();
+  state.logs = [
+    `${home.name} vs ${away.name}、キックオフ。${carrier.name}がボールを持った。`,
+    ...(bonus ? [`制覇報酬で自チーム全員の初期霊力+${bonus}。`] : []),
+  ];
+  state.screen = "match";
+  state.battle = null;
+  state.cutin = null;
+  state.actionScene = {
+    type: "kickoff",
+    title: "キックオフ",
+    attacker: carrier,
+    defender: nearestOpponent(carrier),
+    message: `${carrier.name}がボールを持って攻撃開始。接触したらコマンド選択です。`,
+    detail: "ドリブル / パス / シュート / 連携スペル",
+    outcome: "",
+    phase: "choice",
+  };
+  render();
+}
+
+function startMatch(options = {}) {
+  // campaign mode で pre-match story がある場合は VN → match
+  if (state.mode === "campaign" && state.campaign) {
+    const awayId = options.awayTeamId || state.awayTeamId;
+    const preStory = STORY_PRE[awayId];
+    if (preStory && !options.skipStory) {
+      startVn(preStory, `第${state.campaign.index + 1}試合 / ${findTeam(awayId).name}`, () => {
+        startMatchCore(options);
+      });
+      return;
+    }
+  }
+  startMatchCore(options);
+}
+
+function startCampaign() {
+  const opponents = TEAMS.map((team) => team.id).filter((id) => id !== state.homeTeamId);
+  state.mode = "campaign";
+  state.campaign = {
+    homeTeamId: state.homeTeamId,
+    opponents,
+    index: 0,
+    wins: 0,
+    storyShown: { opening: false },
+  };
+  // Opening VN を見せてから 1 試合目開始
+  startVn(STORY_OPENING, "幻想郷トーナメント 開幕", () => {
+    state.campaign.storyShown.opening = true;
+    startMatch({ homeTeamId: state.homeTeamId, awayTeamId: opponents[0] });
+  });
+}
+
+function nextCampaignMatch() {
+  if (!state.campaign) return;
+  audio.play("select");
+  // 直前試合の勝利後 VN を先に見せる
+  const justWonTeamId = state.campaign.opponents[state.campaign.index];
+  const winStory = STORY_WIN[justWonTeamId];
+  const advance = () => {
+    state.campaign.index += 1;
+    if (state.campaign.index >= state.campaign.opponents.length) {
+      // 全試合制覇 → ending
+      startVn(STORY_ENDING, "幻想郷トーナメント 優勝", () => {
+        state.screen = "setup";
+        state.logs = ["幻想郷フットボール異変を制覇。優勝旗を獲得した。"];
+        render();
+      });
+      return;
+    }
+    startMatch({
+      homeTeamId: state.campaign.homeTeamId,
+      awayTeamId: state.campaign.opponents[state.campaign.index],
+    });
+  };
+  if (winStory) {
+    startVn(winStory, `${findTeam(justWonTeamId).name} 撃破`, advance);
+  } else {
+    advance();
+  }
+}
+
+function findTeam(id) {
+  return TEAMS.find((team) => team.id === id);
+}
+
+function teamCg(team) {
+  return `./assets/team_cg/${team.id}.png`;
+}
+
+function portraitPath(player) {
+  return `./assets/portraits/${player.id}.png`;
+}
+
+function cutinPath(player) {
+  return `./assets/cutins/${player.id}.png`;
+}
+
+function preMatchDialogue(home, away) {
+  const data = PRE_MATCH_DIALOGUES[away.id] || {
+    speaker: away.players[0].id,
+    message: `${home.name}との一戦、こちらも全力で受けて立ちます。`,
+  };
+  const speaker = away.players.find((player) => player.id === data.speaker) || away.players[0];
+  return { speaker, message: data.message };
+}
+
+function allRosterPlayers() {
+  return TEAMS.flatMap((team) => team.members.map((member) => ({ ...member, teamName: team.name, teamId: team.id, side: "home" })));
+}
+
+function renderPortrait(player, extraClass = "") {
+  const image = AVAILABLE_PORTRAITS.has(player.id)
+    ? `<img src="${portraitPath(player)}" alt="${player.name}" />`
+    : "";
+  return `
+    <div class="portrait ${player.side} ${extraClass}">
+      ${image}
+      <span>${player.name.slice(0, 1)}</span>
+    </div>
+  `;
+}
+
+function renderCutin() {
+  const cutin = state.cutin;
+  if (!cutin) return "";
+  const image = cutin.cutinSrc || cutin.portraitSrc || "";
+  const imageMarkup = image ? `<img src="${image}" alt="${cutin.playerName || cutin.text}" />` : "";
+  return `
+    <div class="cutin ${cutin.isSpell ? "spell-cutin" : "quick-cutin"}">
+      ${cutin.isSpell ? `
+        <div class="spell-frame"></div>
+        <div class="spell-burst"></div>
+        <div class="spell-scanline"></div>
+      ` : ""}
+      ${imageMarkup}
+      <div class="cutin-shade"></div>
+      <div class="cutin-copy">
+        ${cutin.isSpell ? `<span class="spell-banner">SPELL CARD</span>` : ""}
+        ${cutin.playerName ? `<strong>${cutin.playerName}</strong>` : ""}
+        <span class="spell-name">${cutin.text}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderActionScene() {
+  const scene = state.actionScene;
+  if (!scene) return "";
+  const phaseLabel = scene.phase === "choice" ? "COMMAND" : "RESULT";
+  return `
+    <div class="action-scene ${scene.outcome || ""}">
+      <div class="action-stage">
+        <div class="sprite-runner attacker">
+          ${renderPortrait(scene.attacker, "sprite")}
+          <span>${scene.attacker.name}</span>
+        </div>
+        <div class="sprite-ball ${scene.type}"></div>
+        <div class="sprite-runner defender">
+          ${renderPortrait(scene.defender, "sprite")}
+          <span>${scene.defender.name}</span>
+        </div>
+      </div>
+      <div class="vn-box">
+        <div class="vn-name">${phaseLabel} / ${scene.title}</div>
+        <p>${scene.message}</p>
+        ${scene.detail ? `<div class="vn-detail">${scene.detail}</div>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function allPlayers() {
+  const match = state.match;
+  return [...match.home.players, ...match.away.players];
+}
+
+function getCarrier() {
+  return allPlayers().find((player) => player.id === state.match.carrierId);
+}
+
+function teamBySide(side) {
+  return state.match[side];
+}
+
+function opponentSide(side) {
+  return side === "home" ? "away" : "home";
+}
+
+function log(message) {
+  state.logs.unshift(message);
+  state.logs = state.logs.slice(0, 40);
+}
+
+function actionTitle(type) {
+  return {
+    dribble: "ドリブル突破",
+    pass: "パス展開",
+    shoot: "シュート勝負",
+    team: "連携スペル",
+  }[type] || "コマンド";
+}
+
+function setActionScene(type, attacker, defender, message, detail = "", outcome = "", phase = "result") {
+  const direction = attacker.side === "home" ? "右ゴールへ攻撃" : "左ゴールへ攻撃";
+  state.actionScene = {
+    type,
+    title: actionTitle(type),
+    attacker,
+    defender,
+    message,
+    detail: detail ? `${direction} / ${detail}` : direction,
+    outcome,
+    phase,
+  };
+}
+
+function nearestOpponent(player) {
+  return teamBySide(opponentSide(player.side)).players
+    .filter((opponent) => opponent.role !== "GK")
+    .map((opponent) => ({ opponent, d: distance(player, opponent) }))
+    .sort((a, b) => a.d - b.d)[0].opponent;
+}
+
+function nearestMateAhead(player) {
+  const dir = player.side === "home" ? 1 : -1;
+  return teamBySide(player.side).players
+    .filter((mate) => mate.id !== player.id && mate.role !== "GK" && (mate.x - player.x) * dir > -4)
+    .map((mate) => ({ mate, forward: (mate.x - player.x) * dir, d: distance(player, mate) }))
+    .sort((a, b) => (b.forward - a.forward) || (a.d - b.d))[0]?.mate
+    || teamBySide(player.side).players.find((mate) => mate.id !== player.id && mate.role !== "GK");
+}
+
+function distance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function goalDistance(player) {
+  return player.side === "home" ? 100 - player.x : player.x;
+}
+
+function spend(player, cost) {
+  player.guts = Math.max(0, player.guts - cost);
+}
+
+function recoverTeam(side, amount) {
+  teamBySide(side).players.forEach((player) => {
+    player.guts = Math.min(player.maxGuts, player.guts + amount);
+  });
+}
+
+function roll(base, variance = 24) {
+  return base + Math.floor(Math.random() * variance);
+}
+
+function difficultyModifier(side) {
+  if (side !== "away") return 0;
+  return { easy: -10, normal: 0, hard: 12 }[state.progress.difficulty] || 0;
+}
+
+function actionSpellName(player, type) {
+  if (type === "shoot") return `${player.name} 弾幕シュート`;
+  if (type === "pass") return `${player.name} 霊脈パス`;
+  if (type === "dribble") return `${player.name} 幻走ドリブル`;
+  if (type === "team") return `${teamBySide(player.side).name} 連携スペル`;
+  return player.spell;
+}
+
+function setDifficulty(difficulty) {
+  state.progress.difficulty = difficulty;
+  saveProgress();
+}
+
+function clearRewardLabels() {
+  return Object.entries(DIFFICULTY_REWARDS)
+    .filter(([difficulty]) => state.progress.difficultyClears[difficulty])
+    .map(([, reward]) => reward.label);
+}
+
+const VS_LABELS = {
+  dribble: "DRIBBLE BREAK",
+  pass: "PASS PLAY",
+  shoot: "SHOOT vs GK",
+  team: "TEAM SPELL",
+};
+
+function openPassPicker() {
+  const carrier = getCarrier();
+  if (!carrier) return;
+  const mates = teamBySide(carrier.side).players
+    .filter((m) => m.id !== carrier.id && m.role !== "GK")
+    .map((m) => {
+      const forward = (m.x - carrier.x) * (carrier.side === "home" ? 1 : -1);
+      return { ...m, forward, d: distance(carrier, m) };
+    })
+    .sort((a, b) => b.forward - a.forward)
+    .slice(0, 4)
+    .map((m) => ({ ...m, successRate: calcPassRate(carrier, m) }));
+  state.passPicker = { candidates: mates };
+  audio.play("encounter");
+  render();
+}
+
+function calcPassRate(from, to) {
+  const opp = teamBySide(opponentSide(to.side)).players
+    .filter((p) => p.role !== "GK")
+    .map((p) => ({ p, d: distance(p, to) }))
+    .sort((a, b) => a.d - b.d)[0];
+  const def = opp ? opp.p.stats.block * 0.4 : 20;
+  const atk = from.stats.pass + Math.max(0, 30 - opp?.d || 0);
+  return clamp(0.32 + (atk - def - 30) / 100, 0.1, 0.95);
+}
+
+function selectPassTarget(index) {
+  const picker = state.passPicker;
+  if (!picker || !picker.candidates[index]) return;
+  const target = picker.candidates[index];
+  state.passPicker = null;
+  const carrier = getCarrier();
+  state.battle = {
+    type: "pass",
+    carrierId: carrier.id,
+    defenderId: nearestOpponent(carrier).id,
+    passTargetId: target.id,
+  };
+  state.vsScreen = { attacker: carrier, defender: nearestOpponent(carrier), label: VS_LABELS.pass };
+  window.clearTimeout(state.vsScreenTimer);
+  state.vsScreenTimer = window.setTimeout(() => { state.vsScreen = null; render(); }, 740);
+  setActionScene("pass", carrier, nearestOpponent(carrier), `${target.name}へパスを狙う。`, "通常かスペルを選択", "", "choice");
+  audio.play("battle");
+  render();
+}
+
+function renderPassPicker() {
+  if (!state.passPicker) return "";
+  return `
+    <div class="pass-picker-overlay">
+      ${state.passPicker.candidates.map((p, i) => `
+        <div class="pass-target-badge" data-index="${i}" style="left:${p.x}%;top:${p.y}%;">
+          <span class="ptb-num">${i + 1}</span>
+          <span class="ptb-name">${p.name}</span>
+          <span class="ptb-rate">${Math.round(p.successRate * 100)}%</span>
+        </div>
+      `).join("")}
+      <div class="pass-picker-hint">パス先を選ぶ (1-${state.passPicker.candidates.length} or クリック / Esc キャンセル)</div>
+    </div>
+  `;
+}
+
+function openBattle(type) {
+  if (state.match.finished) return;
+  if (type === "pass" && state.match.possession === "home") {
+    // home の pass はピッカーを開く
+    openPassPicker();
+    return;
+  }
+  audio.play("battle");
+  audio.play("encounter");
+  const carrier = getCarrier();
+  const defender = type === "shoot"
+    ? teamBySide(opponentSide(carrier.side)).players.find((player) => player.role === "GK")
+    : nearestOpponent(carrier);
+  state.battle = { type, carrierId: carrier.id, defenderId: defender.id };
+  state.vsScreen = { attacker: carrier, defender, label: VS_LABELS[type] || "VS" };
+  window.clearTimeout(state.vsScreenTimer);
+  state.vsScreenTimer = window.setTimeout(() => {
+    state.vsScreen = null;
+    render();
+  }, 740);
+  setActionScene(type, carrier, defender, battleText(type, carrier, defender), "通常かスペルを選択", "", "choice");
+  render();
+}
+
+function renderVsScreen() {
+  const vs = state.vsScreen;
+  if (!vs) return "";
+  const attImg = AVAILABLE_PORTRAITS.has(vs.attacker.id) ? portraitPath(vs.attacker) : "";
+  const defImg = AVAILABLE_PORTRAITS.has(vs.defender.id) ? portraitPath(vs.defender) : "";
+  return `
+    <div class="vs-screen">
+      <div class="vs-blade vs-blade-att" data-side="${vs.attacker.side}">
+        ${attImg ? `<img src="${attImg}" alt="${vs.attacker.name}" />` : `<span class="vs-fallback">${vs.attacker.name.slice(0, 1)}</span>`}
+        <span class="vs-name">${vs.attacker.name}</span>
+      </div>
+      <div class="vs-center">
+        <span class="vs-label">${vs.label}</span>
+        <span class="vs-text">VS</span>
+      </div>
+      <div class="vs-blade vs-blade-def" data-side="${vs.defender.side}">
+        ${defImg ? `<img src="${defImg}" alt="${vs.defender.name}" />` : `<span class="vs-fallback">${vs.defender.name.slice(0, 1)}</span>`}
+        <span class="vs-name">${vs.defender.name}</span>
+      </div>
+    </div>
+  `;
+}
+
+function resolveBattle(option) {
+  const match = state.match;
+  const carrier = getCarrier();
+  const defender = allPlayers().find((player) => player.id === state.battle.defenderId);
+  const boost = match.boost || 0;
+  match.boost = 0;
+  // 旧 option (normal/spell) と新 option (normal/spell/ultimate) を統合
+  const tier = ["normal", "spell", "ultimate"].includes(option) ? option : "normal";
+  const isSpell = tier === "spell" || tier === "ultimate";
+  const isUlti = tier === "ultimate";
+  const t = state.battle.type;
+  const cost = tierCost(t, tier);
+  const atkBonus = tierAtkBonus(t, tier);
+
+  if (state.battle.type === "dribble") {
+    const atk = roll(carrier.stats.dribble + carrier.stats.speed * 0.35 + boost + atkBonus + difficultyModifier(carrier.side));
+    const def = roll(defender.stats.tackle + defender.stats.speed * 0.25 + difficultyModifier(defender.side));
+    spend(carrier, cost);
+    bumpStat(carrier.side, "dribbles");
+    bumpPlayerStat(carrier, "dribbles");
+    if (isSpell) {
+      bumpStat(carrier.side, "spellsUsed");
+      bumpPlayerStat(carrier, isUlti ? "ultimatesUsed" : "spellsUsed");
+    }
+    if (atk >= def) {
+      advanceCarrier(carrier, isUlti ? 22 : isSpell ? 18 : 11);
+      audio.play(isSpell ? "spell" : "kick");
+      audio.play("dribble-break");
+      showCutin(isSpell ? (isUlti ? ultimateSpellName(carrier, "dribble") : actionSpellName(carrier, "dribble")) : "ドリブル突破", isSpell ? carrier : null);
+      setActionScene("dribble", carrier, defender, `${carrier.name}が${defender.name}を${isUlti ? "切り裂いて" : "抜いて"}前進。`, `攻撃値 ${Math.round(atk)} / 守備値 ${Math.round(def)} / 段階: ${tier}`, "success");
+      showJudge("break");
+      log(`${carrier.name}が${defender.name}を突破 (${tier})。攻撃値${Math.round(atk)} / 守備値${Math.round(def)}。`);
+    } else {
+      audio.play("save");
+      audio.play("tackle");
+      bumpStat(defender.side, "tackles");
+      bumpPlayerStat(defender, "tackles");
+      // knockback: ball 位置を defender 側 (碰勝者) 寄りへ少し移動
+      knockbackBall(carrier, defender, isUlti ? 14 : isSpell ? 10 : 7);
+      setActionScene("dribble", carrier, defender, `${defender.name}が止めた。ボールは相手側へ。`, `攻撃値 ${Math.round(atk)} / 守備値 ${Math.round(def)} / 段階: ${tier}`, "fail");
+      showJudge("stop");
+      turnover(defender, `${defender.name}が${carrier.name}を止めた (${tier})。攻撃値${Math.round(atk)} / 守備値${Math.round(def)}。`);
+    }
+  }
+
+  if (state.battle.type === "pass") {
+    const receiver = state.battle.passTargetId
+      ? (allPlayers().find((p) => p.id === state.battle.passTargetId) || nearestMateAhead(carrier))
+      : nearestMateAhead(carrier);
+    const atk = roll(carrier.stats.pass + boost + atkBonus + difficultyModifier(carrier.side));
+    const def = roll(defender.stats.block + defender.stats.speed * 0.2 + difficultyModifier(defender.side));
+    spend(carrier, cost);
+    bumpStat(carrier.side, "passes");
+    bumpPlayerStat(carrier, "passes");
+    if (isSpell) {
+      bumpStat(carrier.side, "spellsUsed");
+      bumpPlayerStat(carrier, isUlti ? "ultimatesUsed" : "spellsUsed");
+    }
+    if (atk >= def) {
+      state.match.carrierId = receiver.id;
+      receiver.x = clamp(receiver.x + (receiver.side === "home" ? (isUlti ? 14 : 8) : (isUlti ? -14 : -8)), 8, 92);
+      audio.play(isSpell ? "spell" : "select");
+      audio.play("pass-success");
+      showCutin(isSpell ? (isUlti ? ultimateSpellName(carrier, "pass") : actionSpellName(carrier, "pass")) : "スルーパス", isSpell ? carrier : null);
+      setActionScene("pass", carrier, defender, `${receiver.name}へのパス成功。${isUlti ? "電光石火の前進。" : "攻撃が前へ進む。"}`, `攻撃値 ${Math.round(atk)} / カット値 ${Math.round(def)} / 段階: ${tier}`, "success");
+      showJudge("through");
+      log(`${carrier.name}から${receiver.name}へパス成功 (${tier})。${receiver.name}が前を向いた。`);
+    } else {
+      audio.play("save");
+      audio.play("intercept");
+      bumpStat(defender.side, "intercepts");
+      bumpPlayerStat(defender, "intercepts");
+      knockbackBall(carrier, defender, isUlti ? 12 : isSpell ? 9 : 6);
+      setActionScene("pass", carrier, defender, `${defender.name}がパスカット。ボール保持が入れ替わる。`, `攻撃値 ${Math.round(atk)} / カット値 ${Math.round(def)} / 段階: ${tier}`, "fail");
+      showJudge("cut");
+      turnover(defender, `${defender.name}がパスカット (${tier})。${carrier.name}の展開を読んだ。`);
+    }
+  }
+
+  if (state.battle.type === "shoot") {
+    const distancePenalty = Math.max(0, goalDistance(carrier) - 18) * 0.72;
+    const baseAtk = roll(carrier.stats.shoot + boost + atkBonus - distancePenalty + difficultyModifier(carrier.side), 28);
+    spend(carrier, cost);
+    bumpStat(carrier.side, "shots");
+    bumpPlayerStat(carrier, "shots");
+    if (isSpell) {
+      bumpStat(carrier.side, "spellsUsed");
+      bumpPlayerStat(carrier, isUlti ? "ultimatesUsed" : "spellsUsed");
+    }
+    audio.play(isSpell ? "spell" : "kick");
+    audio.play("whistle");
+    showCutin(isSpell ? (isUlti ? ultimateSpellName(carrier, "shoot") : actionSpellName(carrier, "shoot")) : "シュート", isSpell ? carrier : null);
+    // GK 選択: AWAY shoot → home GK は user 選択 / HOME shoot → away GK は AI 選択
+    const gkSide = opponentSide(carrier.side);
+    state.battle = null;
+    if (gkSide === "home") {
+      state.gkChoice = {
+        carrierId: carrier.id,
+        gkId: defender.id,
+        baseAtk,
+        useSpell: isSpell,
+        tier,
+      };
+      render();
+      return;
+    } else {
+      const opts = ["catch", "punch", "rush"];
+      const pick = opts[Math.floor(Math.random() * opts.length)];
+      finalizeShoot(carrier, defender, baseAtk, pick, isSpell);
+    }
+    return;
+  }
+
+  if (state.battle.type === "team") {
+    spend(carrier, cost);
+    audio.play("spell");
+    match.boost = TIER_TEAM_BOOST[tier];
+    recoverTeam(carrier.side, TIER_TEAM_RECOVER[tier]);
+    if (isSpell) bumpStat(carrier.side, "spellsUsed");
+    showCutin(isUlti ? `${actionSpellName(carrier, "team")}・真` : actionSpellName(carrier, "team"), carrier);
+    setActionScene("team", carrier, defender, `${teamBySide(carrier.side).name}が${isUlti ? "全身全霊で前進" : "全員で前へ出る"}。`, `次の判定+${TIER_TEAM_BOOST[tier]} / 全員霊力+${TIER_TEAM_RECOVER[tier]} / 段階: ${tier}`, "success");
+    showJudge("support");
+    log(`${teamBySide(carrier.side).name}が連携スペル発動 (${tier})。次の判定+${TIER_TEAM_BOOST[tier]}、全員霊力+${TIER_TEAM_RECOVER[tier]}。`);
+  }
+
+  state.battle = null;
+  endTurn();
+  clearActionSceneLater();
+  render();
+}
+
+function renderGkChoice() {
+  if (!state.gkChoice) return "";
+  const gc = state.gkChoice;
+  const carrier = allPlayers().find((p) => p.id === gc.carrierId);
+  const gk = allPlayers().find((p) => p.id === gc.gkId);
+  const opts = [
+    { key: "catch", label: "ジャンプキャッチ", desc: "確実なキャッチ (霊力6)", cost: 6 },
+    { key: "punch", label: "パンチング", desc: "弾く守備、こぼれ球リスク (霊力10)", cost: 10 },
+    { key: "rush", label: "飛び出し", desc: "間合いを詰める。抜かれリスク高 (霊力14)", cost: 14 },
+  ];
+  return `
+    <div class="dialog-overlay gk-overlay">
+      <div class="dialog-card gk-card">
+        <div class="dialog-banner gk-banner">GK SAVE!</div>
+        <p>${carrier.name} のシュートが ${gk.name} に迫る!</p>
+        <div class="dialog-actions gk-actions">
+          ${opts.map((o) => `<button data-action="gk-choice" data-option="${o.key}" ${gk.guts < o.cost ? "disabled" : ""}>${o.label}<br><span class="gk-desc">${o.desc}</span></button>`).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function resolveGkChoice(option) {
+  const gc = state.gkChoice;
+  if (!gc) return;
+  const carrier = allPlayers().find((p) => p.id === gc.carrierId);
+  const gk = allPlayers().find((p) => p.id === gc.gkId);
+  state.gkChoice = null;
+  finalizeShoot(carrier, gk, gc.baseAtk, option, gc.useSpell);
+}
+
+function finalizeShoot(carrier, gk, baseAtk, gkOption, useSpell) {
+  const match = state.match;
+  const cost = { catch: 6, punch: 10, rush: 14 }[gkOption] || 6;
+  const defMod = { catch: 1.18, punch: 1.28, rush: 0.85 }[gkOption] || 1.0;
+  spend(gk, cost);
+  const def = roll(gk.stats.keep * defMod + gk.stats.block * 0.25 + (useSpell ? 4 : 0) + difficultyModifier(gk.side), 28);
+  if (baseAtk >= def) {
+    audio.play("goal");
+    audio.play("ovation");
+    bumpStat(carrier.side, "goals");
+    bumpPlayerStat(carrier, "goals");
+    match.score[carrier.side] += 1;
+    setActionScene("shoot", carrier, gk, `${carrier.name}のシュートが決まった。`, `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)} (${gkOption})`, "goal");
+    showJudge("goal");
+    log(`${carrier.name}のシュートが決まった。${gk.name}届かず。攻撃値${Math.round(baseAtk)} / GK値${Math.round(def)}。`);
+    kickoff(opponentSide(carrier.side));
+  } else if (gkOption === "punch") {
+    // こぼれ球: 周辺の味方/相手をランダムに carrier 化
+    audio.play("save");
+    bumpStat(gk.side, "saves");
+    bumpPlayerStat(gk, "saves");
+    setActionScene("shoot", carrier, gk, `${gk.name}がパンチング! こぼれ球が転がる。`, `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)}`, "fail");
+    showJudge("save");
+    // GK 近辺の最寄りプレイヤーから 1 名を carrier に
+    const nearby = allPlayers()
+      .filter((p) => p.id !== gk.id && p.role !== "GK")
+      .map((p) => ({ p, d: distance(p, gk) }))
+      .sort((a, b) => a.d - b.d)[0];
+    const newCarrier = nearby ? nearby.p : gk;
+    state.match.possession = newCarrier.side;
+    state.match.carrierId = newCarrier.id;
+    log(`${gk.name}がパンチング。こぼれ球を${newCarrier.name}が拾った。`);
+  } else {
+    audio.play("save");
+    bumpStat(gk.side, "saves");
+    bumpPlayerStat(gk, "saves");
+    setActionScene("shoot", carrier, gk, `${gk.name}が${gkOption === "catch" ? "ジャンプキャッチ" : "飛び出しで"}阻止。`, `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)}`, "fail");
+    showJudge("save");
+    turnover(gk, `${gk.name}が${gkOption === "catch" ? "キャッチ" : "飛び出し"}でセーブ。${carrier.name}のシュートを止めた。攻撃値${Math.round(baseAtk)} / GK値${Math.round(def)}。`);
+  }
+  endTurn();
+  clearActionSceneLater();
+  render();
+}
+
+function advanceCarrier(player, amount) {
+  if (player.role === "GK") {
+    keepGoalkeeperInGoal(player);
+    return;
+  }
+  const dir = player.side === "home" ? 1 : -1;
+  player.x = clamp(player.x + amount * dir, player.side === "home" ? 14 : 8, player.side === "home" ? 92 : 86);
+  player.y = clamp(player.y + (Math.random() * 16 - 8), 18, 82);
+}
+
+function knockbackBall(carrier, defender, strength) {
+  // ball を defender 側に少し動かす (失敗 carrier から離れる)
+  const dir = defender.side === "home" ? 1 : -1;
+  // 攻撃方向の反対へ knockback
+  carrier.x = clamp(carrier.x - dir * strength * 0.3, 6, 94);
+  carrier.y = clamp(carrier.y + (Math.random() * 8 - 4), 14, 86);
+  // defender も少し進める
+  defender.x = clamp(defender.x + dir * (strength * 0.2), 6, 94);
+}
+
+function turnover(newCarrier, message) {
+  state.match.possession = newCarrier.side;
+  state.match.carrierId = newCarrier.id;
+  if (newCarrier.role === "GK") keepGoalkeeperInGoal(newCarrier);
+  else advanceCarrier(newCarrier, 5);
+  log(message);
+}
+
+function kickoff(side) {
+  state.match.possession = side;
+  const team = teamBySide(side);
+  const carrier = team.players.find((player) => player.role === "MF") || team.players[1];
+  state.match.carrierId = carrier.id;
+  resetPositions();
+}
+
+function resetPositions() {
+  const homeReset = cloneTeam(findTeam(state.match.home.id), "home").players;
+  const awayReset = cloneTeam(findTeam(state.match.away.id), "away").players;
+  state.match.home.players.forEach((player, index) => Object.assign(player, { x: homeReset[index].x, y: homeReset[index].y }));
+  state.match.away.players.forEach((player, index) => Object.assign(player, { x: awayReset[index].x, y: awayReset[index].y }));
+}
+
+function keepGoalkeeperInGoal(player) {
+  player.x = player.side === "home" ? 6 : 94;
+  player.y = 50;
+}
+
+function endTurn() {
+  const match = state.match;
+  recoverTeam("home", 3);
+  recoverTeam("away", 3);
+  match.turn += 1;
+  moveAiPlayers();
+  // ハーフタイム (turn 16 開始時)
+  if (match.turn === 16 && !match.halftimeShown) {
+    match.halftimeShown = true;
+    recoverTeam("home", 25);
+    recoverTeam("away", 25);
+    showJudge("halftime");
+    state.halftimeReport = true;
+    window.clearTimeout(state.halftimeReportTimer);
+    state.halftimeReportTimer = window.setTimeout(() => {
+      state.halftimeReport = false;
+      render();
+    }, 3200);
+    log(`ハーフタイム。両軍が霊力 +25 を回復。スコア ${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}。`);
+  }
+  // BGM 切替 (intense for endgame)
+  if (match.turn >= 24 && audio.currentBgm !== "intense") audio.playBgm("intense");
+  else if (match.turn < 24 && match.possession === "away" && audio.currentBgm !== "defense") audio.playBgm("defense");
+  else if (match.turn < 24 && match.possession === "home" && audio.currentBgm !== "normal") audio.playBgm("normal");
+  if (match.turn > match.maxTurns) {
+    audio.stopMusic();
+    audio.play("result");
+    audio.playBgm("result");
+    clearMatchSave();
+    match.finished = true;
+    match.winner = match.score.home === match.score.away ? "draw" : match.score.home > match.score.away ? "home" : "away";
+    if (state.mode === "campaign" && match.winner === "home" && state.campaign) {
+      state.campaign.wins += 1;
+      if (unlockTeam(match.away.id)) {
+        match.unlockedTeamId = match.away.id;
+        log(`${match.away.name}がフリー対戦で使用可能になった。`);
+      }
+      if (state.campaign.index >= state.campaign.opponents.length - 1) {
+        state.progress.campaignClears += 1;
+        const difficulty = state.progress.difficulty;
+        if (!state.progress.difficultyClears[difficulty]) {
+          state.progress.difficultyClears[difficulty] = true;
+          match.rewardMessage = DIFFICULTY_REWARDS[difficulty].message;
+          log(match.rewardMessage);
+        }
+        saveProgress();
+      }
+    }
+    const result = match.winner === "draw" ? "引き分け" : match.winner === "home" ? `${match.home.name}の勝利` : `${match.away.name}の勝利`;
+    log(`試合終了。${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}。${result}。`);
+  } else {
+    saveMatch();
+    if (state.match.possession === "away") setTimeout(enemyTurn, 420);
+  }
+}
+
+function maybeTriggerInterrupt(carrier) {
+  if (carrier.side !== "away") return false;
+  if (state.interrupt) return false;
+  const defender = teamBySide("home").players
+    .filter((p) => p.role !== "GK")
+    .map((p) => ({ p, d: distance(p, carrier) }))
+    .sort((a, b) => a.d - b.d)[0];
+  if (!defender || defender.d > 22) return false;
+  if (Math.random() > 0.32) return false;
+  state.interrupt = {
+    attacker: carrier,
+    defender: defender.p,
+    pendingAction: null,
+  };
+  audio.play("encounter");
+  return true;
+}
+
+function enemyTurn() {
+  if (!state.match || state.match.finished || state.match.possession !== "away" || state.battle) return;
+  const carrier = getCarrier();
+  if (maybeTriggerInterrupt(carrier)) {
+    render();
+    return;
+  }
+  const action = aiPickAction(carrier);
+  const tier = aiPickTier(carrier, action);
+  if (action === "team") {
+    state.battle = { type: "team", carrierId: carrier.id, defenderId: nearestOpponent(carrier).id };
+    state.vsScreen = { attacker: carrier, defender: nearestOpponent(carrier), label: VS_LABELS.team };
+    window.clearTimeout(state.vsScreenTimer);
+    state.vsScreenTimer = window.setTimeout(() => { state.vsScreen = null; render(); }, 740);
+    render();
+    setTimeout(() => resolveBattle(tier), 720);
+    return;
+  }
+  openBattle(action);
+  setTimeout(() => resolveBattle(tier), 760);
+}
+
+function aiPickAction(carrier) {
+  // AWAY のみ AI なので tactic bias は適用しない (home tactic は home の意思決定にのみ影響)。
+  // ただし home 側に手動操作はなく AI fallback もここを使う場合に備えて bias 適用。
+  const bias = carrier.side === "home" ? TACTICS[(state.progress && state.progress.tactic) || "normal"].aiBias : TACTICS.normal.aiBias;
+  const scores = {
+    shoot: scoreShoot(carrier) * bias.shoot,
+    dribble: scoreDribble(carrier) * bias.dribble,
+    pass: scorePass(carrier) * bias.pass,
+    team: scoreTeam(carrier) * bias.team,
+  };
+  const diff = state.progress.difficulty;
+  if (diff === "easy") {
+    if (Math.random() < 0.3) {
+      const keys = Object.keys(scores);
+      return keys[Math.floor(Math.random() * keys.length)];
+    }
+  }
+  if (diff === "hard") {
+    for (const a of Object.keys(scores)) {
+      scores[a] += lookaheadOneStep(carrier, a) * 0.4;
+    }
+  }
+  return Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0];
+}
+
+function scoreShoot(p) {
+  const dist = goalDistance(p);
+  return (p.stats.shoot / 100) * Math.max(0.1, 1 - dist / 40) * (p.guts > 30 ? 1.2 : 0.5);
+}
+
+function scoreDribble(p) {
+  return (p.stats.dribble / 100) * Math.min(1, goalDistance(p) / 50) * (p.guts > 22 ? 1.0 : 0.5);
+}
+
+function scorePass(p) {
+  const ahead = nearestMateAhead(p);
+  if (!ahead) return 0;
+  const forward = Math.max(0, (ahead.x - p.x) * (p.side === "home" ? 1 : -1));
+  return (p.stats.pass / 100) * Math.min(1, forward / 50) * (p.guts > 18 ? 1.0 : 0.6);
+}
+
+function scoreTeam(p) {
+  if (state.match.boost > 0) return 0;
+  const team = teamBySide(p.side).players;
+  const avgGuts = team.reduce((s, x) => s + x.guts / x.maxGuts, 0) / team.length;
+  return 0.3 * (avgGuts < 0.5 ? 1.5 : 0.4);
+}
+
+function lookaheadOneStep(carrier, action) {
+  if (action === "pass") {
+    const ahead = nearestMateAhead(carrier);
+    return ahead ? scoreShoot(ahead) * 0.6 : 0.2;
+  }
+  if (action === "dribble") return scoreShoot(carrier) * 0.4;
+  return 0.3;
+}
+
+function aiShouldUseSpell(p, action) {
+  const tier = aiPickTier(p, action);
+  return tier === "spell" || tier === "ultimate";
+}
+
+function aiPickTier(p, action) {
+  const costs = TIER_COSTS[action] || { normal: 0, spell: 0, ultimate: 0 };
+  const dist = goalDistance(p);
+  const guts = p.guts;
+  // 究極を狙う: 霊力十分 + 近距離 shoot or 50% dribble or rare pass
+  if (guts >= costs.ultimate + 4) {
+    if (action === "shoot" && dist < 22 && Math.random() < 0.6) return "ultimate";
+    if (action === "dribble" && guts > 70 && Math.random() < 0.3) return "ultimate";
+    if (action === "team" && Math.random() < 0.18) return "ultimate";
+  }
+  if (guts >= costs.spell + 8) {
+    if (action === "shoot" && dist < 28) return "spell";
+    if (action === "dribble" && Math.random() < 0.4) return "spell";
+    if (Math.random() < 0.32) return "spell";
+  }
+  return "normal";
+}
+
+function renderInterruptPrompt() {
+  if (!state.interrupt) return "";
+  const ip = state.interrupt;
+  return `
+    <div class="dialog-overlay interrupt-overlay">
+      <div class="dialog-card interrupt-card">
+        <div class="dialog-banner">INTERRUPT!!</div>
+        <p>${ip.defender.name} が ${ip.attacker.name} に詰めている。介入する?</p>
+        <div class="dialog-actions">
+          <button data-action="interrupt" data-option="tackle">タックル (霊力10)</button>
+          <button data-action="interrupt" data-option="intercept">インターセプト (霊力8)</button>
+          <button data-action="interrupt" data-option="wait">待機</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function resolveInterrupt(option) {
+  const ip = state.interrupt;
+  if (!ip) return;
+  state.interrupt = null;
+  const defender = ip.defender;
+  const attacker = ip.attacker;
+  if (option === "wait") {
+    log(`${defender.name}は介入を控えた。`);
+    render();
+    setTimeout(() => {
+      const carrier = getCarrier();
+      const action = aiPickAction(carrier);
+      const tier = aiPickTier(carrier, action);
+      if (action === "team") {
+        state.battle = { type: "team", carrierId: carrier.id, defenderId: nearestOpponent(carrier).id };
+        render();
+        setTimeout(() => resolveBattle(tier), 520);
+        return;
+      }
+      openBattle(action);
+      setTimeout(() => resolveBattle(tier), 760);
+    }, 320);
+    return;
+  }
+  const cost = option === "tackle" ? 10 : 8;
+  if (defender.guts < cost) {
+    log(`${defender.name}の霊力不足で介入失敗。`);
+    render();
+    setTimeout(enemyTurn, 320);
+    return;
+  }
+  spend(defender, cost);
+  const atk = roll(attacker.stats.dribble + difficultyModifier(attacker.side));
+  const defMod = option === "tackle" ? defender.stats.tackle : defender.stats.block * 1.1;
+  const def = roll(defMod + defender.stats.speed * 0.3);
+  audio.play(option === "tackle" ? "tackle" : "intercept");
+  if (def >= atk) {
+    bumpStat(defender.side, option === "tackle" ? "tackles" : "intercepts");
+    bumpPlayerStat(defender, option === "tackle" ? "tackles" : "intercepts");
+    knockbackBall(attacker, defender, 9);
+    showJudge(option === "tackle" ? "tackle" : "intercept");
+    setActionScene(option === "tackle" ? "dribble" : "pass", attacker, defender, `${defender.name}が${option === "tackle" ? "タックル" : "インターセプト"}成功!`, `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}`, "success");
+    turnover(defender, `${defender.name}が${attacker.name}から${option === "tackle" ? "タックル" : "インターセプト"}でボール奪取。`);
+    state.battle = null;
+    render();
+    clearActionSceneLater();
+  } else {
+    showJudge("stop");
+    setActionScene(option === "tackle" ? "dribble" : "pass", attacker, defender, `${defender.name}の介入は届かなかった。`, `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}`, "fail");
+    log(`${defender.name}の${option === "tackle" ? "タックル" : "インターセプト"}は届かなかった。`);
+    render();
+    setTimeout(enemyTurn, 380);
+  }
+}
+
+function moveAiPlayers() {
+  const carrier = getCarrier();
+  allPlayers().forEach((player) => {
+    if (player.role === "GK") {
+      keepGoalkeeperInGoal(player);
+      return;
+    }
+    if (player.id === carrier.id) return;
+    const dir = player.side === "home" ? 1 : -1;
+    const ballPull = player.side === carrier.side ? 2.5 : -1.5;
+    const initial = player.initialSlot || { x: player.x, y: player.y };
+    const homePull = 0.07;
+    const bounds = roleBounds(player);
+    player.x = clamp(
+      player.x + dir * (Math.random() * 3 + ballPull) + (initial.x - player.x) * homePull,
+      bounds.minX,
+      bounds.maxX,
+    );
+    player.y = clamp(
+      player.y + (carrier.y - player.y) * 0.06 + (initial.y - player.y) * homePull + (Math.random() * 6 - 3),
+      12,
+      88,
+    );
+  });
+}
+
+function roleBounds(player) {
+  const home = player.side === "home";
+  if (player.role === "DF") return home ? { minX: 10, maxX: 44 } : { minX: 56, maxX: 90 };
+  if (player.role === "MF") return home ? { minX: 22, maxX: 68 } : { minX: 32, maxX: 78 };
+  if (player.role === "FW") return home ? { minX: 38, maxX: 92 } : { minX: 8, maxX: 62 };
+  return home ? { minX: 6, maxX: 6 } : { minX: 94, maxX: 94 };
+}
+
+const JUDGE_MAP = {
+  goal: { kind: "goal", text: "GOAL!!", sub: "ゴーーール!!" },
+  save: { kind: "save", text: "SAVE!!", sub: "セービング" },
+  cut: { kind: "cut", text: "CUT!!", sub: "ぱすカット" },
+  stop: { kind: "stop", text: "STOP!", sub: "クリーンタックル" },
+  break: { kind: "break", text: "BREAK!!", sub: "突破" },
+  through: { kind: "through", text: "THROUGH!", sub: "スルーパス成功" },
+  support: { kind: "support", text: "SUPPORT!!", sub: "連携スペル" },
+  intercept: { kind: "cut", text: "INTERCEPT!", sub: "インターセプト" },
+  tackle: { kind: "stop", text: "TACKLE!", sub: "タックル成功" },
+  halftime: { kind: "support", text: "HALFTIME", sub: "前半終了 / 全員霊力+25" },
+};
+
+function showJudge(key) {
+  const data = JUDGE_MAP[key];
+  if (!data) return;
+  state.judge = { kind: data.kind, text: data.text, subText: data.sub };
+  if (key === "goal") {
+    state.fieldShake = true;
+    window.clearTimeout(state.fieldShakeTimer);
+    state.fieldShakeTimer = window.setTimeout(() => {
+      state.fieldShake = false;
+      render();
+    }, 330);
+  }
+  window.clearTimeout(state.judgeTimer);
+  state.judgeTimer = window.setTimeout(() => {
+    state.judge = null;
+    render();
+  }, key === "halftime" ? 1200 : 470);
+}
+
+function bumpStat(side, key) {
+  if (!state.match || !state.match.stats) return;
+  state.match.stats[side][key] = (state.match.stats[side][key] || 0) + 1;
+}
+
+function bumpPlayerStat(player, key) {
+  if (!state.match) return;
+  if (!state.match.playerStats) state.match.playerStats = {};
+  const ps = state.match.playerStats[player.id] || (state.match.playerStats[player.id] = { id: player.id, name: player.name, side: player.side, role: player.role, goals: 0, saves: 0, tackles: 0, intercepts: 0, passes: 0, dribbles: 0, spellsUsed: 0, ultimatesUsed: 0 });
+  ps[key] = (ps[key] || 0) + 1;
+  // XP grant (home roster only)
+  gainXp(player, key === "ultimatesUsed" ? "ultimate" : key === "spellsUsed" ? "spell" : key === "goals" ? "goal" : key === "saves" ? "save" : key === "tackles" ? "tackle" : key === "intercepts" ? "intercept" : key === "passes" ? "pass" : key === "dribbles" ? "dribble" : null);
+}
+
+function renderJudge() {
+  const j = state.judge;
+  if (!j) return "";
+  return `
+    <div class="judge-overlay" data-kind="${j.kind}">
+      <div class="judge-flash" data-kind="${j.kind}"></div>
+      ${j.kind === "goal" ? `<div class="judge-burst"></div>` : ""}
+      <div class="judge-stamp" data-kind="${j.kind}">
+        <span class="judge-text">${j.text}</span>
+        ${j.subText ? `<span class="judge-sub">${j.subText}</span>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function startVn(panels, title, onComplete) {
+  // テスト/デバッグ用の skip フラグ
+  if (window.__touhouSpellFutsalSkipStory) {
+    if (onComplete) onComplete();
+    else render();
+    return;
+  }
+  state.vnScene = { panels, index: 0, title: title || "", onComplete: onComplete || null };
+  audio.play("select");
+  render();
+}
+
+function advanceVn() {
+  if (!state.vnScene) return;
+  audio.play("page-turn");
+  state.vnScene.index += 1;
+  if (state.vnScene.index >= state.vnScene.panels.length) {
+    const cb = state.vnScene.onComplete;
+    state.vnScene = null;
+    if (cb) cb();
+    else render();
+  } else {
+    render();
+  }
+}
+
+function skipVn() {
+  if (!state.vnScene) return;
+  const cb = state.vnScene.onComplete;
+  state.vnScene = null;
+  if (cb) cb();
+  else render();
+}
+
+function findRosterChar(id) {
+  for (const team of TEAMS) {
+    const found = team.members.find((m) => m.id === id);
+    if (found) return { ...found, teamId: team.id, teamName: team.name };
+  }
+  return null;
+}
+
+function renderVnScene() {
+  if (!state.vnScene) return "";
+  const panel = state.vnScene.panels[state.vnScene.index];
+  if (!panel) return "";
+  const speakerChar = findRosterChar(panel.speaker);
+  const cast = (panel.cast || [panel.speaker]).map(findRosterChar).filter(Boolean);
+  const portraits = cast.map((c) => {
+    const has = AVAILABLE_PORTRAITS.has(c.id);
+    const isActive = c.id === panel.speaker;
+    return `<div class="vn-cast ${isActive ? "active" : ""}">
+      ${has ? `<img src="${portraitPath(c)}" alt="${c.name}" />` : `<span class="vn-cast-fallback">${c.name.slice(0, 1)}</span>`}
+    </div>`;
+  }).join("");
+  const total = state.vnScene.panels.length;
+  return `
+    <div class="vn-modal">
+      <div class="vn-modal-bg"></div>
+      ${state.vnScene.title ? `<div class="vn-title-banner">${state.vnScene.title}</div>` : ""}
+      <div class="vn-cast-row">${portraits}</div>
+      <div class="vn-box-large" data-action="vn-advance">
+        <div class="vn-speaker">${speakerChar ? speakerChar.name : ""}<span class="vn-speaker-team">${speakerChar ? speakerChar.teamName : ""}</span></div>
+        <p class="vn-text">${panel.text}</p>
+        <div class="vn-progress">${state.vnScene.index + 1} / ${total}　<span class="vn-hint">▼ クリック / Space で進む / Esc でスキップ</span></div>
+      </div>
+    </div>
+  `;
+}
+
+function showCutin(text, player = null) {
+  state.cutin = {
+    text,
+    playerName: player ? player.name : "",
+    isSpell: Boolean(player),
+    portraitSrc: player && AVAILABLE_PORTRAITS.has(player.id) ? portraitPath(player) : "",
+    cutinSrc: player && AVAILABLE_CUTINS.has(player.id) ? cutinPath(player) : "",
+  };
+  setTimeout(() => {
+    state.cutin = null;
+    render();
+  }, player ? 1480 : 540);
+}
+
+function clearActionSceneLater() {
+  window.clearTimeout(state.actionSceneTimer);
+  state.actionSceneTimer = window.setTimeout(() => {
+    if (state.battle || state.match.finished) return;
+    state.actionScene = null;
+    render();
+  }, 2600);
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function render() {
+  const app = document.getElementById("app");
+  const screenHtml = state.screen === "setup"
+    ? renderSetup()
+    : state.screen === "gallery"
+      ? renderGallery()
+      : state.screen === "help"
+        ? renderHelp()
+        : renderMatch();
+  // VN scene は screen に関わらず常時 overlay (campaign opening 時 setup から呼ばれる)
+  app.innerHTML = screenHtml + (state.vnScene ? renderVnScene() : "");
+  bindEvents();
+  bindKeyboardEvents();
+}
+
+function renderSetup() {
+  const home = findTeam(state.homeTeamId);
+  const away = findTeam(state.awayTeamId);
+  const rewards = clearRewardLabels();
+  const savedMatch = loadMatch();
+  return `
+    <section class="setup">
+      ${savedMatch ? `
+        <div class="resume-banner">
+          <div>
+            <strong>途中の試合があります</strong>
+            <span>${findTeam(savedMatch.match.home.id).name} ${savedMatch.match.score.home} - ${savedMatch.match.score.away} ${findTeam(savedMatch.match.away.id).name} (TURN ${savedMatch.match.turn})</span>
+          </div>
+          <div class="resume-actions">
+            <button class="primary" data-action="resumeMatch">試合を再開する</button>
+            <button data-action="discardMatch">破棄</button>
+          </div>
+        </div>
+      ` : ""}
+      <div class="hero">
+        <div class="hero-copy">
+          <h1>東方スペルサッカー</h1>
+          <p class="setup-copy">11vs11、30ターン制。接触はコマンドバトル、シュートはGK戦。8チーム88キャラ入り、キャプテン翼風スペルバトル。</p>
+        </div>
+        <div class="versus-preview">
+          <img src="${teamCg(home)}" alt="${home.name}" />
+          <img src="${teamCg(away)}" alt="${away.name}" />
+        </div>
+      </div>
+      <div class="progress-summary">
+        <strong>解放チーム ${state.progress.unlockedTeams.length} / ${TEAMS.length}</strong>
+        <span>クリア回数 ${state.progress.campaignClears}</span>
+        <span>報酬 ${rewards.length ? rewards.join(" / ") : "未獲得"}</span>
+        <button data-action="toggleAudio">${state.progress.audioMuted ? "音 ON" : "音 OFF"}</button>
+        <button data-action="resetProgress">進行リセット</button>
+      </div>
+      <div class="difficulty-row">
+        <button class="${state.progress.difficulty === "easy" ? "selected-mode" : ""}" data-action="difficulty" data-difficulty="easy">EASY</button>
+        <button class="${state.progress.difficulty === "normal" ? "selected-mode" : ""}" data-action="difficulty" data-difficulty="normal">NORMAL</button>
+        <button class="${state.progress.difficulty === "hard" ? "selected-mode" : ""}" data-action="difficulty" data-difficulty="hard">HARD</button>
+      </div>
+      <div class="formation-row">
+        <span class="formation-label">フォーメーション</span>
+        <button class="formation-btn ${state.progress.formation === "4-4-2" ? "selected-mode" : ""}" data-action="formation" data-formation="4-4-2">
+          ${renderFormationDiagram("4-4-2")}
+          <span>4-4-2</span>
+        </button>
+        <button class="formation-btn ${state.progress.formation === "4-3-3" ? "selected-mode" : ""}" data-action="formation" data-formation="4-3-3">
+          ${renderFormationDiagram("4-3-3")}
+          <span>4-3-3</span>
+        </button>
+        <button class="formation-btn ${state.progress.formation === "3-5-2" ? "selected-mode" : ""}" data-action="formation" data-formation="3-5-2">
+          ${renderFormationDiagram("3-5-2")}
+          <span>3-5-2</span>
+        </button>
+      </div>
+      <div class="tactic-row">
+        <span class="formation-label">戦術</span>
+        <button class="${state.progress.tactic === "normal" ? "selected-mode" : ""}" data-action="tactic" data-tactic="normal">通常</button>
+        <button class="${state.progress.tactic === "offensive" ? "selected-mode" : ""}" data-action="tactic" data-tactic="offensive">攻撃的</button>
+        <button class="${state.progress.tactic === "defensive" ? "selected-mode" : ""}" data-action="tactic" data-tactic="defensive">守備的</button>
+        <button class="${state.progress.tactic === "counter" ? "selected-mode" : ""}" data-action="tactic" data-tactic="counter">カウンター</button>
+      </div>
+      <div class="mode-row">
+        <button class="${state.mode === "campaign" ? "selected-mode" : ""}" data-action="mode" data-mode="campaign">ストーリー</button>
+        <button class="${state.mode === "free" ? "selected-mode" : ""}" data-action="mode" data-mode="free">フリー対戦</button>
+        <button data-action="openGallery">ギャラリー</button>
+        <button data-action="openHelp">遊び方</button>
+      </div>
+      <div class="team-select-grid">
+        <div>
+          <h2 class="section-title">自チーム</h2>
+          <div class="team-list">${TEAMS.map((team) => teamButton(team, "home")).join("")}</div>
+        </div>
+        <div>
+          <h2 class="section-title">相手チーム</h2>
+          <div class="team-list">${TEAMS.map((team) => teamButton(team, "away")).join("")}</div>
+        </div>
+      </div>
+      <div class="start-row">
+        <span>${state.mode === "campaign" ? `${home.name}で7連戦に挑む` : `選択中: ${home.name} vs ${away.name}`}</span>
+        <button class="primary" data-action="${state.mode === "campaign" ? "startCampaign" : "start"}">${state.mode === "campaign" ? "異変開始" : "試合開始"}</button>
+      </div>
+    </section>
+  `;
+}
+
+function teamButton(team, side) {
+  const selected = side === "home" ? state.homeTeamId === team.id : state.awayTeamId === team.id;
+  const unlocked = state.progress.unlockedTeams.includes(team.id);
+  return `
+    <button class="team-button ${selected ? "selected" : ""} ${unlocked ? "unlocked" : "locked"}" data-select="${side}" data-team="${team.id}">
+      <img src="${teamCg(team)}" alt="${team.name}" />
+      <span class="team-button-copy">
+        <strong>${team.name}</strong>
+        <span>${team.style} / ${unlocked ? "解放済み" : "未解放"}</span>
+        <span class="team-members">${team.members.map((member) => member.name).join(" / ")}</span>
+      </span>
+    </button>
+  `;
+}
+
+function renderMatch() {
+  const match = state.match;
+  const carrier = getCarrier();
+  const defender = carrier ? nearestOpponent(carrier) : null;
+  return `
+    <div class="app-shell">
+      <section class="match-area">
+        <header class="scorebar">
+          <div class="team-score ${match.possession === "home" ? "possessing" : ""}">
+            <span class="team-name">${match.possession === "home" ? "● " : ""}${match.home.name}</span>
+            <span class="score">${match.score.home}</span>
+          </div>
+          <div class="clock">TURN ${Math.min(match.turn, match.maxTurns)} / ${match.maxTurns}</div>
+          <div class="team-score away ${match.possession === "away" ? "possessing" : ""}">
+            <span class="team-name">${match.away.name}${match.possession === "away" ? " ●" : ""}</span>
+            <span class="score">${match.score.away}</span>
+          </div>
+        </header>
+        <div class="play-banner">
+          <div class="banner-cell banner-carrier">
+            <strong>保持</strong>
+            ${renderPortrait(carrier, "mini")}
+            <span class="banner-name">${carrier.name}</span>
+          </div>
+          <div class="banner-cell banner-direction">
+            <strong>攻撃方向</strong>
+            <span class="banner-arrow ${carrier.side === "home" ? "to-right" : "to-left"}">
+              ${carrier.side === "home" ? `→ ${match.away.name}ゴール` : `${match.home.name}ゴール ←`}
+            </span>
+          </div>
+          <div class="banner-cell banner-distance">
+            <strong>距離</strong>
+            <span class="banner-distance-num ${goalDistance(carrier) < 22 ? "danger" : ""}">${Math.round(goalDistance(carrier))}m</span>
+          </div>
+        </div>
+        <div class="field ${encounterFieldClass(carrier, defender)} ${state.fieldShake ? "shake" : ""}">
+          <div class="goal-label home-goal">自陣ゴール</div>
+          <div class="goal-label away-goal">相手ゴール</div>
+          <div class="attack-arrow">攻撃方向 →</div>
+          ${allPlayers().map((player) => renderToken(player, carrier, defender)).join("")}
+          <div class="ball" style="left:${carrier.x}%;top:${carrier.y}%;"></div>
+          ${renderThreatOverlay(carrier, defender)}
+          ${state.passPicker ? renderPassPicker() : ""}
+          ${state.cutin ? renderCutin() : ""}
+        </div>
+        <div class="action-scene-host">
+          ${renderActionScene()}
+        </div>
+        <div class="command-strip">
+          <div class="command-title">どうする？</div>
+          <button class="cmd-up" data-action="battle" data-type="dribble" ${disableHomeTurn()}>↑ ドリブル</button>
+          <button class="cmd-left" data-action="battle" data-type="pass" ${disableHomeTurn()}>← パス</button>
+          <button class="cmd-right" data-action="battle" data-type="shoot" ${disableHomeTurn()}>→ シュート</button>
+          <button class="cmd-down" data-action="battle" data-type="team" ${disableHomeTurn()}>↓ 連携スペル</button>
+        </div>
+      </section>
+      <aside class="side-panel">
+        <div class="team-cg-strip">
+          <img src="${teamCg(match.home)}" alt="${match.home.name}" />
+          <img src="${teamCg(match.away)}" alt="${match.away.name}" />
+        </div>
+        <div class="panel-section">
+          <button data-action="openGallery">ギャラリー</button>
+          <button data-action="openHelp">遊び方</button>
+        </div>
+        <div class="panel-section">
+          <h2 class="section-title">試合前イベント</h2>
+          ${renderEventDialogue(match.preMatchDialogue)}
+        </div>
+        <div class="panel-section">
+          <h2 class="section-title">保持者ステータス</h2>
+          ${renderStatusCard(carrier)}
+        </div>
+        <div class="panel-section">
+          <h2 class="section-title">対峙者ステータス</h2>
+          ${renderStatusCard(defender)}
+        </div>
+        <div class="panel-section">
+          ${state.mode === "campaign" && state.campaign ? `<div class="campaign-progress">STAGE ${state.campaign.index + 1} / ${state.campaign.opponents.length}　勝利 ${state.campaign.wins}</div>` : ""}
+          <button data-action="reset">チーム選択へ戻る</button>
+        </div>
+        ${match.finished ? renderResultPanel() : ""}
+        <div class="log">${state.logs.map((entry) => `<div class="log-entry">${entry}</div>`).join("")}</div>
+      </aside>
+    </div>
+    ${state.battle ? renderBattle() : ""}
+    ${state.vsScreen ? renderVsScreen() : ""}
+    ${state.interrupt ? renderInterruptPrompt() : ""}
+    ${state.gkChoice ? renderGkChoice() : ""}
+    ${state.judge ? renderJudge() : ""}
+    ${state.halftimeReport ? renderHalftimeReport() : ""}
+  `;
+}
+
+function renderHalftimeReport() {
+  if (!state.match || !state.match.stats) return "";
+  const m = state.match;
+  return `
+    <div class="halftime-report">
+      <div class="ht-card">
+        <div class="ht-title">HALFTIME REPORT</div>
+        <div class="ht-score">${m.home.name} <span class="ht-score-num">${m.score.home}</span> - <span class="ht-score-num">${m.score.away}</span> ${m.away.name}</div>
+        ${renderMatchStats(m)}
+        <div class="ht-hint">後半 開始 — 全員霊力 +25 回復</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderResultPanel() {
+  const match = state.match;
+  const text = match.score.home === match.score.away
+    ? "DRAW"
+    : match.score.home > match.score.away
+      ? `${match.home.name} WIN`
+      : `${match.away.name} WIN`;
+  const campaignWon = state.mode === "campaign" && match.winner === "home";
+  const campaignCleared = campaignWon && state.campaign && state.campaign.index >= state.campaign.opponents.length - 1;
+  const dialogue = resultDialogue(match);
+  return `
+    <div class="panel-section result-panel">
+      <h2>${text}</h2>
+      ${renderResultDialogue(dialogue)}
+      ${renderMvp(match)}
+      ${renderMatchStats(match)}
+      ${match.unlockedTeamId ? `<p>${findTeam(match.unlockedTeamId).name} 解放</p>` : ""}
+      ${match.rewardMessage ? `<p class="reward-message">${match.rewardMessage}</p>` : ""}
+      ${campaignWon && !campaignCleared ? `<button class="primary" data-action="nextCampaign">次の対戦へ</button>` : ""}
+      ${campaignCleared ? `<p class="ending-cta-text">幻想郷トーナメント 制覇</p><button class="primary" data-action="viewEnding">エンディングを見る</button>` : ""}
+      <button class="primary" data-action="retry">再戦する</button>
+    </div>
+  `;
+}
+
+function pickMvp(match) {
+  if (!match.playerStats) return null;
+  const candidates = Object.values(match.playerStats);
+  if (!candidates.length) return null;
+  // 重み付け: goal x5 + save x3 + tackle x2 + intercept x2 + ultimate x2 + spell x1
+  const score = (s) => (s.goals||0)*5 + (s.saves||0)*3 + (s.tackles||0)*2 + (s.intercepts||0)*2 + (s.ultimatesUsed||0)*2 + (s.spellsUsed||0) + (s.passes||0)*0.5 + (s.dribbles||0)*0.5;
+  candidates.sort((a, b) => score(b) - score(a));
+  const top = candidates[0];
+  return { ...top, score: score(top) };
+}
+
+function renderMvp(match) {
+  const mvp = pickMvp(match);
+  if (!mvp) return "";
+  const player = allPlayers().find((p) => p.id === mvp.id);
+  if (!player) return "";
+  const xp = state.progress.playerXp && state.progress.playerXp[mvp.id];
+  const lines = [];
+  if (mvp.goals > 0) lines.push(`ゴール ${mvp.goals}`);
+  if (mvp.saves > 0) lines.push(`セーブ ${mvp.saves}`);
+  if (mvp.tackles > 0) lines.push(`タックル ${mvp.tackles}`);
+  if (mvp.intercepts > 0) lines.push(`インターセプト ${mvp.intercepts}`);
+  if (mvp.ultimatesUsed > 0) lines.push(`究極 ${mvp.ultimatesUsed}`);
+  return `
+    <div class="mvp-card">
+      <div class="mvp-badge">MAN OF THE MATCH</div>
+      <div class="mvp-row">
+        ${renderPortrait(player, "mvp")}
+        <div class="mvp-info">
+          <strong>${player.name}</strong>
+          <span class="mvp-team">${player.teamName} / ${player.role}</span>
+          ${xp ? `<span class="mvp-level">Lv ${xp.level} (${xp.xp} XP)</span>` : ""}
+          <span class="mvp-stats">${lines.join(" / ") || "活躍 中"}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderMatchStats(match) {
+  if (!match.stats) return "";
+  const rows = [
+    ["シュート", match.stats.home.shots, match.stats.away.shots],
+    ["ゴール", match.stats.home.goals, match.stats.away.goals],
+    ["パス", match.stats.home.passes, match.stats.away.passes],
+    ["ドリブル", match.stats.home.dribbles, match.stats.away.dribbles],
+    ["タックル", match.stats.home.tackles, match.stats.away.tackles],
+    ["セーブ", match.stats.home.saves, match.stats.away.saves],
+    ["インターセプト", match.stats.home.intercepts, match.stats.away.intercepts],
+    ["スペル発動", match.stats.home.spellsUsed, match.stats.away.spellsUsed],
+  ];
+  return `
+    <div class="match-stats">
+      <div class="stats-head">
+        <span class="stat-team home-side">${match.home.name}</span>
+        <span class="stat-label">統計</span>
+        <span class="stat-team away-side">${match.away.name}</span>
+      </div>
+      ${rows.map(([label, h, a]) => `
+        <div class="stat-row ${h > a ? "home-lead" : a > h ? "away-lead" : ""}">
+          <span class="stat-num">${h}</span>
+          <span class="stat-bar">
+            <span class="bar-h" style="width:${barPct(h, a, "h")}%"></span>
+            <span class="bar-mid">${label}</span>
+            <span class="bar-a" style="width:${barPct(h, a, "a")}%"></span>
+          </span>
+          <span class="stat-num">${a}</span>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function barPct(h, a, side) {
+  const total = h + a;
+  if (total === 0) return 50;
+  return Math.round((side === "h" ? h : a) / total * 100);
+}
+
+function renderGallery() {
+  const players = allRosterPlayers();
+  return `
+    <section class="gallery-screen">
+      <div class="gallery-header">
+        <div>
+          <h1>ギャラリー</h1>
+          <p>チームCG ${TEAMS.length}枚 / ポートレート ${players.length}枚 / カットイン ${players.length}枚</p>
+        </div>
+        <button data-action="closeGallery">戻る</button>
+      </div>
+      <h2 class="section-title">チームCG</h2>
+      <div class="gallery-grid team-gallery">
+        ${TEAMS.map((team) => `
+          <figure>
+            <img src="${teamCg(team)}" alt="${team.name}" />
+            <figcaption>${team.name}</figcaption>
+          </figure>
+        `).join("")}
+      </div>
+      <h2 class="section-title">キャラポートレート</h2>
+      <div class="gallery-grid portrait-gallery">
+        ${players.map((player) => `
+          <figure>
+            <img src="${portraitPath(player)}" alt="${player.name}" />
+            <figcaption>${player.name}</figcaption>
+          </figure>
+        `).join("")}
+      </div>
+      <h2 class="section-title">スペルカットイン</h2>
+      <div class="gallery-grid cutin-gallery">
+        ${players.map((player) => `
+          <figure>
+            <img src="${cutinPath(player)}" alt="${player.spell}" />
+            <figcaption>${player.name}</figcaption>
+          </figure>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderHelp() {
+  return `
+    <section class="help-screen">
+      <div class="gallery-header">
+        <div>
+          <h1>遊び方</h1>
+          <p>キャプテン翼2/3 + 東方サッカー風の、サッカーを題材にしたコマンドRPGです。</p>
+        </div>
+        <button data-action="closeHelp">戻る</button>
+      </div>
+      <div class="help-grid">
+        <article>
+          <h2>試合の流れ</h2>
+          <p>11vs11、30ターン制。終了時点で得点が多いチームの勝利。ボール保持者を中心に行動し、敵と接触するとコマンドバトル (VS 画面) に突入。</p>
+        </article>
+        <article>
+          <h2>コマンド (4方向)</h2>
+          <p>↑ドリブル (前進)、←パス (味方候補から番号選択)、→シュート (GK戦)、↓連携スペル (次判定強化)。クリック or キーボード ↑↓←→ / 1-4 で操作。</p>
+        </article>
+        <article>
+          <h2>キーボード操作</h2>
+          <p>↑→↓← または 1-4 = コマンド / Space = 通常 / S = スペル / Esc = キャンセル / G = ギャラリー / H = 遊び方 / M = 音 ON OFF。</p>
+        </article>
+        <article>
+          <h2>エンカウントの見方</h2>
+          <p>carrier (金オーラ) と最寄り守備者 (赤破線リング) の間に赤い線。距離が近いほど赤が強くなり、ENGAGED!! バッジが出たら接触判定。</p>
+        </article>
+        <article>
+          <h2>スペルと霊力</h2>
+          <p>スペル発動は霊力を消費し、東方スペカ風カットイン (1.5 秒) で大幅な補正。霊力はターンごとに少し回復。</p>
+        </article>
+        <article>
+          <h2>シュート vs GK</h2>
+          <p>相手シュート時、自軍GKに「ジャンプキャッチ / パンチング / 飛び出し」3 択。パンチングはこぼれ球発生で攻防継続。</p>
+        </article>
+        <article>
+          <h2>守備介入 (Interrupt)</h2>
+          <p>敵のターン中に約 30% で「タックル / インターセプト / 待機」 prompt。霊力を消費して敵を止められる。</p>
+        </article>
+        <article>
+          <h2>ストーリー</h2>
+          <p>自チーム選択で 7 連戦に挑戦。勝利すると相手チームがフリー対戦で解放。途中の試合は自動で保存され、再起動後も再開可能。</p>
+        </article>
+        <article>
+          <h2>難易度</h2>
+          <p>EASY (AI ランダム混合 + 弱)、NORMAL (AI 期待値スコアリング)、HARD (1 ターン先読み + 強)。制覇で初期霊力ボーナス。</p>
+        </article>
+        <article>
+          <h2>フォーメーション</h2>
+          <p>4-4-2 / 4-3-3 / 3-5-2 から選択可能。Setup 画面の Formation セクションで切替。</p>
+        </article>
+        <article>
+          <h2>ギャラリー</h2>
+          <p>ComfyUIで生成したチームCG 8 枚、88 人分のポートレート、88 人分のスペルカットインを閲覧。</p>
+        </article>
+        <article>
+          <h2>判定演出</h2>
+          <p>GOAL!! (画面爆発+フィールド振動)、SAVE!! (水色 セービング)、BREAK!! (突破)、CUT!! (パスカット)、SUPPORT!! (連携)。</p>
+        </article>
+      </div>
+    </section>
+  `;
+}
+
+function resultDialogue(match) {
+  const side = match.winner === "away" ? "away" : "home";
+  const team = match[side];
+  const key = match.winner === "draw" ? "draw" : match.winner === side ? "win" : "lose";
+  const data = RESULT_DIALOGUES[team.id] || RESULT_DIALOGUES.hakurei;
+  const speaker = team.players.find((player) => player.id === data.speaker) || team.players[0];
+  return { speaker, message: data[key], resultKey: key };
+}
+
+function renderResultDialogue(dialogue) {
+  return `
+    <div class="result-dialogue" data-result="${dialogue.resultKey}">
+      ${renderPortrait(dialogue.speaker, "dialogue")}
+      <div>
+        <strong>${dialogue.speaker.name}</strong>
+        <p>${dialogue.message}</p>
+      </div>
+    </div>
+  `;
+}
+
+function renderEventDialogue(dialogue) {
+  return `
+    <div class="event-dialogue">
+      ${renderPortrait(dialogue.speaker, "dialogue")}
+      <div>
+        <strong>${dialogue.speaker.name}</strong>
+        <p>${dialogue.message}</p>
+      </div>
+    </div>
+  `;
+}
+
+function renderFormationDiagram(formationKey) {
+  const f = FORMATIONS[formationKey] || FORMATIONS["4-4-2"];
+  const all = [
+    ...f.GK.map((s) => ({ ...s, role: "GK" })),
+    ...f.DF.map((s) => ({ ...s, role: "DF" })),
+    ...f.MF.map((s) => ({ ...s, role: "MF" })),
+    ...f.FW.map((s) => ({ ...s, role: "FW" })),
+  ];
+  const dots = all.map((p) => {
+    const cx = (p.x / 60) * 100; // 60% scale for tiny diagram width
+    const cy = p.y;
+    const color = p.role === "GK" ? "#f8d679" : p.role === "DF" ? "#7ad8e6" : p.role === "MF" ? "#fff7df" : "#c91d3c";
+    return `<circle cx="${cx}" cy="${cy}" r="6" fill="${color}" stroke="#000" stroke-width="1.5" />`;
+  }).join("");
+  return `
+    <svg class="formation-diagram" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+      <rect x="0" y="0" width="100" height="100" fill="#2a5a3a" />
+      <line x1="50" y1="0" x2="50" y2="100" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+      ${dots}
+    </svg>
+  `;
+}
+
+function renderThreatOverlay(carrier, defender) {
+  if (!carrier || !defender) return "";
+  const d = distance(carrier, defender);
+  let stateClass = "safe";
+  if (d < 18) stateClass = "engaged";
+  else if (d < 28) stateClass = "near";
+  const showLine = d < 36;
+  return `
+    ${showLine ? `<svg class="threat-link" viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="${carrier.x}" y1="${carrier.y}" x2="${defender.x}" y2="${defender.y}" class="threat-line ${stateClass}" /></svg>` : ""}
+    <div class="encounter-badge" data-state="${stateClass}">ENGAGED!!</div>
+  `;
+}
+
+function encounterFieldClass(carrier, defender) {
+  if (!carrier || !defender) return "";
+  const d = distance(carrier, defender);
+  if (d < 18) return "engage-strong";
+  if (d < 28) return "engage-near";
+  return "";
+}
+
+function renderToken(player, carrier, defender) {
+  const ratio = player.guts / player.maxGuts;
+  let staminaClass = "full";
+  if (ratio < 0.3) staminaClass = "low";
+  else if (ratio < 0.6) staminaClass = "mid";
+  const classes = [
+    "player-token",
+    player.side,
+    `stamina-${staminaClass}`,
+    player.id === carrier.id ? "carrier" : "",
+    defender && player.id === defender.id ? "target" : "",
+  ].filter(Boolean).join(" ");
+  const roleLetter = { GK: "G", DF: "D", MF: "M", FW: "F" }[player.role] || player.role;
+  return `<div class="${classes}" data-player="${player.id}" data-role="${player.role}" data-name="${player.name}" data-stamina="${staminaClass}" style="left:${player.x}%;top:${player.y}%;" title="${player.name} / ${player.role} / 霊力 ${player.guts}/${player.maxGuts}"><span class="pt-initial">${player.name.slice(0, 1)}</span><span class="pt-role">${roleLetter}</span><span class="pt-meter"><span style="width:${Math.round(ratio * 100)}%"></span></span></div>`;
+}
+
+function renderStatusCard(player) {
+  const lv = player.xpLevel || 1;
+  const boost = player.statBoost || 0;
+  return `
+    <div class="status-grid">
+      <div class="stat-card identity-card">
+        ${renderPortrait(player, "mini")}
+        <span>
+          <strong>${player.name}</strong>${player.teamName} / ${player.role}${lv > 1 ? ` <span class="lv-badge">Lv${lv}${boost > 0 ? ` +${boost}` : ""}</span>` : ""}
+          <div class="meter"><span style="width:${Math.round(player.guts / player.maxGuts * 100)}%"></span></div>
+          <span class="guts-num">霊力 ${player.guts}/${player.maxGuts}</span>
+        </span>
+      </div>
+      <div class="stat-card"><strong>代表スペル</strong>${player.spell}</div>
+      <div class="stat-card"><strong>攻撃</strong>シュート${player.stats.shoot} / ドリブル${player.stats.dribble} / パス${player.stats.pass}</div>
+      <div class="stat-card"><strong>守備</strong>タックル${player.stats.tackle} / ブロック${player.stats.block} / GK${player.stats.keep}</div>
+      <div class="stat-card"><strong>機動</strong>速度${player.stats.speed} / 根性${player.stats.guts}</div>
+    </div>
+  `;
+}
+
+// キャプテン翼3 風 多段必殺技 system
+// 各 command に 3 tier: normal (低コスト・無補正) / spell (中) / ultimate (高・大補正)
+const TIER_COSTS = {
+  dribble: { normal: 8, spell: 22, ultimate: 36 },
+  pass:    { normal: 6, spell: 18, ultimate: 30 },
+  shoot:   { normal: 12, spell: 30, ultimate: 48 },
+  team:    { normal: 8, spell: 16, ultimate: 28 },
+};
+
+const TIER_ATK_BONUS = {
+  dribble: { normal: 0, spell: 28, ultimate: 48 },
+  pass:    { normal: 0, spell: 26, ultimate: 44 },
+  shoot:   { normal: 0, spell: 34, ultimate: 58 },
+  team:    { normal: 0, spell: 0, ultimate: 0 },
+};
+
+const TIER_TEAM_BOOST = { normal: 16, spell: 24, ultimate: 36 };
+const TIER_TEAM_RECOVER = { normal: 5, spell: 8, ultimate: 14 };
+
+function tierCost(type, tier) {
+  return (TIER_COSTS[type] || {})[tier] || 0;
+}
+
+function tierAtkBonus(type, tier) {
+  return (TIER_ATK_BONUS[type] || {})[tier] || 0;
+}
+
+function ultimateSpellName(carrier, type) {
+  const base = actionSpellName(carrier, type);
+  // 既存スペル名末尾に「真」を付加して必殺技 (究極) を演出
+  return base.endsWith("真") ? base : `${base}・真`;
+}
+
+function tierLabel(type, tier, carrier) {
+  if (tier === "normal") return { dribble: "通常ドリブル", pass: "通常パス", shoot: "通常シュート", team: "連携合図" }[type];
+  if (tier === "spell") return actionSpellName(carrier, type);
+  if (tier === "ultimate") return ultimateSpellName(carrier, type);
+  return "コマンド";
+}
+
+function renderBattle() {
+  const carrier = allPlayers().find((player) => player.id === state.battle.carrierId);
+  const defender = allPlayers().find((player) => player.id === state.battle.defenderId);
+  const title = {
+    dribble: "ドリブル勝負",
+    pass: "パス勝負",
+    shoot: "シュート対GK",
+    team: "連携スペル",
+  }[state.battle.type];
+  const t = state.battle.type;
+  const normalCost = tierCost(t, "normal");
+  const spellCostV = tierCost(t, "spell");
+  const ultiCost = tierCost(t, "ultimate");
+  const normalLabel = tierLabel(t, "normal", carrier);
+  const spellLabel = tierLabel(t, "spell", carrier);
+  const ultiLabel = tierLabel(t, "ultimate", carrier);
+  const spellDisabled = carrier.guts < spellCostV;
+  const ultiDisabled = carrier.guts < ultiCost;
+  return `
+    <div class="battle-modal">
+      <div class="battle-card">
+        <div class="battle-visual">
+          <div class="duelist">
+            ${renderPortrait(carrier)}
+            <strong>${carrier.name}</strong>
+            <span class="duelist-guts">霊力 ${carrier.guts}/${carrier.maxGuts}</span>
+          </div>
+          <div class="versus">${title}</div>
+          <div class="duelist">
+            ${renderPortrait(defender)}
+            <strong>${defender.name}</strong>
+            <span class="duelist-guts">霊力 ${defender.guts}/${defender.maxGuts}</span>
+          </div>
+        </div>
+        <div class="battle-body">
+          <p class="battle-message">${battleText(state.battle.type, carrier, defender)}</p>
+          <div class="battle-actions tier-actions">
+            <button data-action="resolve" data-option="normal" class="tier-btn tier-normal">
+              <span class="tier-name">${normalLabel}</span>
+              <span class="tier-cost">霊力 ${normalCost}</span>
+              <span class="tier-hint">[1] 安定</span>
+            </button>
+            <button data-action="resolve" data-option="spell" class="tier-btn tier-spell" ${spellDisabled ? "disabled" : ""}>
+              <span class="tier-name">${spellLabel}</span>
+              <span class="tier-cost">霊力 ${spellCostV}</span>
+              <span class="tier-hint">[2] スペル</span>
+            </button>
+            <button data-action="resolve" data-option="ultimate" class="tier-btn tier-ultimate primary" ${ultiDisabled ? "disabled" : ""}>
+              <span class="tier-name">${ultiLabel}</span>
+              <span class="tier-cost">霊力 ${ultiCost}</span>
+              <span class="tier-hint">[3] 究極</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function battleText(type, carrier, defender) {
+  if (type === "shoot") return `${carrier.name}がシュート体勢。${defender.name}とのGK戦です。距離補正あり。`;
+  if (type === "pass") return `${carrier.name}が展開を狙う。${defender.name}のカットを越えれば前進します。`;
+  if (type === "team") return `${carrier.teamName}の連携スペル。次の判定に補正を乗せます。`;
+  return `${carrier.name}が仕掛ける。${defender.name}のタックルを抜ければゴールへ近づきます。`;
+}
+
+function spellCost(type) {
+  return tierCost(type, "spell");
+}
+
+function disableHomeTurn() {
+  return state.match.finished || state.match.possession !== "home" || state.battle ? "disabled" : "";
+}
+
+function bindEvents() {
+  document.querySelectorAll("[data-select]").forEach((button) => {
+    button.addEventListener("click", () => {
+      audio.play("select");
+      if (button.dataset.select === "home") state.homeTeamId = button.dataset.team;
+      if (button.dataset.select === "away") state.awayTeamId = button.dataset.team;
+      if (state.homeTeamId === state.awayTeamId) {
+        state.awayTeamId = TEAMS.find((team) => team.id !== state.homeTeamId).id;
+      }
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const action = button.dataset.action;
+      if (!["resolve", "battle", "pass-target", "interrupt", "gk-choice"].includes(action)) audio.play("select");
+      if (action === "start") startMatch();
+      if (action === "startCampaign") startCampaign();
+      if (action === "nextCampaign") nextCampaignMatch();
+      if (action === "retry" && state.match) startMatch({ homeTeamId: state.match.home.id, awayTeamId: state.match.away.id });
+      if (action === "resumeMatch") {
+        const saved = loadMatch();
+        if (saved) resumeMatch(saved);
+      }
+      if (action === "discardMatch") {
+        clearMatchSave();
+        render();
+      }
+      if (action === "mode") {
+        state.mode = button.dataset.mode;
+        render();
+      }
+      if (action === "resetProgress") {
+        resetProgress();
+        clearMatchSave();
+        render();
+      }
+      if (action === "toggleAudio") {
+        audio.setMuted(!state.progress.audioMuted);
+        render();
+      }
+      if (action === "openGallery") {
+        state.previousScreen = state.screen;
+        state.screen = "gallery";
+        render();
+      }
+      if (action === "closeGallery") {
+        state.screen = state.previousScreen && state.previousScreen !== "gallery" ? state.previousScreen : "setup";
+        render();
+      }
+      if (action === "openHelp") {
+        state.previousScreen = state.screen;
+        state.screen = "help";
+        render();
+      }
+      if (action === "closeHelp") {
+        state.screen = state.previousScreen && state.previousScreen !== "help" ? state.previousScreen : "setup";
+        render();
+      }
+      if (action === "difficulty") {
+        setDifficulty(button.dataset.difficulty);
+        render();
+      }
+      if (action === "formation") {
+        state.progress.formation = button.dataset.formation;
+        saveProgress();
+        render();
+      }
+      if (action === "tactic") {
+        state.progress.tactic = button.dataset.tactic;
+        saveProgress();
+        render();
+      }
+      if (action === "reset") {
+        state.screen = "setup";
+        state.match = null;
+        state.battle = null;
+        state.vsScreen = null;
+        state.judge = null;
+        state.passPicker = null;
+        state.interrupt = null;
+        state.gkChoice = null;
+        render();
+      }
+      if (action === "battle") {
+        const type = button.dataset.type;
+        if (type === "team") {
+          state.battle = { type, carrierId: getCarrier().id, defenderId: nearestOpponent(getCarrier()).id };
+          state.vsScreen = { attacker: getCarrier(), defender: nearestOpponent(getCarrier()), label: VS_LABELS.team };
+          window.clearTimeout(state.vsScreenTimer);
+          state.vsScreenTimer = window.setTimeout(() => { state.vsScreen = null; render(); }, 740);
+          render();
+        } else {
+          openBattle(type);
+        }
+      }
+      if (action === "resolve") resolveBattle(button.dataset.option);
+      if (action === "interrupt") resolveInterrupt(button.dataset.option);
+      if (action === "gk-choice") resolveGkChoice(button.dataset.option);
+      if (action === "cancelPicker") {
+        state.passPicker = null;
+        render();
+      }
+      if (action === "vn-advance") advanceVn();
+      if (action === "vn-skip") skipVn();
+      if (action === "viewEnding") {
+        // 直前の勝利相手の win story → ending
+        if (state.campaign) {
+          const justWonId = state.campaign.opponents[state.campaign.index];
+          const winStory = STORY_WIN[justWonId];
+          const showEnding = () => startVn(STORY_ENDING, "幻想郷トーナメント 優勝", () => {
+            state.screen = "setup";
+            state.logs = ["幻想郷フットボール異変を制覇。優勝旗を獲得した。"];
+            render();
+          });
+          if (winStory) startVn(winStory, `${findTeam(justWonId).name} 撃破`, showEnding);
+          else showEnding();
+        } else {
+          startVn(STORY_ENDING, "幻想郷トーナメント 優勝", () => {
+            state.screen = "setup";
+            render();
+          });
+        }
+      }
+    });
+  });
+
+  document.querySelectorAll(".pass-target-badge").forEach((badge) => {
+    badge.addEventListener("click", () => {
+      selectPassTarget(parseInt(badge.dataset.index, 10));
+    });
+  });
+}
+
+function bindKeyboardEvents() {
+  if (window.__touhouSpellSoccerKeyboardBound) return;
+  window.__touhouSpellSoccerKeyboardBound = true;
+  window.addEventListener("keydown", (e) => {
+    if (e.target.matches && e.target.matches("input, textarea, select")) return;
+    const k = e.key;
+    // VN scene は最最優先
+    if (state.vnScene) {
+      if (k === " " || k === "Enter" || k === "ArrowRight" || k === "z" || k === "Z") {
+        advanceVn();
+        e.preventDefault();
+        return;
+      }
+      if (k === "Escape") {
+        skipVn();
+        e.preventDefault();
+        return;
+      }
+      return;
+    }
+    // pass picker は最優先
+    if (state.passPicker) {
+      if (/^[1-9]$/.test(k)) {
+        const idx = parseInt(k, 10) - 1;
+        if (idx < state.passPicker.candidates.length) {
+          selectPassTarget(idx);
+          e.preventDefault();
+        }
+        return;
+      }
+      if (k === "Escape") {
+        state.passPicker = null;
+        render();
+        e.preventDefault();
+        return;
+      }
+    }
+    if (state.interrupt) {
+      if (k === "1") { resolveInterrupt("tackle"); e.preventDefault(); return; }
+      if (k === "2") { resolveInterrupt("intercept"); e.preventDefault(); return; }
+      if (k === "3" || k === "Escape") { resolveInterrupt("wait"); e.preventDefault(); return; }
+    }
+    if (state.gkChoice) {
+      if (k === "1") { resolveGkChoice("catch"); e.preventDefault(); return; }
+      if (k === "2") { resolveGkChoice("punch"); e.preventDefault(); return; }
+      if (k === "3") { resolveGkChoice("rush"); e.preventDefault(); return; }
+    }
+    if (state.battle) {
+      if (k === "1" || k === " " || k === "Enter") { resolveBattle("normal"); e.preventDefault(); return; }
+      if (k === "2" || k === "s" || k === "S") { resolveBattle("spell"); e.preventDefault(); return; }
+      if (k === "3" || k === "u" || k === "U") { resolveBattle("ultimate"); e.preventDefault(); return; }
+      if (k === "Escape") { state.battle = null; state.vsScreen = null; render(); e.preventDefault(); return; }
+    }
+    if (state.screen === "match" && state.match && !state.match.finished && state.match.possession === "home" && !state.battle && !state.passPicker && !state.gkChoice && !state.interrupt) {
+      if (k === "ArrowUp" || k === "1") { openBattle("dribble"); e.preventDefault(); return; }
+      if (k === "ArrowLeft" || k === "2") { openBattle("pass"); e.preventDefault(); return; }
+      if (k === "ArrowRight" || k === "3") { openBattle("shoot"); e.preventDefault(); return; }
+      if (k === "ArrowDown" || k === "4") {
+        state.battle = { type: "team", carrierId: getCarrier().id, defenderId: nearestOpponent(getCarrier()).id };
+        state.vsScreen = { attacker: getCarrier(), defender: nearestOpponent(getCarrier()), label: VS_LABELS.team };
+        window.clearTimeout(state.vsScreenTimer);
+        state.vsScreenTimer = window.setTimeout(() => { state.vsScreen = null; render(); }, 740);
+        render();
+        e.preventDefault();
+        return;
+      }
+    }
+    if (k === "g" || k === "G") {
+      state.previousScreen = state.screen;
+      state.screen = "gallery";
+      render();
+    }
+    if (k === "h" || k === "H") {
+      state.previousScreen = state.screen;
+      state.screen = "help";
+      render();
+    }
+    if (k === "m" || k === "M") {
+      audio.setMuted(!state.progress.audioMuted);
+      render();
+    }
+  });
+}
+
+window.__touhouSpellFutsalDebug = {
+  forceJudge(key = "goal") {
+    showJudge(key);
+    render();
+  },
+  openPassPicker() {
+    if (!state.match) startMatch();
+    openPassPicker();
+  },
+  saveCurrentMatch() {
+    saveMatch();
+  },
+  // 試合を即時に勝利させる (storyShown 確認用)
+  autoWinMatch() {
+    if (!state.match) return;
+    state.vsScreen = null;
+    state.judge = null;
+    state.passPicker = null;
+    state.battle = null;
+    state.gkChoice = null;
+    state.interrupt = null;
+    state.vnScene = null;
+    state.match.score.home = state.match.score.away + 3;
+    state.match.turn = state.match.maxTurns + 1;
+    state.match.possession = "home";
+    endTurn();
+    render();
+  },
+  // VN を即終了
+  skipVnAll() {
+    while (state.vnScene) skipVn();
+  },
+  triggerEnding() {
+    startVn(STORY_ENDING, "幻想郷トーナメント 優勝", () => {
+      state.screen = "setup";
+      render();
+    });
+  },
+  forceResult(winner = "home") {
+    if (!state.match) startMatch();
+    state.match.finished = true;
+    state.match.winner = winner;
+    if (winner === "home") {
+      state.match.score.home = Math.max(state.match.score.home, state.match.score.away + 1);
+    } else if (winner === "away") {
+      state.match.score.away = Math.max(state.match.score.away, state.match.score.home + 1);
+    } else {
+      state.match.winner = "draw";
+      state.match.score.away = state.match.score.home;
+    }
+    render();
+  },
+  forceCampaignClear(difficulty = "normal") {
+    if (!["easy", "normal", "hard"].includes(difficulty)) return;
+    setDifficulty(difficulty);
+    state.mode = "campaign";
+    state.campaign = {
+      homeTeamId: state.homeTeamId,
+      opponents: TEAMS.map((team) => team.id).filter((id) => id !== state.homeTeamId),
+      index: TEAMS.length - 2,
+      wins: TEAMS.length - 2,
+    };
+    const awayTeamId = state.campaign.opponents[state.campaign.index];
+    startMatch({ homeTeamId: state.homeTeamId, awayTeamId });
+    state.match.turn = state.match.maxTurns;
+    state.match.score.home = Math.max(state.match.score.home, state.match.score.away + 1);
+    endTurn();
+    render();
+  },
+};
+
+render();
