@@ -316,15 +316,39 @@ test("spell cut-in plays a 2-frame delay sprite animation", async ({ page }) => 
   await expect(page.locator('.cutin img[data-frame="1"]')).toBeVisible({ timeout: 2000 });
 });
 
-test("normal action shows a generic Captain-Tsubasa-style action cut-in", async ({ page }) => {
+test("normal action keeps the field visible (no full-screen cut-in)", async ({ page }) => {
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
   await page.getByRole("button", { name: /ドリブル/ }).click();
   await page.locator('[data-action="resolve"][data-option="normal"]').click();
-  // 通常ドリブルは汎用アクションスプライト(突破 or 被タックル)の大型カットインを前面表示。
-  await expect(page.locator(".cutin.action-cutin img")).toBeVisible();
-  await expect(page.locator(".cutin.action-cutin img")).toHaveAttribute("src", /\/assets\/anim\/(dribble|tackle)_\d\.png$/);
+  // 通常アクションは盤面を隠さない (大型カットインは見せ場限定に格下げ)。フィールドと実況で結果を見せる。
+  await expect(page.locator(".cutin.action-cutin")).toHaveCount(0);
+  await expect(page.locator(".field")).toBeVisible();
+  await expect(page.locator(".action-scene")).toContainText(/攻撃値|守備値/);
+});
+
+test("each action pauses for message-advance (paced play-by-play)", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  await page.getByRole("button", { name: /ドリブル/ }).click();
+  await page.locator('[data-action="resolve"][data-option="normal"]').click();
+  // 行動後はメッセージ送り待ち: 「▶ 次へ」が出て、 送るまで展開が止まる。
+  await expect(page.locator(".advance-btn")).toBeVisible();
+  await expect(page.locator(".command-strip.awaiting")).toBeVisible();
+  // 送ると進行が続く。
+  await page.locator(".advance-btn").click();
+  await expect(page.locator(".field")).toBeVisible();
+});
+
+test("auto-advance toggle is saved", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  await page.locator('[data-action="toggleAuto"]').first().click();
+  const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem("touhouSpellFutsalSaveV1")));
+  expect(saved.autoAdvance).toBe(true);
 });
 
 test("spell shot offers the GK a spell-save counter option", async ({ page }) => {

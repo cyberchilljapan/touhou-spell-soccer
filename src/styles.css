@@ -654,6 +654,54 @@ button:disabled {
 .cmd-right { grid-area: right; }
 .cmd-down { grid-area: down; }
 
+/* メッセージ送り待ち: コマンド十字の代わりに大きな「▶ 次へ」を出す。 */
+.command-strip.awaiting {
+  display: flex;
+  grid-template-areas: none;
+  justify-content: center;
+}
+
+.advance-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 20px;
+  font-weight: 900;
+  color: #151515;
+  background: linear-gradient(180deg, #f6d77a, #e6b94f);
+  border: 2px solid #fff7df;
+  border-radius: 8px;
+  box-shadow: 0 0 14px rgba(240, 200, 90, 0.5);
+  cursor: pointer;
+  animation: advancePulse 1100ms ease-in-out infinite;
+}
+
+.advance-btn .advance-hint {
+  font-size: 11px;
+  font-weight: 700;
+  color: #3a2a10;
+  letter-spacing: 0.02em;
+}
+
+@keyframes advancePulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(240, 200, 90, 0.4); }
+  50% { box-shadow: 0 0 20px rgba(240, 200, 90, 0.8); }
+}
+
+.auto-toggle {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.auto-toggle.on {
+  background: #2f7d4f;
+  color: #fff;
+  border-color: #8be0a8;
+}
+
 .side-panel {
   min-height: calc(100vh - 32px);
   display: grid;

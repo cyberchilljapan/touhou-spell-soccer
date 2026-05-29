@@ -196,6 +196,8 @@ const state = {
   hitstopTimer: null,
   crashScene: null,
   crashSceneTimer: null,
+  advance: null,
+  advanceTimer: null,
   actionScene: null,
   actionSceneTimer: null,
   previousScreen: "setup",
@@ -279,6 +281,7 @@ function defaultProgress() {
     tactic: "normal",
     playerXp: {},
     animSpeed: "normal",
+    autoAdvance: false,
   };
 }
 
@@ -306,6 +309,7 @@ function loadProgress() {
       tactic: ["normal", "offensive", "defensive", "counter"].includes(parsed.tactic) ? parsed.tactic : "normal",
       playerXp: (parsed.playerXp && typeof parsed.playerXp === "object") ? parsed.playerXp : {},
       animSpeed: ["normal", "fast", "instant"].includes(parsed.animSpeed) ? parsed.animSpeed : "normal",
+      autoAdvance: Boolean(parsed.autoAdvance),
     };
   } catch (_error) {
     return fallback;
@@ -1219,7 +1223,8 @@ function rng() {
 
 // 演出速度。 standard=1 / fast=0.5 / instant=0.12 でタイマーを一括スケール。
 function animScale() {
-  return { normal: 1, fast: 0.5, instant: 0.12 }[(state.progress && state.progress.animSpeed) || "normal"] || 1;
+  // どの設定でも人間が追える範囲に。 旧 instant(0.12=8倍速)は blur なので緩和。
+  return { normal: 1.15, fast: 0.75, instant: 0.5 }[(state.progress && state.progress.animSpeed) || "normal"] || 1.15;
 }
 
 function animMs(ms) {
@@ -1229,6 +1234,31 @@ function animMs(ms) {
 // インパクト保持/ヒットストップ専用。 下限を 120ms に引き上げ、 fast/instant でも「当たり」を潰さない。
 function impactMs(ms) {
   return Math.max(120, Math.round(ms * animScale()));
+}
+
+// メッセージ送りゲート: 1 行動の結果を見せ、 進む入力 (またはauto) まで次の展開を止める。
+// 人間が一手ずつ確実に把握できるようにするための要。
+function gate() {
+  state.advance = true;
+  render();
+  window.clearTimeout(state.advanceTimer);
+  if (state.progress && state.progress.autoAdvance) {
+    // auto トグル ON のときだけ、 読める速度で自動送り。
+    state.advanceTimer = window.setTimeout(() => advancePlay(), animMs(1100));
+  }
+}
+
+function advancePlay() {
+  if (!state.advance) return;
+  window.clearTimeout(state.advanceTimer);
+  state.advance = null;
+  if (!state.match || state.match.finished) { render(); return; }
+  if (state.match.possession === "away") {
+    render();
+    enemyTurn(); // 相手の 1 手 → 結果 → 再び gate
+  } else {
+    render(); // プレイヤーのコマンド待ち
+  }
 }
 
 // ヒットストップ: 決着の瞬間に演出を一瞬止め、 体感強度を上げる (視覚のみ。 ロジックは進行)。
@@ -1259,6 +1289,7 @@ function cancelPendingTimers() {
     state.cutinFrameTimer,
     state.hitstopTimer,
     state.crashSceneTimer,
+    state.advanceTimer,
   ].forEach((t) => { if (t) window.clearTimeout(t); });
   state.vsScreenTimer = null;
   state.actionSceneTimer = null;
@@ -1269,8 +1300,10 @@ function cancelPendingTimers() {
   state.cutinFrameTimer = null;
   state.hitstopTimer = null;
   state.crashSceneTimer = null;
+  state.advanceTimer = null;
   state.hitstop = false;
   state.crashScene = null;
+  state.advance = null;
   state.vsScreen = null;
   state.cutin = null;
   state.judge = null;
@@ -1561,6 +1594,8 @@ function opponentSide(side) {
 function log(message) {
   state.logs.unshift(message);
   state.logs = state.logs.slice(0, 40);
+  // プレイバイプレイをコンソールにも出力 (開発時に流れを追う/デバッグ用)。
+  try { console.log("⚽", message); } catch (_e) {}
 }
 
 function actionTitle(type) {
@@ -1831,7 +1866,7 @@ function resolveBattle(option) {
       audio.play(isSpell ? "spell" : "kick");
       audio.play("dribble-break");
       if (isSpell) showCutin(isUlti ? characterUltimateName(carrier) : characterSpellName(carrier), carrier, carrier.spellText);
-      else showActionCutin("dribble", `${carrier.name} ドリブル突破`);
+      // 通常ドリブルはカットインで盤面を隠さず、 フィールド上の前進 + 実況で見せる。
       setActionScene("dribble", carrier, defender, `${carrier.name}が${defender.name}を${isUlti ? "切り裂いて" : "抜いて"}前進。`, `攻撃値 ${Math.round(atk)} / 守備値 ${Math.round(def)} / 段階: ${tier}`, "success");
       showJudge("break");
       log(`${carrier.name}が${defender.name}を突破 (${tier})。攻撃値${Math.round(atk)} / 守備値${Math.round(def)}。`);
@@ -1842,7 +1877,6 @@ function resolveBattle(option) {
       bumpPlayerStat(defender, "tackles");
       // knockback: ball 位置を defender 側 (碰勝者) 寄りへ少し移動
       knockbackBall(carrier, defender, isUlti ? 14 : isSpell ? 10 : 7);
-      showActionCutin("tackle", `${defender.name} タックル!`);
       setActionScene("dribble", carrier, defender, `${defender.name}が止めた。ボールは相手側へ。`, `攻撃値 ${Math.round(atk)} / 守備値 ${Math.round(def)} / 段階: ${tier}`, "fail");
       showJudge("stop");
       hitstop(66);
@@ -1870,7 +1904,6 @@ function resolveBattle(option) {
       audio.play(isSpell ? "spell" : "select");
       audio.play("pass-success");
       if (isSpell) showCutin(isUlti ? characterUltimateName(carrier) : characterSpellName(carrier), carrier, carrier.spellText);
-      else showActionCutin("pass", `${carrier.name} スルーパス`);
       setActionScene("pass", carrier, defender, `${receiver.name}へのパス成功。${isUlti ? "電光石火の前進。" : "攻撃が前へ進む。"}`, `攻撃値 ${Math.round(atk)} / カット値 ${Math.round(def)} / 段階: ${tier}`, "success");
       showJudge("through");
       log(`${carrier.name}から${receiver.name}へパス成功 (${tier})。${receiver.name}が前を向いた。`);
@@ -1880,7 +1913,6 @@ function resolveBattle(option) {
       bumpStat(defender.side, "intercepts");
       bumpPlayerStat(defender, "intercepts");
       knockbackBall(carrier, defender, isUlti ? 12 : isSpell ? 9 : 6);
-      showActionCutin("intercept", `${defender.name} インターセプト!`);
       setActionScene("pass", carrier, defender, `${defender.name}がパスカット。ボール保持が入れ替わる。`, `攻撃値 ${Math.round(atk)} / カット値 ${Math.round(def)} / 段階: ${tier}`, "fail");
       showJudge("cut");
       hitstop(66);
@@ -1906,8 +1938,8 @@ function resolveBattle(option) {
       audio.play("shoot-impact");
     }
     audio.play("whistle");
+    // 通常シュートはカットインで隠さず GK との対決を盤面で見せる。 必殺のみ固有カットイン。
     if (isSpell) showCutin(isUlti ? characterUltimateName(carrier) : characterSpellName(carrier), carrier, carrier.spellText);
-    else showActionCutin("shoot", `${carrier.name} シュート`);
     // GK 選択: AWAY shoot → home GK は user 選択 / HOME shoot → away GK は AI 選択
     const gkSide = opponentSide(carrier.side);
     state.battle = null;
@@ -1948,9 +1980,7 @@ function resolveBattle(option) {
   }
 
   state.battle = null;
-  endTurn();
-  clearActionSceneLater();
-  render();
+  endTurn(); // 結果表示 + メッセージ送りゲートは endTurn 内で行う
 }
 
 function renderGkChoice() {
@@ -2074,15 +2104,13 @@ function finalizeShoot(carrier, gk, baseAtk, gkOption, useSpell, attackTier) {
       ? `${gk.name}が${atkName}を真っ向から受け止めた! ${gk.spell}、完全セーブ!`
       : `${gk.name}が${how}阻止。`;
     if (spellSave) showCutin(`${gk.name} ${gk.spell}`, gk, gk.spellText);
-    else showActionCutin("gk_save", `${gk.name} セーブ!`);
+    // 通常セーブはカットインで隠さず盤面で見せる。 スペルセーブのみ固有カットイン。
     setActionScene("shoot", carrier, gk, msg, `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)}`, "fail");
     showJudge("save");
     hitstop(spellSave ? 200 : 66); // スペルセーブ成立は必殺級の見せ場、 通常セーブは軽い止め
     turnover(gk, `${gk.name}が${how || "セーブで"}${carrier.name}の${atkName}を止めた。攻撃値${Math.round(baseAtk)} / GK値${Math.round(def)}。`);
   }
-  endTurn();
-  clearActionSceneLater();
-  render();
+  endTurn(); // 結果表示 + メッセージ送りゲートは endTurn 内で行う
 }
 
 function advanceCarrier(player, amount) {
@@ -2193,9 +2221,11 @@ function endTurn() {
     }
     const result = match.winner === "draw" ? "引き分け" : match.winner === "home" ? `${match.home.name}の勝利` : `${match.away.name}の勝利`;
     log(`試合終了。${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}。${result}。`);
+    render();
   } else {
     saveMatch();
-    if (state.match.possession === "away") setTimeout(enemyTurn, animMs(420));
+    // 1 行動ごとに結果を見せ、 メッセージ送り (or auto) まで次の展開を止める。
+    gate();
   }
 }
 
@@ -2387,8 +2417,7 @@ function resolveInterrupt(option) {
   const cost = option === "tackle" ? 10 : 8;
   if (defender.guts < cost) {
     log(`${defender.name}の霊力不足で介入失敗。`);
-    render();
-    setTimeout(enemyTurn, animMs(320));
+    gate(); // 送ると相手の攻撃が続く
     return;
   }
   spend(defender, cost);
@@ -2404,14 +2433,12 @@ function resolveInterrupt(option) {
     setActionScene(option === "tackle" ? "dribble" : "pass", attacker, defender, `${defender.name}が${option === "tackle" ? "タックル" : "インターセプト"}成功!`, `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}`, "success");
     turnover(defender, `${defender.name}が${attacker.name}から${option === "tackle" ? "タックル" : "インターセプト"}でボール奪取。`);
     state.battle = null;
-    render();
-    clearActionSceneLater();
+    gate(); // 送ると奪取側 (自軍) のコマンドへ
   } else {
     showJudge("stop");
     setActionScene(option === "tackle" ? "dribble" : "pass", attacker, defender, `${defender.name}の介入は届かなかった。`, `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}`, "fail");
     log(`${defender.name}の${option === "tackle" ? "タックル" : "インターセプト"}は届かなかった。`);
-    render();
-    setTimeout(enemyTurn, animMs(380));
+    gate(); // 送ると相手の攻撃が続く
   }
 }
 
@@ -2859,12 +2886,16 @@ function renderMatch() {
         <div class="action-scene-host">
           ${renderActionScene()}
         </div>
-        <div class="command-strip">
-          <div class="command-title">どうする？</div>
-          <button class="cmd-up" data-action="battle" data-type="dribble" ${disableHomeTurn()}>↑ ドリブル</button>
-          <button class="cmd-left" data-action="battle" data-type="pass" ${disableHomeTurn()}>← パス</button>
-          <button class="cmd-right" data-action="battle" data-type="shoot" ${disableHomeTurn()}>→ シュート</button>
-          <button class="cmd-down" data-action="battle" data-type="team" ${disableHomeTurn()}>↓ 連携スペル</button>
+        <div class="command-strip ${state.advance ? "awaiting" : ""}">
+          ${state.advance ? `
+            <button class="advance-btn" data-action="advancePlay">▶ 次へ<span class="advance-hint">クリック / Space / Enter　${state.progress.autoAdvance ? "(自動送りON)" : ""}</span></button>
+          ` : `
+            <div class="command-title">どうする？</div>
+            <button class="cmd-up" data-action="battle" data-type="dribble" ${disableHomeTurn()}>↑ ドリブル</button>
+            <button class="cmd-left" data-action="battle" data-type="pass" ${disableHomeTurn()}>← パス</button>
+            <button class="cmd-right" data-action="battle" data-type="shoot" ${disableHomeTurn()}>→ シュート</button>
+            <button class="cmd-down" data-action="battle" data-type="team" ${disableHomeTurn()}>↓ 連携スペル</button>
+          `}
         </div>
       </section>
       <aside class="side-panel">
@@ -2875,6 +2906,7 @@ function renderMatch() {
         <div class="panel-section">
           <button data-action="openGallery">ギャラリー</button>
           <button data-action="openHelp">遊び方</button>
+          <button class="auto-toggle ${state.progress.autoAdvance ? "on" : ""}" data-action="toggleAuto" title="ONで自動的にメッセージを送る">自動送り ${state.progress.autoAdvance ? "ON" : "OFF"}</button>
         </div>
         <div class="panel-section">
           <h2 class="section-title">試合前イベント</h2>
@@ -3373,7 +3405,7 @@ function spellCost(type) {
 }
 
 function disableHomeTurn() {
-  return state.match.finished || state.match.possession !== "home" || state.battle ? "disabled" : "";
+  return state.match.finished || state.match.possession !== "home" || state.battle || state.advance ? "disabled" : "";
 }
 
 function bindEvents() {
@@ -3460,6 +3492,17 @@ function bindEvents() {
           render();
         }
       }
+      if (action === "advancePlay") advancePlay();
+      if (action === "toggleAuto") {
+        state.progress.autoAdvance = !state.progress.autoAdvance;
+        saveProgress();
+        render();
+        // 待機中に ON にしたら自動送りを開始する。
+        if (state.progress.autoAdvance && state.advance) {
+          window.clearTimeout(state.advanceTimer);
+          state.advanceTimer = window.setTimeout(() => advancePlay(), animMs(700));
+        }
+      }
       if (action === "reset") {
         cancelPendingTimers();
         state.screen = "setup";
@@ -3521,6 +3564,16 @@ function bindEvents() {
     });
   });
 
+  // メッセージ送り待ち中は、 実況メッセージ / フィールドのクリックでも次へ進める。
+  if (state.advance) {
+    document.querySelectorAll(".action-scene-host, .field, .play-banner").forEach((el) => {
+      el.addEventListener("click", (ev) => {
+        if (ev.target.closest("[data-action], [data-select], [data-index]")) return;
+        advancePlay();
+      });
+    });
+  }
+
   // カットイン / VS 画面をクリックで即スキップ (テンポ改善)。
   document.querySelectorAll(".cutin, .vs-screen").forEach((el) => {
     el.addEventListener("click", (ev) => {
@@ -3552,6 +3605,15 @@ function bindKeyboardEvents() {
         return;
       }
       return;
+    }
+    // メッセージ送り待ち: Space / Enter / Z / → で次へ
+    if (state.advance) {
+      if (k === " " || k === "Enter" || k === "ArrowRight" || k === "z" || k === "Z") {
+        advancePlay();
+        e.preventDefault();
+        return;
+      }
+      return; // 送り待ち中は他の入力を受けない
     }
     // pass picker は最優先
     if (state.passPicker) {
