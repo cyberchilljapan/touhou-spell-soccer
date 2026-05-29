@@ -2972,9 +2972,6 @@ function renderMatch() {
             <span class="banner-distance-num ${goalDistance(carrier) < 22 ? "danger" : ""}">${Math.round(goalDistance(carrier))}m</span>
           </div>
         </div>
-        <div class="action-scene-host">
-          ${renderActionScene()}
-        </div>
         <div class="field ${encounterFieldClass(carrier, defender)} ${state.fieldShake ? "shake" : ""} ${state.hitstop ? "hitstop" : ""}">
           <div class="goal-label home-goal">自陣ゴール</div>
           <div class="goal-label away-goal">相手ゴール</div>
@@ -2984,6 +2981,9 @@ function renderMatch() {
           ${renderThreatOverlay(carrier, defender)}
           ${state.passPicker ? renderPassPicker() : ""}
           ${state.cutin ? renderCutin() : ""}
+        </div>
+        <div class="action-scene-host">
+          ${renderActionScene()}
         </div>
         ${state.advance ? "" : `
           <div class="move-strip">

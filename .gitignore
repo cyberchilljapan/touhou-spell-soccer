@@ -17,3 +17,6 @@ __pycache__/
 # Local dev only
 .vscode/
 .idea/
+
+# CT3 UIリファレンス(ローカル参照用・非コミット)
+_ct3ref/

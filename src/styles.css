@@ -80,13 +80,14 @@ button:disabled {
   overflow: hidden;
 }
 
+/* CT3 下段: 黒地のメッセージ/演出パネル (上のピッチと白線で区切る)。 */
 .action-scene-host {
   position: relative;
   flex: 0 0 auto;
-  border-bottom: 2px solid var(--touhou-gold, #f0c85a);
-  background: linear-gradient(180deg, rgba(10, 14, 22, 0.5), rgba(0, 0, 0, 0.32));
-  min-height: 220px;
-  padding: 10px 14px;
+  border-top: 3px solid rgba(255, 255, 255, 0.92);
+  background: #000;
+  min-height: 132px;
+  padding: 8px 12px;
 }
 
 .scorebar {
@@ -558,7 +559,7 @@ button:disabled {
 
 .action-stage {
   position: relative;
-  min-height: 184px;
+  min-height: 116px;
   overflow: hidden;
   border: 2px solid rgba(255, 255, 255, 0.22);
   border-radius: 8px;
@@ -658,13 +659,23 @@ button:disabled {
   animation-name: ballGoal;
 }
 
+/* CT3 メッセージ枠: 黒地・白二重縁・白文字 (原作の額縁風)。 */
 .vn-box {
-  min-height: 112px;
-  padding: 13px 14px;
-  border: 2px solid rgba(240, 200, 90, 0.52);
-  border-radius: 8px;
-  background: rgba(14, 17, 18, 0.94);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.36);
+  min-height: 110px;
+  padding: 12px 14px;
+  border: 2px solid #fff;
+  outline: 2px solid #000;
+  outline-offset: 1px;
+  border-radius: 6px;
+  background: #000;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.vn-box p {
+  color: #fff;
 }
 
 .vn-name {
@@ -749,6 +760,33 @@ button:disabled {
 .cmd-left { grid-area: left; }
 .cmd-right { grid-area: right; }
 .cmd-down { grid-area: down; }
+
+/* CT3 風コマンド/移動ボタン: 黒地・白縁・白文字、 hover/選択で赤ハイライト。 */
+.command-strip button:not(.advance-btn),
+.move-strip button:not(.primary) {
+  background: #000;
+  border: 2px solid #fff;
+  color: #fff;
+  border-radius: 5px;
+  font-weight: 800;
+}
+
+.command-strip button:not(.advance-btn):hover:not(:disabled),
+.move-strip button:not(.primary):hover:not(:disabled) {
+  background: var(--touhou-red, #c91d3c);
+  color: #fff;
+  border-color: #fff;
+}
+
+.command-strip button:disabled,
+.move-strip button:disabled { opacity: 0.4; }
+
+.command-strip { background: #000; }
+.command-title { color: #f8d679; }
+
+/* CT3 タイマー/スコアは黄色数字。 */
+.clock,
+.team-score .score { color: #f8d679; }
 
 /* メッセージ送り待ち: コマンド十字の代わりに大きな「▶ 次へ」を出す。 */
 .command-strip.awaiting {
