@@ -2390,22 +2390,18 @@ function endTurn() {
   }
 }
 
-function maybeTriggerInterrupt(carrier) {
-  if (carrier.side !== "away") return false;
+// 守備じゃんけん: 相手の dribble/pass に対し、 近接 home DF がいれば防御選択を出す。
+// タックル⇔ドリブル / パスカット⇔パス の読み合い。 aiAction/aiTier を保持して resolveInterrupt で解決。
+function offerDefense(carrier, aiAction, aiTier) {
   if (state.interrupt) return false;
-  // 奪取直後の 1 手は介入させない (奪われてすぐタックルの不自然さを回避)。
+  // 奪取直後の 1 手は介入させない (奪われてすぐ守備の不自然さを回避)。
   if (state.match.freshTurnover) { state.match.freshTurnover = false; return false; }
   const defender = teamBySide("home").players
     .filter((p) => p.role !== "GK")
     .map((p) => ({ p, d: distance(p, carrier) }))
     .sort((a, b) => a.d - b.d)[0];
-  if (!defender || defender.d > 22) return false;
-  if (rng() > 0.32) return false;
-  state.interrupt = {
-    attacker: carrier,
-    defender: defender.p,
-    pendingAction: null,
-  };
+  if (!defender || defender.d > 30) return false;
+  state.interrupt = { attacker: carrier, defender: defender.p, aiAction, aiTier };
   audio.play("encounter");
   return true;
 }
@@ -2415,12 +2411,19 @@ function enemyTurn() {
   const token = state.match.matchToken;
   const carrier = getCarrier();
   if (!carrier) return;
-  if (maybeTriggerInterrupt(carrier)) {
+  const action = aiPickAction(carrier);
+  const tier = aiPickTier(carrier, action);
+  // 守備じゃんけん: 相手の dribble/pass には、 近接 home DF がいれば防御選択を出す。
+  if ((action === "dribble" || action === "pass") && offerDefense(carrier, action, tier)) {
     render();
     return;
   }
-  const action = aiPickAction(carrier);
-  const tier = aiPickTier(carrier, action);
+  runAiAction(carrier, action, tier, token);
+}
+
+// AI の 1 手 (dribble/pass/shoot/team) を実行する。 enemyTurn と防御「様子見」から共用。
+function runAiAction(carrier, action, tier, token) {
+  if (!matchAlive(token)) return;
   if (action === "team") {
     state.battle = { type: "team", carrierId: carrier.id, defenderId: nearestOpponent(carrier).id };
     showVsScreen(carrier, nearestOpponent(carrier), VS_LABELS.team);
@@ -2428,19 +2431,12 @@ function enemyTurn() {
     setTimeout(() => { if (matchAlive(token) && state.battle) resolveBattle(tier); }, animMs(720));
     return;
   }
-  // AI 用に rivalry VN を skip 可能、 但しユーザーに見せたい場合は通す
   openBattle(action);
-  // VN が出てる間 resolveBattle が空 battle を触らないよう待機。
-  // 画面遷移 / 再戦で別試合に変わったら token 不一致で打ち切る (破棄済み battle への誤射防止)。
   const tryResolve = () => {
     if (!matchAlive(token)) return;
-    if (state.vnScene) {
-      setTimeout(tryResolve, animMs(240));
-    } else if (state.battle) {
-      setTimeout(() => { if (matchAlive(token) && state.battle) resolveBattle(tier); }, animMs(760));
-    } else {
-      setTimeout(tryResolve, animMs(240));
-    }
+    if (state.vnScene) setTimeout(tryResolve, animMs(240));
+    else if (state.battle) setTimeout(() => { if (matchAlive(token) && state.battle) resolveBattle(tier); }, animMs(760));
+    else setTimeout(tryResolve, animMs(240));
   };
   setTimeout(tryResolve, animMs(200));
 }
@@ -2531,12 +2527,12 @@ function renderInterruptPrompt() {
   return `
     <div class="dialog-overlay interrupt-overlay">
       <div class="dialog-card interrupt-card">
-        <div class="dialog-banner">INTERRUPT!!</div>
-        <p>${ip.defender.name} が ${ip.attacker.name} に詰めている。介入する?</p>
+        <div class="dialog-banner">DEFENSE!!</div>
+        <p>${ip.attacker.name} が仕掛けてくる! ${ip.defender.name} はどう守る? <span class="defense-hint">(ドリブルかパスか読め)</span></p>
         <div class="dialog-actions">
-          <button data-action="interrupt" data-option="tackle">タックル (霊力10)</button>
-          <button data-action="interrupt" data-option="intercept">インターセプト (霊力8)</button>
-          <button data-action="interrupt" data-option="wait">待機</button>
+          <button data-action="interrupt" data-option="tackle">タックル<br><span class="gk-desc">ドリブルに強い (霊力10)</span></button>
+          <button data-action="interrupt" data-option="intercept">パスカット<br><span class="gk-desc">パスに強い (霊力8)</span></button>
+          <button data-action="interrupt" data-option="wait">様子見<br><span class="gk-desc">読み合いを避ける</span></button>
         </div>
       </div>
     </div>
@@ -2549,59 +2545,55 @@ function resolveInterrupt(option) {
   if (!state.match || state.match.finished) { state.interrupt = null; return; }
   const token = state.match.matchToken;
   state.interrupt = null;
-  const defender = ip.defender;
-  const attacker = ip.attacker;
+  const { attacker, defender, aiAction, aiTier } = ip;
+  const aiLabel = aiAction === "dribble" ? "ドリブル" : "パス";
   if (option === "wait") {
-    log(`${defender.name}は介入を控えた。`);
-    render();
-    setTimeout(() => {
-      if (!matchAlive(token)) return;
-      const carrier = getCarrier();
-      if (!carrier) return;
-      const action = aiPickAction(carrier);
-      const tier = aiPickTier(carrier, action);
-      if (action === "team") {
-        state.battle = { type: "team", carrierId: carrier.id, defenderId: nearestOpponent(carrier).id };
-        render();
-        setTimeout(() => { if (matchAlive(token) && state.battle) resolveBattle(tier); }, animMs(520));
-        return;
-      }
-      openBattle(action);
-      const tryResolve = () => {
-        if (!matchAlive(token)) return;
-        if (state.vnScene) setTimeout(tryResolve, animMs(240));
-        else if (state.battle) setTimeout(() => { if (matchAlive(token) && state.battle) resolveBattle(tier); }, animMs(760));
-        else setTimeout(tryResolve, animMs(240));
-      };
-      setTimeout(tryResolve, animMs(200));
-    }, animMs(320));
+    log(`${defender.name}は様子見。 ${attacker.name}の${aiLabel}を見送る。`);
+    runAiAction(attacker, aiAction, aiTier, token);
     return;
   }
   const cost = option === "tackle" ? 10 : 8;
   if (defender.guts < cost) {
-    log(`${defender.name}の霊力不足で介入失敗。`);
-    gate(); // 送ると相手の攻撃が続く
+    log(`${defender.name}の霊力不足。 守りきれない。`);
+    runAiAction(attacker, aiAction, aiTier, token);
     return;
   }
   spend(defender, cost);
-  const atk = roll(attacker.stats.dribble + difficultyModifier(attacker.side));
-  const defMod = option === "tackle" ? defender.stats.tackle : defender.stats.block * 1.1;
-  const def = roll(defMod + defender.stats.speed * 0.3);
+  const optLabel = option === "tackle" ? "タックル" : "パスカット";
+  // じゃんけん: タックル⇔ドリブル / パスカット⇔パス が刺さる (読み的中で大ボーナス、 外すと不利)。
+  const matched = (option === "tackle" && aiAction === "dribble") || (option === "intercept" && aiAction === "pass");
+  const matchBonus = matched ? 26 : -24;
+  const atkStat = aiAction === "dribble" ? attacker.stats.dribble : attacker.stats.pass;
+  const atk = roll(atkStat + difficultyModifier(attacker.side));
+  const defStat = option === "tackle" ? defender.stats.tackle : defender.stats.block;
+  const def = roll(defStat + defender.stats.speed * 0.3 + matchBonus);
   audio.play(option === "tackle" ? "tackle" : "intercept");
   if (def >= atk) {
     bumpStat(defender.side, option === "tackle" ? "tackles" : "intercepts");
     bumpPlayerStat(defender, option === "tackle" ? "tackles" : "intercepts");
     knockbackBall(attacker, defender, 9);
     showJudge(option === "tackle" ? "tackle" : "intercept");
-    setActionScene(option === "tackle" ? "dribble" : "pass", attacker, defender, `${defender.name}が${option === "tackle" ? "タックル" : "インターセプト"}成功!`, `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}`, "success");
-    turnover(defender, `${defender.name}が${attacker.name}から${option === "tackle" ? "タックル" : "インターセプト"}でボール奪取。`);
+    setActionScene(option === "tackle" ? "dribble" : "pass", attacker, defender, `${defender.name}の${optLabel}が刺さった!${matched ? " 読み的中、" : ""}ボール奪取!`, `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}${matched ? " / 読み的中" : " / 読み外し"}`, "success");
+    turnover(defender, `${defender.name}が${attacker.name}から${optLabel}で奪取。`);
     state.battle = null;
-    gate(); // 送ると奪取側 (自軍) のコマンドへ
+    endTurn();
   } else {
-    showJudge("stop");
-    setActionScene(option === "tackle" ? "dribble" : "pass", attacker, defender, `${defender.name}の介入は届かなかった。`, `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}`, "fail");
-    log(`${defender.name}の${option === "tackle" ? "タックル" : "インターセプト"}は届かなかった。`);
-    gate(); // 送ると相手の攻撃が続く
+    // 防御失敗 → 相手の攻撃が通る
+    showJudge("break");
+    if (aiAction === "dribble") {
+      advanceCarrier(attacker, 14);
+      setActionScene("dribble", attacker, defender, `${attacker.name}が${defender.name}の${optLabel}をかわして突破!`, `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}${matched ? "" : " / 読み外し"}`, "fail");
+      log(`${attacker.name}が${defender.name}の${optLabel}をかわして前進。`);
+    } else {
+      const recv = nearestMateAhead(attacker);
+      if (recv) {
+        state.match.carrierId = recv.id;
+        recv.x = clamp(recv.x + (recv.side === "home" ? 8 : -8), 8, 92);
+      }
+      setActionScene("pass", attacker, defender, `${attacker.name}が${defender.name}の${optLabel}を越えてパスを通した!`, `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}${matched ? "" : " / 読み外し"}`, "fail");
+      log(`${attacker.name}が${defender.name}を越えてパス成功。`);
+    }
+    endTurn();
   }
 }
 
