@@ -80,15 +80,62 @@ button:disabled {
   overflow: hidden;
 }
 
-/* CT3 下段: 黒地のメッセージ/演出パネル (上のピッチと白線で区切る)。 */
-.action-scene-host {
-  position: relative;
+/* CT3 下段 3カラム黒パネル (左=ターン/スコア, 中=メッセージ, 右=コマンド/ステータス)。 */
+.ct3-panel {
   flex: 0 0 auto;
-  border-top: 3px solid rgba(255, 255, 255, 0.92);
+  display: grid;
+  grid-template-columns: 200px 1fr 230px;
+  gap: 8px;
+  padding: 8px;
   background: #000;
-  min-height: 132px;
-  padding: 8px 12px;
+  border-top: 3px solid rgba(255, 255, 255, 0.92);
+  min-height: 184px;
 }
+
+.ct3-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ct3-col.ct3-mid { min-height: 0; }
+
+.ct3-box {
+  border: 2px solid #fff;
+  border-radius: 5px;
+  background: #000;
+  color: #fff;
+  padding: 7px 10px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.ct3-timer { display: flex; flex-direction: column; gap: 3px; }
+.ct3-timer .ct3-label { color: #f8d679; font-size: 12px; }
+.ct3-timer .ct3-clock b { color: #f8d679; font-size: 18px; }
+
+.ct3-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.ct3-score .ct3-team { font-size: 11px; opacity: 0.8; }
+.ct3-score .ct3-team.on { color: #f8d679; opacity: 1; }
+.ct3-score .ct3-scoreline b { color: #f8d679; font-size: 20px; }
+
+.ct3-dist { font-size: 12px; color: #cfe0d6; }
+.ct3-dist b { color: #f8d679; }
+
+/* 中央メッセージ列: action-scene を縦に収める。 */
+.ct3-mid .action-scene { height: 100%; grid-template-columns: 1fr; }
+.ct3-mid .action-scene .action-stage { min-height: 70px; }
+
+/* 右カラム: コマンドリスト / ステータス。 */
+.ct3-right .command-title { color: #f8d679; font-weight: 900; font-size: 12px; margin-bottom: 2px; }
+.ct3-right .cmd-row { padding: 6px 10px; font-size: 14px; }
+.ct3-right .move-row { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 5px; margin-top: 3px; }
+.ct3-right .move-row .move-btn { padding: 6px 4px; font-size: 13px; }
+
+.ct3-stat { border: 2px solid #fff; border-radius: 5px; background: #000; color: #fff; padding: 8px 10px; }
+.ct3-stat-name { color: #f8d679; font-weight: 900; margin-bottom: 4px; }
+.ct3-stat-row { display: flex; justify-content: space-between; font-size: 13px; padding: 1px 0; }
+.ct3-stat-row b { color: #fff; }
 
 .scorebar {
   display: grid;
@@ -503,6 +550,37 @@ button:disabled {
   outline: 3px solid rgba(255, 255, 255, 0.72);
 }
 
+/* CT3 風 左上レーダー (全体マップ)。 */
+.radar {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 104px;
+  height: 64px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 3px;
+  overflow: hidden;
+  z-index: 5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.radar svg { width: 100%; height: 100%; display: block; }
+
+/* ゴール時の全画面白フラッシュ (CT3 の衝撃)。 */
+.screen-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: #fff;
+  pointer-events: none;
+  animation: screenFlashAnim 420ms ease-out forwards;
+}
+
+@keyframes screenFlashAnim {
+  0% { opacity: 0.92; }
+  100% { opacity: 0; }
+}
+
 .ball {
   position: absolute;
   width: 26px;
@@ -736,24 +814,50 @@ button:disabled {
   padding: 1px 6px;
 }
 
+/* CT3 縦選択リスト式コマンド。 */
 .command-strip {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-areas:
-    "title up ."
-    "left down right";
-  gap: 8px;
-  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 12px 12px;
   border-top: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.22);
+  background: #000;
 }
 
 .command-title {
-  grid-area: title;
-  align-self: center;
+  align-self: flex-start;
   color: #f8d679;
   font-weight: 900;
-  letter-spacing: 0;
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+.cmd-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 15px;
+}
+
+.cmd-row .cmd-cursor {
+  color: var(--touhou-gold, #f0c85a);
+  opacity: 0;
+  transition: opacity 80ms;
+}
+
+.cmd-row:hover:not(:disabled) .cmd-cursor,
+.cmd-row:focus-visible .cmd-cursor { opacity: 1; }
+
+.cmd-row .cmd-key {
+  margin-left: auto;
+  font-size: 11px;
+  opacity: 0.7;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  padding: 1px 7px;
 }
 
 .cmd-up { grid-area: up; }

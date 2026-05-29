@@ -18,9 +18,8 @@ test("campaign match starts and resolves a command battle", async ({ page }) => 
 
   await page.getByRole("button", { name: "異変開始" }).click();
   await expect(page.locator(".field")).toBeVisible();
-  await expect(page.locator(".clock")).toContainText("TURN 1 / 30");
-  await expect(page.locator(".play-banner")).toContainText("保持");
-  await expect(page.locator(".play-banner")).toContainText("攻撃方向");
+  await expect(page.locator(".ct3-timer")).toContainText("TURN 1");
+  await expect(page.locator(".ct3-panel")).toBeVisible();
 
   await page.getByRole("button", { name: /ドリブル/ }).click();
   await expect(page.locator(".battle-card")).toBeVisible();
@@ -111,15 +110,15 @@ test("match starts with a pre-match event dialogue", async ({ page }) => {
   await expect(page.locator(".event-dialogue")).toContainText("運命ごと蹴り返してあげる");
 });
 
-test("command UI uses a captain-tsubasa-like cross layout", async ({ page }) => {
+test("command UI uses a Captain-Tsubasa-3-like vertical command list", async ({ page }) => {
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
-  await expect(page.locator(".command-title")).toContainText("どうする？");
-  await expect(page.getByRole("button", { name: /↑ ドリブル/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /← パス/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /→ シュート/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /↓ 連携スペル/ })).toBeVisible();
+  await expect(page.locator(".command-title")).toContainText("コマンド");
+  await expect(page.locator(".cmd-row").filter({ hasText: "ドリブル" })).toBeVisible();
+  await expect(page.locator(".cmd-row").filter({ hasText: "パス" })).toBeVisible();
+  await expect(page.locator(".cmd-row").filter({ hasText: "シュート" })).toBeVisible();
+  await expect(page.locator(".cmd-row").filter({ hasText: "連携スペル" })).toBeVisible();
 });
 
 test("sprite VN action scene explains the current play", async ({ page }) => {
@@ -333,7 +332,7 @@ test("ball carrier dribbles across the pitch via W key and move bar", async ({ p
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
   // 盤面ドリブル移動バー(前進/かわす)が出ている。
-  await expect(page.locator(".move-strip")).toBeVisible();
+  await expect(page.locator(".move-row")).toBeVisible();
   // W で保持者(ボール)が攻撃方向(home=右)へ前進する。
   const beforeX = await page.evaluate(() => parseFloat(document.querySelector(".ball").style.left));
   await page.keyboard.press("w");
@@ -349,7 +348,6 @@ test("each action pauses for message-advance (paced play-by-play)", async ({ pag
   await page.locator('[data-action="resolve"][data-option="normal"]').click();
   // 行動後はメッセージ送り待ち: 「▶ 次へ」が出て、 送るまで展開が止まる。
   await expect(page.locator(".advance-btn")).toBeVisible();
-  await expect(page.locator(".command-strip.awaiting")).toBeVisible();
   // 送ると進行が続く。
   await page.locator(".advance-btn").click();
   await expect(page.locator(".field")).toBeVisible();

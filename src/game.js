@@ -198,6 +198,8 @@ const state = {
   crashSceneTimer: null,
   advance: null,
   advanceTimer: null,
+  screenFlash: false,
+  screenFlashTimer: null,
   actionScene: null,
   actionSceneTimer: null,
   previousScreen: "setup",
@@ -1261,6 +1263,16 @@ function advancePlay() {
   }
 }
 
+// ゴール時の全画面白フラッシュ (CT3 の衝撃演出)。
+function screenFlash() {
+  state.screenFlash = true;
+  window.clearTimeout(state.screenFlashTimer);
+  state.screenFlashTimer = window.setTimeout(() => {
+    state.screenFlash = false;
+    render();
+  }, animMs(420));
+}
+
 // ヒットストップ: 決着の瞬間に演出を一瞬止め、 体感強度を上げる (視覚のみ。 ロジックは進行)。
 function hitstop(ms) {
   state.hitstop = true;
@@ -1290,6 +1302,7 @@ function cancelPendingTimers() {
     state.hitstopTimer,
     state.crashSceneTimer,
     state.advanceTimer,
+    state.screenFlashTimer,
   ].forEach((t) => { if (t) window.clearTimeout(t); });
   state.vsScreenTimer = null;
   state.actionSceneTimer = null;
@@ -1301,9 +1314,11 @@ function cancelPendingTimers() {
   state.hitstopTimer = null;
   state.crashSceneTimer = null;
   state.advanceTimer = null;
+  state.screenFlashTimer = null;
   state.hitstop = false;
   state.crashScene = null;
   state.advance = null;
+  state.screenFlash = false;
   state.vsScreen = null;
   state.cutin = null;
   state.judge = null;
@@ -1577,6 +1592,20 @@ function renderActionScene() {
         ${scene.detail ? `<div class="vn-detail">${scene.detail}</div>` : ""}
         ${state.advance ? `<div class="vn-advance-hint">▼ クリック / Space で次へ</div>` : ""}
       </div>
+    </div>
+  `;
+}
+
+// CT3 右カラムの保持者ステータス (相手ターン中など、 コマンドを出さないときに表示)。
+function renderCarrierStatBox(p) {
+  if (!p) return "";
+  return `
+    <div class="ct3-stat">
+      <div class="ct3-stat-name">${p.role} ${p.name}</div>
+      <div class="ct3-stat-row"><span>ガッツ</span><b>${p.guts}</b></div>
+      <div class="ct3-stat-row"><span>ドリブル</span><b>${p.stats.dribble}</b></div>
+      <div class="ct3-stat-row"><span>パス</span><b>${p.stats.pass}</b></div>
+      <div class="ct3-stat-row"><span>シュート</span><b>${p.stats.shoot}</b></div>
     </div>
   `;
 }
@@ -1867,6 +1896,21 @@ function renderVsScreen() {
   `;
 }
 
+// CT3 風 左上レーダー (全体マップ): 全選手とボールを点で表示。
+function renderRadar(carrier) {
+  const dot = (p) => `<circle cx="${p.x}" cy="${p.y}" r="3.4" fill="${p.side === "home" ? "#e25a5a" : "#5a8ae0"}" stroke="rgba(0,0,0,0.5)" stroke-width="0.6" />`;
+  return `
+    <div class="radar">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+        <rect x="0" y="0" width="100" height="100" fill="rgba(22,60,38,0.92)" />
+        <line x1="50" y1="0" x2="50" y2="100" stroke="rgba(255,255,255,0.45)" stroke-width="1.4" />
+        ${allPlayers().map(dot).join("")}
+        ${carrier ? `<circle cx="${carrier.x}" cy="${carrier.y}" r="5.5" fill="#fff" stroke="#000" stroke-width="1.6" />` : ""}
+      </svg>
+    </div>
+  `;
+}
+
 function renderCrashScene() {
   const cs = state.crashScene;
   if (!cs) return "";
@@ -2119,6 +2163,7 @@ function finalizeShoot(carrier, gk, baseAtk, gkOption, useSpell, attackTier) {
     }
     setActionScene("shoot", carrier, gk, msg, `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)} (${gkOption})`, "goal");
     showJudge("goal");
+    screenFlash();
     audio.play("goal-stamp");
     if (useSpell) audio.play("crowd-rumble");
     // 必殺ゴールは固有カットインの余韻を残す。 通常ゴールは汎用ゴール歓喜スプライトを前面に。
@@ -2943,65 +2988,52 @@ function renderMatch() {
   const defender = carrier ? nearestOpponent(carrier) : null;
   return `
     <div class="app-shell">
-      <section class="match-area">
-        <header class="scorebar">
-          <div class="team-score ${match.possession === "home" ? "possessing" : ""}">
-            <span class="team-name">${match.possession === "home" ? "● " : ""}${match.home.name}</span>
-            <span class="score">${match.score.home}</span>
-          </div>
-          <div class="clock">TURN ${Math.min(match.turn, match.maxTurns)} / ${match.maxTurns}</div>
-          <div class="team-score away ${match.possession === "away" ? "possessing" : ""}">
-            <span class="team-name">${match.away.name}${match.possession === "away" ? " ●" : ""}</span>
-            <span class="score">${match.score.away}</span>
-          </div>
-        </header>
-        <div class="play-banner">
-          <div class="banner-cell banner-carrier">
-            <strong>保持</strong>
-            ${renderPortrait(carrier, "mini")}
-            <span class="banner-name">${carrier.name}</span>
-          </div>
-          <div class="banner-cell banner-direction">
-            <strong>攻撃方向</strong>
-            <span class="banner-arrow ${carrier.side === "home" ? "to-right" : "to-left"}">
-              ${carrier.side === "home" ? `→ ${match.away.name}ゴール` : `${match.home.name}ゴール ←`}
-            </span>
-          </div>
-          <div class="banner-cell banner-distance">
-            <strong>距離</strong>
-            <span class="banner-distance-num ${goalDistance(carrier) < 22 ? "danger" : ""}">${Math.round(goalDistance(carrier))}m</span>
-          </div>
-        </div>
+      <section class="match-area ct3">
         <div class="field ${encounterFieldClass(carrier, defender)} ${state.fieldShake ? "shake" : ""} ${state.hitstop ? "hitstop" : ""}">
           <div class="goal-label home-goal">自陣ゴール</div>
           <div class="goal-label away-goal">相手ゴール</div>
           <div class="attack-arrow">攻撃方向 →</div>
+          ${renderRadar(carrier)}
           ${allPlayers().map((player) => renderToken(player, carrier, defender)).join("")}
           <div class="ball" style="left:${carrier.x}%;top:${carrier.y}%;"><span class="ball-icon">⚽</span></div>
           ${renderThreatOverlay(carrier, defender)}
           ${state.passPicker ? renderPassPicker() : ""}
           ${state.cutin ? renderCutin() : ""}
         </div>
-        <div class="action-scene-host">
-          ${renderActionScene()}
-        </div>
-        ${state.advance ? "" : `
-          <div class="move-strip">
-            <button class="move-btn" data-action="step" data-ybias="-10" ${disableHomeTurn()} title="左へかわしながら前進 (A)">↖ かわす</button>
-            <button class="move-btn primary" data-action="step" data-ybias="0" ${disableHomeTurn()} title="ドリブルで前進 (W)">▲ 前進<span class="move-key">W</span></button>
-            <button class="move-btn" data-action="step" data-ybias="10" ${disableHomeTurn()} title="右へかわしながら前進 (D)">↗ かわす</button>
+        <div class="ct3-panel">
+          <div class="ct3-col ct3-left">
+            <div class="ct3-box ct3-timer">
+              <span class="ct3-label">${match.possession === "home" ? "みかた OF" : "あいて OF"}</span>
+              <span class="ct3-clock">TURN <b>${Math.min(match.turn, match.maxTurns)}</b>/${match.maxTurns}</span>
+            </div>
+            <div class="ct3-box ct3-score">
+              <span class="ct3-team ${match.possession === "home" ? "on" : ""}">${match.home.name}</span>
+              <span class="ct3-scoreline"><b>${match.score.home}</b> - <b>${match.score.away}</b></span>
+              <span class="ct3-team ${match.possession === "away" ? "on" : ""}">${match.away.name}</span>
+            </div>
+            <div class="ct3-box ct3-dist">${carrier.name} / ゴールまで <b>${Math.round(goalDistance(carrier))}</b></div>
           </div>
-        `}
-        <div class="command-strip ${state.advance ? "awaiting" : ""}">
-          ${state.advance ? `
-            <button class="advance-btn" data-action="advancePlay">▶ 次へ<span class="advance-hint">クリック / Space / Enter　${state.progress.autoAdvance ? "(自動送りON)" : ""}</span></button>
-          ` : `
-            <div class="command-title">どうする？</div>
-            <button class="cmd-up" data-action="battle" data-type="dribble" ${disableHomeTurn()}>↑ ドリブル</button>
-            <button class="cmd-left" data-action="battle" data-type="pass" ${disableHomeTurn()}>← パス</button>
-            <button class="cmd-right" data-action="battle" data-type="shoot" ${disableHomeTurn()}>→ シュート</button>
-            <button class="cmd-down" data-action="battle" data-type="team" ${disableHomeTurn()}>↓ 連携スペル</button>
-          `}
+          <div class="ct3-col ct3-mid">
+            ${renderActionScene()}
+          </div>
+          <div class="ct3-col ct3-right">
+            ${state.advance ? `
+              <button class="advance-btn" data-action="advancePlay">▶ 次へ<span class="advance-hint">クリック / Space / Enter${state.progress.autoAdvance ? " (自動送りON)" : ""}</span></button>
+            ` : disableHomeTurn() ? `
+              ${renderCarrierStatBox(carrier)}
+            ` : `
+              <div class="command-title">コマンド</div>
+              <button class="cmd-row" data-action="battle" data-type="dribble" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ドリブル<span class="cmd-key">1</span></button>
+              <button class="cmd-row" data-action="battle" data-type="pass" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> パス<span class="cmd-key">2</span></button>
+              <button class="cmd-row" data-action="battle" data-type="shoot" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> シュート<span class="cmd-key">3</span></button>
+              <button class="cmd-row" data-action="battle" data-type="team" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> 連携スペル<span class="cmd-key">4</span></button>
+              <div class="move-row">
+                <button class="move-btn" data-action="step" data-ybias="-10" title="左へかわす (A)">↖</button>
+                <button class="move-btn primary" data-action="step" data-ybias="0" title="前進 (W)">▲ 前進<span class="move-key">W</span></button>
+                <button class="move-btn" data-action="step" data-ybias="10" title="右へかわす (D)">↗</button>
+              </div>
+            `}
+          </div>
         </div>
       </section>
       <aside class="side-panel">
@@ -3039,6 +3071,7 @@ function renderMatch() {
     ${state.interrupt ? renderInterruptPrompt() : ""}
     ${state.gkChoice ? renderGkChoice() : ""}
     ${state.crashScene ? renderCrashScene() : ""}
+    ${state.screenFlash ? `<div class="screen-flash"></div>` : ""}
     ${state.judge ? renderJudge() : ""}
     ${state.halftimeReport ? renderHalftimeReport() : ""}
   `;
