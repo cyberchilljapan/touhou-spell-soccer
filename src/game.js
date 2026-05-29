@@ -1204,6 +1204,19 @@ function applyClearReward(team) {
 // 破棄済み or 別試合の battle を触るレースを防ぐためトークン照合に使う。
 let matchSeq = 0;
 
+// シード可能な乱数。 未シード(_rngState===null)時は Math.random で本番挙動を変えない。
+// seedRng() でシードするとバランス検証/テストが決定的になる (mulberry32)。
+let _rngState = null;
+function seedRng(seed) { _rngState = (seed >>> 0) || 1; }
+function clearRng() { _rngState = null; }
+function rng() {
+  if (_rngState === null) return Math.random();
+  _rngState = (_rngState + 0x6D2B79F5) | 0;
+  let t = Math.imul(_rngState ^ (_rngState >>> 15), 1 | _rngState);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
 // 演出速度。 standard=1 / fast=0.5 / instant=0.12 でタイマーを一括スケール。
 function animScale() {
   return { normal: 1, fast: 0.5, instant: 0.12 }[(state.progress && state.progress.animSpeed) || "normal"] || 1;
@@ -1611,7 +1624,7 @@ function recoverTeam(side, amount) {
 }
 
 function roll(base, variance = 24) {
-  return base + Math.floor(Math.random() * variance);
+  return base + Math.floor(rng() * variance);
 }
 
 function difficultyModifier(side) {
@@ -1726,7 +1739,7 @@ function openBattle(type, skipRivalry = false) {
   if (!skipRivalry && state.match && state.match.rivalryShown) {
     const key = rivalryKey(carrier, defender);
     const dialogue = findRivalryDialogue(carrier, defender);
-    if (dialogue && !state.match.rivalryShown[key] && Math.random() < 0.5) {
+    if (dialogue && !state.match.rivalryShown[key] && rng() < 0.5) {
       state.match.rivalryShown[key] = true;
       const token = state.match.matchToken;
       audio.play("encounter");
@@ -1911,11 +1924,11 @@ function resolveBattle(option) {
     } else {
       // AI GK: 必殺シュート (spell/ultimate) には一定確率でスペルセーブで真っ向対抗。
       let pick;
-      if (isSpell && defender.guts >= 20 && Math.random() < (isUlti ? 0.55 : 0.4)) {
+      if (isSpell && defender.guts >= 20 && rng() < (isUlti ? 0.55 : 0.4)) {
         pick = "spellsave";
       } else {
         const affordable = ["catch", "punch", "rush"].filter((o) => defender.guts >= ({ catch: 6, punch: 10, rush: 14 })[o]);
-        pick = affordable.length ? affordable[Math.floor(Math.random() * affordable.length)] : "catch";
+        pick = affordable.length ? affordable[Math.floor(rng() * affordable.length)] : "catch";
       }
       finalizeShoot(carrier, defender, baseAtk, pick, isSpell, tier);
     }
@@ -2079,7 +2092,7 @@ function advanceCarrier(player, amount) {
   }
   const dir = player.side === "home" ? 1 : -1;
   player.x = clamp(player.x + amount * dir, player.side === "home" ? 14 : 8, player.side === "home" ? 92 : 86);
-  player.y = clamp(player.y + (Math.random() * 16 - 8), 18, 82);
+  player.y = clamp(player.y + (rng() * 16 - 8), 18, 82);
 }
 
 function knockbackBall(carrier, defender, strength) {
@@ -2087,7 +2100,7 @@ function knockbackBall(carrier, defender, strength) {
   const dir = defender.side === "home" ? 1 : -1;
   // 攻撃方向の反対へ knockback
   carrier.x = clamp(carrier.x - dir * strength * 0.3, 6, 94);
-  carrier.y = clamp(carrier.y + (Math.random() * 8 - 4), 14, 86);
+  carrier.y = clamp(carrier.y + (rng() * 8 - 4), 14, 86);
   // defender も少し進める
   defender.x = clamp(defender.x + dir * (strength * 0.2), 6, 94);
 }
@@ -2191,7 +2204,7 @@ function maybeTriggerInterrupt(carrier) {
     .map((p) => ({ p, d: distance(p, carrier) }))
     .sort((a, b) => a.d - b.d)[0];
   if (!defender || defender.d > 22) return false;
-  if (Math.random() > 0.32) return false;
+  if (rng() > 0.32) return false;
   state.interrupt = {
     attacker: carrier,
     defender: defender.p,
@@ -2248,9 +2261,9 @@ function aiPickAction(carrier) {
   };
   const diff = state.progress.difficulty;
   if (diff === "easy") {
-    if (Math.random() < 0.3) {
+    if (rng() < 0.3) {
       const keys = Object.keys(scores);
-      return keys[Math.floor(Math.random() * keys.length)];
+      return keys[Math.floor(rng() * keys.length)];
     }
   }
   if (diff === "hard") {
@@ -2304,14 +2317,14 @@ function aiPickTier(p, action) {
   const guts = p.guts;
   // 究極を狙う: 霊力十分 + 近距離 shoot or 50% dribble or rare pass
   if (guts >= costs.ultimate + 4) {
-    if (action === "shoot" && dist < 22 && Math.random() < 0.6) return "ultimate";
-    if (action === "dribble" && guts > 70 && Math.random() < 0.3) return "ultimate";
-    if (action === "team" && Math.random() < 0.18) return "ultimate";
+    if (action === "shoot" && dist < 22 && rng() < 0.6) return "ultimate";
+    if (action === "dribble" && guts > 70 && rng() < 0.3) return "ultimate";
+    if (action === "team" && rng() < 0.18) return "ultimate";
   }
   if (guts >= costs.spell + 8) {
     if (action === "shoot" && dist < 28) return "spell";
-    if (action === "dribble" && Math.random() < 0.4) return "spell";
-    if (Math.random() < 0.32) return "spell";
+    if (action === "dribble" && rng() < 0.4) return "spell";
+    if (rng() < 0.32) return "spell";
   }
   return "normal";
 }
@@ -2413,12 +2426,12 @@ function moveAiPlayers() {
     const homePull = 0.07;
     const bounds = roleBounds(player);
     player.x = clamp(
-      player.x + dir * (Math.random() * 3 + ballPull) + (initial.x - player.x) * homePull,
+      player.x + dir * (rng() * 3 + ballPull) + (initial.x - player.x) * homePull,
       bounds.minX,
       bounds.maxX,
     );
     player.y = clamp(
-      player.y + (carrier.y - player.y) * 0.06 + (initial.y - player.y) * homePull + (Math.random() * 6 - 3),
+      player.y + (carrier.y - player.y) * 0.06 + (initial.y - player.y) * homePull + (rng() * 6 - 3),
       12,
       88,
     );
@@ -3621,6 +3634,9 @@ window.__touhouSpellFutsalDebug = {
     state.gkChoice = { carrierId: shooter.id, gkId: gk.id, baseAtk: 120, useSpell, tier: useSpell ? "ultimate" : "normal" };
     render();
   },
+  // RNG シード制御 (決定的バランス検証/テスト用)。
+  seedRng(seed = 12345) { seedRng(seed); },
+  clearRng() { clearRng(); },
   // #11 回帰: 試合中にフォメ変更を模擬 → resetPositions が initialSlot 基準で一貫するか。
   resetPositionsAfterFormationChange(newFormation) {
     if (!state.match) return null;

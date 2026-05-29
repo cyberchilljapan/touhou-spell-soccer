@@ -1,7 +1,7 @@
 const { test, expect } = require("@playwright/test");
 const path = require("path");
 
-test.use({ channel: "msedge" });
+// channel / webServer は playwright.config.js が管理 (ローカル=Edge / CI=chromium)。
 
 const HTTP_URL = "http://127.0.0.1:8787/";
 const FILE_URL = `file:///${path.resolve(__dirname, "../index.html").replace(/\\/g, "/")}`;
