@@ -72,19 +72,21 @@ button:disabled {
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.35);
 }
 
+/* CT3 レイアウト: CG/実況(提示パネル)を上に大きく、 フィールド(陣形マップ)を下に。 */
 .match-area {
-  display: grid;
-  grid-template-rows: auto auto minmax(360px, 1fr) auto auto;
+  display: flex;
+  flex-direction: column;
   min-height: calc(100vh - 32px);
   overflow: hidden;
 }
 
 .action-scene-host {
   position: relative;
-  border-top: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.28);
-  min-height: 116px;
-  padding: 8px 14px;
+  flex: 0 0 auto;
+  border-bottom: 2px solid var(--touhou-gold, #f0c85a);
+  background: linear-gradient(180deg, rgba(10, 14, 22, 0.5), rgba(0, 0, 0, 0.32));
+  min-height: 220px;
+  padding: 10px 14px;
 }
 
 .scorebar {
@@ -235,8 +237,9 @@ button:disabled {
 
 .field {
   position: relative;
-  margin: 14px;
-  min-height: 520px;
+  flex: 1 1 auto;
+  margin: 10px 14px;
+  min-height: 240px;
   border: 3px solid rgba(255, 255, 255, 0.86);
   border-radius: 8px;
   overflow: hidden;
@@ -501,16 +504,38 @@ button:disabled {
 
 .ball {
   position: absolute;
-  width: 18px;
-  height: 18px;
+  width: 26px;
+  height: 26px;
   transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+  pointer-events: none;
+  transition: left 200ms ease, top 200ms ease;
+}
+
+.ball .ball-icon {
+  font-size: 22px;
+  line-height: 1;
+  filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 8px rgba(255, 255, 255, 0.7)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85));
+  z-index: 1;
+}
+
+/* ボール位置を見つけやすくする脈動リング。 */
+.ball::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 35% 35%, #fff 0 18%, transparent 19%),
-    radial-gradient(circle, #f7f7f7 0 48%, #222 49% 54%, #f7f7f7 55%);
-  border: 1px solid #111;
-  z-index: 3;
-  transition: left 220ms ease, top 220ms ease;
+  border: 2px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+  animation: ballPulse 1200ms ease-in-out infinite;
+}
+
+@keyframes ballPulse {
+  0%, 100% { transform: scale(0.78); opacity: 0.3; }
+  50% { transform: scale(1.18); opacity: 0.85; }
 }
 
 .action-scene {
@@ -533,7 +558,7 @@ button:disabled {
 
 .action-stage {
   position: relative;
-  min-height: 138px;
+  min-height: 184px;
   overflow: hidden;
   border: 2px solid rgba(255, 255, 255, 0.22);
   border-radius: 8px;
@@ -2120,6 +2145,21 @@ button:disabled {
   inset: 0;
   z-index: 7;
   pointer-events: none;
+}
+
+/* パス軌道予測ライン (成功率で色分け: 緑=通る / 黄 / 赤=カットされやすい)。 */
+.pass-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.85;
+  animation: passLineDash 600ms linear infinite;
+}
+
+@keyframes passLineDash {
+  to { stroke-dashoffset: -8; }
 }
 
 .pass-target-badge {

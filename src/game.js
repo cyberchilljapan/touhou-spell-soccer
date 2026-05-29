@@ -1651,6 +1651,27 @@ function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+// 点 p から線分 a-b への最短距離 (パスの導線=ボール軌道に対する近さ判定用)。
+function distToSegment(p, a, b) {
+  const vx = b.x - a.x, vy = b.y - a.y;
+  const len2 = vx * vx + vy * vy;
+  if (len2 === 0) return distance(p, a);
+  let t = ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (a.x + t * vx), p.y - (a.y + t * vy));
+}
+
+// パスの遮断者 = 保持者→受け手の線分(ボール軌道)に最も近い敵。 線から遠い敵はカットできない。
+function passInterceptor(from, to) {
+  const opps = teamBySide(opponentSide(from.side)).players.filter((p) => p.role !== "GK");
+  let best = null;
+  for (const p of opps) {
+    const d = distToSegment(p, from, to);
+    if (!best || d < best.laneDist) best = { p, laneDist: d };
+  }
+  return best || { p: nearestOpponent(from), laneDist: 99 };
+}
+
 function goalDistance(player) {
   return player.side === "home" ? 100 - player.x : player.x;
 }
@@ -1718,13 +1739,11 @@ function openPassPicker() {
 }
 
 function calcPassRate(from, to) {
-  const opp = teamBySide(opponentSide(to.side)).players
-    .filter((p) => p.role !== "GK")
-    .map((p) => ({ p, d: distance(p, to) }))
-    .sort((a, b) => a.d - b.d)[0];
-  const def = opp ? opp.p.stats.block * 0.4 : 20;
-  const atk = from.stats.pass + Math.max(0, 30 - opp?.d || 0);
-  return clamp(0.32 + (atk - def - 30) / 100, 0.1, 0.95);
+  // 導線(ボール軌道)に近い遮断者ほどカット力が高い。 線から遠ければほぼ通る。
+  const intc = passInterceptor(from, to);
+  const def = intc.p ? intc.p.stats.block + intc.p.stats.speed * 0.2 - intc.laneDist * 1.6 : 0;
+  const atk = from.stats.pass;
+  return clamp(0.5 + (atk - def) / 60, 0.08, 0.97);
 }
 
 function selectPassTarget(index) {
@@ -1734,13 +1753,16 @@ function selectPassTarget(index) {
   state.passPicker = null;
   const carrier = getCarrier();
   if (!carrier) return;
-  const defender = nearestOpponent(carrier);
+  // カット役は「保持者→受け手の導線(ボール軌道)に最も近い敵」。 線から外れた敵はカットしない。
+  const intc = passInterceptor(carrier, target);
+  const defender = intc.p;
   if (!defender) return;
   state.battle = {
     type: "pass",
     carrierId: carrier.id,
     defenderId: defender.id,
     passTargetId: target.id,
+    laneDist: intc.laneDist,
   };
   showVsScreen(carrier, defender, VS_LABELS.pass);
   setActionScene("pass", carrier, defender, `${target.name}へパスを狙う。`, "通常かスペルを選択", "", "choice");
@@ -1750,8 +1772,18 @@ function selectPassTarget(index) {
 
 function renderPassPicker() {
   if (!state.passPicker) return "";
+  const carrier = getCarrier();
+  const cx = carrier ? carrier.x : 50;
+  const cy = carrier ? carrier.y : 50;
   return `
     <div class="pass-picker-overlay">
+      <svg class="pass-lines" viewBox="0 0 100 100" preserveAspectRatio="none">
+        ${state.passPicker.candidates.map((p) => {
+          const r = p.successRate;
+          const col = r > 0.6 ? "#7ee08a" : r > 0.35 ? "#f0d058" : "#e06a6a";
+          return `<line x1="${cx}" y1="${cy}" x2="${p.x}" y2="${p.y}" stroke="${col}" stroke-width="0.7" stroke-dasharray="2.4 1.6" />`;
+        }).join("")}
+      </svg>
       ${state.passPicker.candidates.map((p, i) => `
         <div class="pass-target-badge" data-index="${i}" style="left:${p.x}%;top:${p.y}%;">
           <span class="ptb-num">${i + 1}</span>
@@ -1772,9 +1804,21 @@ function openBattle(type, skipRivalry = false) {
     return;
   }
   const carrier = getCarrier();
-  const defender = !carrier ? null : type === "shoot"
-    ? teamBySide(opponentSide(carrier.side)).players.find((player) => player.role === "GK")
-    : nearestOpponent(carrier);
+  // pass は受け手への導線(ボール軌道)に近い敵をカット役にする (away/AI も同様)。
+  let passExtra = {};
+  let defender = null;
+  if (carrier) {
+    if (type === "shoot") {
+      defender = teamBySide(opponentSide(carrier.side)).players.find((player) => player.role === "GK");
+    } else if (type === "pass") {
+      const receiver = nearestMateAhead(carrier);
+      const intc = passInterceptor(carrier, receiver);
+      defender = intc.p;
+      if (receiver) passExtra = { passTargetId: receiver.id, laneDist: intc.laneDist };
+    } else {
+      defender = nearestOpponent(carrier);
+    }
+  }
   // carrier / defender が解決できない (試合差し替え等) なら何もしない。
   if (!carrier || !defender) return;
   // 因縁掛け合い VN (1 試合 1 ペア 1 回まで、 50% 確率)
@@ -1794,7 +1838,7 @@ function openBattle(type, skipRivalry = false) {
   }
   audio.play("battle");
   audio.play("encounter");
-  state.battle = { type, carrierId: carrier.id, defenderId: defender.id };
+  state.battle = { type, carrierId: carrier.id, defenderId: defender.id, ...passExtra };
   showVsScreen(carrier, defender, VS_LABELS[type] || "VS");
   setActionScene(type, carrier, defender, battleText(type, carrier, defender), "通常かスペルを選択", "", "choice");
   render();
@@ -1900,7 +1944,8 @@ function resolveBattle(option) {
       ? (allPlayers().find((p) => p.id === state.battle.passTargetId) || nearestMateAhead(carrier))
       : nearestMateAhead(carrier);
     const atk = roll(carrier.stats.pass + boost + atkBonus - fatiguePenalty(carrier) + difficultyModifier(carrier.side));
-    const def = roll(defender.stats.block + defender.stats.speed * 0.2 + difficultyModifier(defender.side));
+    const laneDist = (state.battle && state.battle.laneDist) || 0;
+    const def = roll(defender.stats.block + defender.stats.speed * 0.2 - laneDist * 1.6 + difficultyModifier(defender.side));
     spend(carrier, cost);
     bumpStat(carrier.side, "passes");
     bumpPlayerStat(carrier, "passes");
@@ -2178,10 +2223,18 @@ function knockbackBall(carrier, defender, strength) {
 }
 
 function turnover(newCarrier, message) {
+  const loser = getCarrier();
   state.match.possession = newCarrier.side;
   state.match.carrierId = newCarrier.id;
   if (newCarrier.role === "GK") keepGoalkeeperInGoal(newCarrier);
-  else advanceCarrier(newCarrier, 5);
+  else advanceCarrier(newCarrier, 10); // 奪取者を前へ運び、 奪われた側と分離
+  // 奪われた側を後方へ離す (「奪われた直後にすぐ再接触/タックル」の不自然さを防ぐ)。
+  if (loser && loser.id !== newCarrier.id && loser.role !== "GK") {
+    const ldir = loser.side === "home" ? 1 : -1;
+    loser.x = clamp(loser.x - ldir * 12, 6, 94);
+  }
+  // 直後の 1 手は介入を起こさない (間を作る)。
+  state.match.freshTurnover = true;
   log(message);
 }
 
@@ -2276,6 +2329,8 @@ function endTurn() {
 function maybeTriggerInterrupt(carrier) {
   if (carrier.side !== "away") return false;
   if (state.interrupt) return false;
+  // 奪取直後の 1 手は介入させない (奪われてすぐタックルの不自然さを回避)。
+  if (state.match.freshTurnover) { state.match.freshTurnover = false; return false; }
   const defender = teamBySide("home").players
     .filter((p) => p.role !== "GK")
     .map((p) => ({ p, d: distance(p, carrier) }))
@@ -2917,18 +2972,18 @@ function renderMatch() {
             <span class="banner-distance-num ${goalDistance(carrier) < 22 ? "danger" : ""}">${Math.round(goalDistance(carrier))}m</span>
           </div>
         </div>
+        <div class="action-scene-host">
+          ${renderActionScene()}
+        </div>
         <div class="field ${encounterFieldClass(carrier, defender)} ${state.fieldShake ? "shake" : ""} ${state.hitstop ? "hitstop" : ""}">
           <div class="goal-label home-goal">自陣ゴール</div>
           <div class="goal-label away-goal">相手ゴール</div>
           <div class="attack-arrow">攻撃方向 →</div>
           ${allPlayers().map((player) => renderToken(player, carrier, defender)).join("")}
-          <div class="ball" style="left:${carrier.x}%;top:${carrier.y}%;"></div>
+          <div class="ball" style="left:${carrier.x}%;top:${carrier.y}%;"><span class="ball-icon">⚽</span></div>
           ${renderThreatOverlay(carrier, defender)}
           ${state.passPicker ? renderPassPicker() : ""}
           ${state.cutin ? renderCutin() : ""}
-        </div>
-        <div class="action-scene-host">
-          ${renderActionScene()}
         </div>
         ${state.advance ? "" : `
           <div class="move-strip">
