@@ -1333,14 +1333,17 @@ function showVsScreen(attacker, defender, label) {
   state.vsScreenTimer = window.setTimeout(() => { state.vsScreen = null; render(); }, animMs(740));
 }
 
-// キャラ固有のスペルカード名を試合中の技名に使う (88 体ぶんの設定資産を活性化)。
-function characterSpellName(player) {
-  return player.spell;
+// 必殺技名は「キャラ名 + そのアクション」で必ず行動に一致させる
+// (固有スペル player.spell はパス/ドリブル/シュートのどれか1つにしか合わないため、
+//  技名はアクション準拠にし、 固有スペルはステータス/ギャラリーで見せる)。
+const SPELL_MOVE_WORD = { dribble: "幻惑突破", pass: "電光スルーパス", shoot: "烈火シュート", team: "連携スペル" };
+
+function characterSpellName(player, type) {
+  return `${player.name}・${SPELL_MOVE_WORD[type] || "スペル"}`;
 }
 
-function characterUltimateName(player) {
-  const base = player.spell;
-  return base.endsWith("真") ? base : `${base}・真`;
+function characterUltimateName(player, type) {
+  return `${characterSpellName(player, type)}・真`;
 }
 
 // 消耗ドラマ: 霊力が尽きかけると技のキレが鈍る (攻撃値への負補正)。
@@ -1964,7 +1967,7 @@ function resolveBattle(option) {
       defender.y = clamp(defender.y + (rng() * 10 - 5), 12, 88);
       audio.play(isSpell ? "spell" : "kick");
       audio.play("dribble-break");
-      if (isSpell) showCutin(isUlti ? characterUltimateName(carrier) : characterSpellName(carrier), carrier, carrier.spellText);
+      if (isSpell) showCutin(isUlti ? characterUltimateName(carrier, "dribble") : characterSpellName(carrier, "dribble"), carrier, "");
       // 通常ドリブルはカットインで盤面を隠さず、 フィールド上の前進 + 実況で見せる。
       setActionScene("dribble", carrier, defender, `${carrier.name}が${defender.name}を${isUlti ? "切り裂いて" : "抜いて"}前進。`, `攻撃値 ${Math.round(atk)} / 守備値 ${Math.round(def)} / 段階: ${tier}`, "success");
       showJudge("break");
@@ -2003,7 +2006,7 @@ function resolveBattle(option) {
       if (!isSpell) audio.play("pass-charge");
       audio.play(isSpell ? "spell" : "select");
       audio.play("pass-success");
-      if (isSpell) showCutin(isUlti ? characterUltimateName(carrier) : characterSpellName(carrier), carrier, carrier.spellText);
+      if (isSpell) showCutin(isUlti ? characterUltimateName(carrier, "pass") : characterSpellName(carrier, "pass"), carrier, "");
       setActionScene("pass", carrier, defender, `${receiver.name}へのパス成功。${isUlti ? "電光石火の前進。" : "攻撃が前へ進む。"}`, `攻撃値 ${Math.round(atk)} / カット値 ${Math.round(def)} / 段階: ${tier}`, "success");
       showJudge("through");
       log(`${carrier.name}から${receiver.name}へパス成功 (${tier})。${receiver.name}が前を向いた。`);
@@ -2039,7 +2042,7 @@ function resolveBattle(option) {
     }
     audio.play("whistle");
     // 通常シュートはカットインで隠さず GK との対決を盤面で見せる。 必殺のみ固有カットイン。
-    if (isSpell) showCutin(isUlti ? characterUltimateName(carrier) : characterSpellName(carrier), carrier, carrier.spellText);
+    if (isSpell) showCutin(isUlti ? characterUltimateName(carrier, "shoot") : characterSpellName(carrier, "shoot"), carrier, "");
     // GK 選択: AWAY shoot → home GK は user 選択 / HOME shoot → away GK は AI 選択
     const gkSide = opponentSide(carrier.side);
     state.battle = null;
@@ -2101,7 +2104,7 @@ function renderGkChoice() {
     <div class="dialog-overlay gk-overlay">
       <div class="dialog-card gk-card">
         <div class="dialog-banner gk-banner">${gc.useSpell ? "必殺シュート迫る!!" : "GK SAVE!"}</div>
-        <p>${carrier.name} の${gc.useSpell ? (gc.tier === "ultimate" ? characterUltimateName(carrier) : characterSpellName(carrier)) : "シュート"}が ${gk.name} に迫る!</p>
+        <p>${carrier.name} の${gc.useSpell ? (gc.tier === "ultimate" ? characterUltimateName(carrier, "shoot") : characterSpellName(carrier, "shoot")) : "シュート"}が ${gk.name} に迫る!</p>
         <div class="dialog-actions gk-actions">
           ${opts.map((o) => `<button data-action="gk-choice" data-option="${o.key}" class="${o.key === "spellsave" ? "gk-spellsave" : ""}" ${gk.guts < o.cost ? "disabled" : ""}>${o.label}<br><span class="gk-desc">${o.desc}</span></button>`).join("")}
         </div>
@@ -2129,7 +2132,7 @@ function finalizeShoot(carrier, gk, baseAtk, gkOption, useSpell, attackTier) {
   spend(gk, cost);
   const def = roll(gk.stats.keep * defMod + gk.stats.block * 0.19 + (useSpell ? 4 : 0) + (spellSave ? 7 : 0) + difficultyModifier(gk.side), 28);
   const margin = baseAtk - def;
-  const atkName = useSpell ? (isUlti ? characterUltimateName(carrier) : characterSpellName(carrier)) : "シュート";
+  const atkName = useSpell ? (isUlti ? characterUltimateName(carrier, "shoot") : characterSpellName(carrier, "shoot")) : "シュート";
   // 必殺シュート同士の拮抗 (差が僅か or スペルセーブ対抗) はクラッシュ演出。
   const clash = useSpell && (spellSave || Math.abs(margin) <= 12);
   if (clash) {
@@ -3476,8 +3479,8 @@ function ultimateSpellName(carrier, type) {
 function tierLabel(type, tier, carrier) {
   if (tier === "normal") return { dribble: "通常ドリブル", pass: "通常パス", shoot: "通常シュート", team: "連携合図" }[type];
   // 連携 (team) は個人技ではないのでチーム連携スペル名、 それ以外はキャラ固有スペル名。
-  if (tier === "spell") return type === "team" ? actionSpellName(carrier, "team") : characterSpellName(carrier);
-  if (tier === "ultimate") return type === "team" ? ultimateSpellName(carrier, "team") : characterUltimateName(carrier);
+  if (tier === "spell") return type === "team" ? actionSpellName(carrier, "team") : characterSpellName(carrier, type);
+  if (tier === "ultimate") return type === "team" ? ultimateSpellName(carrier, "team") : characterUltimateName(carrier, type);
   return "コマンド";
 }
 

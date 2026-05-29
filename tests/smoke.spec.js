@@ -128,8 +128,8 @@ test("sprite VN action scene explains the current play", async ({ page }) => {
   await expect(page.locator(".action-scene")).toContainText("キックオフ");
   await page.getByRole("button", { name: /シュート/ }).click();
   await expect(page.locator(".action-scene")).toContainText("COMMAND / シュート勝負");
-  // 保持者は博麗神社の MF 早苗。スペル段はキャラ固有スペルカード名を表示する。
-  await expect(page.locator('[data-action="resolve"][data-option="spell"]')).toContainText("奇跡のスルーパス");
+  // 保持者は博麗神社の MF 早苗。スペル段はアクションに一致した技名 (シュート系) を表示する。
+  await expect(page.locator('[data-action="resolve"][data-option="spell"]')).toContainText("シュート");
   await page.locator('[data-action="resolve"][data-option="normal"]').click();
   await expect(page.locator(".action-scene")).toContainText(/GK値|攻撃値/);
 });
@@ -146,15 +146,14 @@ test("goalkeepers stay in front of each goal", async ({ page }) => {
   await expect(page.locator(".field")).toContainText("相手ゴール");
 });
 
-test("spell tier uses the carrier's own signature spell card name", async ({ page }) => {
+test("spell move name matches the action (shoot stays a shoot move)", async ({ page }) => {
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
   await page.getByRole("button", { name: /シュート/ }).click();
-  // 博麗神社の MF 早苗が保持者。固有スペル「奇跡のスルーパス」が技名に、究極は「・真」付きで出る。
-  await expect(page.locator('[data-action="resolve"][data-option="spell"]')).toContainText("奇跡のスルーパス");
-  await expect(page.locator('[data-action="resolve"][data-option="ultimate"]')).toContainText("奇跡のスルーパス・真");
-  // 通常段は固有スペル名を使わない。
+  // シュートのスペル技名は必ず「シュート」を含み (アクション一致)、 究極は「・真」付き。
+  await expect(page.locator('[data-action="resolve"][data-option="spell"]')).toContainText("シュート");
+  await expect(page.locator('[data-action="resolve"][data-option="ultimate"]')).toContainText("・真");
   await expect(page.locator('[data-action="resolve"][data-option="normal"]')).toContainText("通常シュート");
 });
 
@@ -293,15 +292,14 @@ test("story mode locks home to Hakurei and the enemy slot away from Hakurei", as
   await expect(page.locator(".team-button.campaign-locked")).toHaveCount(0);
 });
 
-test("spell cut-in shows the character spell flavor text", async ({ page }) => {
+test("spell cut-in shows the action-matched move name (dribble move)", async ({ page }) => {
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
   await page.getByRole("button", { name: /ドリブル/ }).click();
   await page.locator('[data-action="resolve"][data-option="spell"]').click();
-  // 早苗の固有スペル名とフレーバー (spellText) がカットインに出る。
-  await expect(page.locator(".cutin .spell-name")).toContainText("奇跡のスルーパス");
-  await expect(page.locator(".cutin .spell-flavor")).toBeVisible();
+  // ドリブルのスペル技名はドリブル系の技名 (アクション一致) を出す。
+  await expect(page.locator(".cutin .spell-name")).toContainText("突破");
 });
 
 test("spell cut-in plays a 2-frame delay sprite animation", async ({ page }) => {
