@@ -1552,9 +1552,15 @@ function renderActionScene() {
   const scene = state.actionScene;
   if (!scene) return "";
   const phaseLabel = scene.phase === "choice" ? "COMMAND" : "RESULT";
+  // 躍動感: アクション種別の動的スプライト (assets/anim) を提示パネルに大きく敷く (フィールドは上で見えたまま)。
+  const animN = ACTION_ANIM_FRAMES[scene.type];
+  const success = scene.outcome === "success" || scene.outcome === "goal";
+  const heroFrame = animN ? Math.min(success ? 2 : 1, animN) : 0;
+  const heroSrc = heroFrame ? `./assets/anim/${scene.type}_${heroFrame}.png` : "";
   return `
     <div class="action-scene ${scene.outcome || ""}">
       <div class="action-stage">
+        ${heroSrc ? `<div class="action-hero"><img src="${heroSrc}" alt="" onerror="this.parentElement.style.display='none'" /></div>` : ""}
         <div class="sprite-runner attacker">
           ${renderPortrait(scene.attacker, "sprite")}
           <span>${scene.attacker.name}</span>
@@ -1569,6 +1575,7 @@ function renderActionScene() {
         <div class="vn-name">${phaseLabel} / ${scene.title}</div>
         <p>${scene.message}</p>
         ${scene.detail ? `<div class="vn-detail">${scene.detail}</div>` : ""}
+        ${state.advance ? `<div class="vn-advance-hint">▼ クリック / Space で次へ</div>` : ""}
       </div>
     </div>
   `;
@@ -1863,6 +1870,10 @@ function resolveBattle(option) {
     }
     if (atk >= def) {
       advanceCarrier(carrier, isUlti ? 22 : isSpell ? 18 : 11);
+      // 抜かれた守備者を後方へ突き放す (再接触で「同じ相手とまたすぐ」を防ぐ=明確な分離)。
+      const ddir = carrier.side === "home" ? 1 : -1;
+      defender.x = clamp(defender.x - ddir * 16, 6, 94);
+      defender.y = clamp(defender.y + (rng() * 10 - 5), 12, 88);
       audio.play(isSpell ? "spell" : "kick");
       audio.play("dribble-break");
       if (isSpell) showCutin(isUlti ? characterUltimateName(carrier) : characterSpellName(carrier), carrier, carrier.spellText);
@@ -2121,6 +2132,39 @@ function advanceCarrier(player, amount) {
   const dir = player.side === "home" ? 1 : -1;
   player.x = clamp(player.x + amount * dir, player.side === "home" ? 14 : 8, player.side === "home" ? 92 : 86);
   player.y = clamp(player.y + (rng() * 16 - 8), 18, 82);
+}
+
+// 保持者を盤面で歩かせられる状態か (自軍ターン・バトル/送り待ち/各種モーダル中でない)。
+function carrierCanMove() {
+  return state.screen === "match" && Boolean(state.match) && !state.match.finished
+    && state.match.possession === "home" && !state.battle && !state.advance
+    && !state.passPicker && !state.gkChoice && !state.interrupt && !state.vnScene;
+}
+
+// キャプ翼3風: 保持者を1歩ドリブル前進させる (turn は消費しない=endTurn を呼ばない)。
+// W=前進 / A・D=斜め前進でかわす。 守備者に接触したら既存ドリブルバトルへ自動遷移。
+function stepCarrier(yBias) {
+  if (!carrierCanMove()) return;
+  const carrier = getCarrier();
+  if (!carrier || carrier.role === "GK") return;
+  const dir = carrier.side === "home" ? 1 : -1;
+  carrier.x = clamp(carrier.x + 7 * dir, 8, 92);
+  if (yBias) carrier.y = clamp(carrier.y + yBias, 16, 84);
+  moveAiPlayers();
+  audio.play("kick");
+  const def = nearestOpponent(carrier);
+  if (def && distance(carrier, def) < 14) {
+    // 接触: 立ちはだかる守備者 → 既存ドリブルバトル (VS→tier→突破/奪取)。
+    openBattle("dribble");
+  } else {
+    const near = def || nearestOpponent(carrier);
+    if (goalDistance(carrier) < 16) {
+      setActionScene("dribble", carrier, near, `${carrier.name}、ゴール前へ斬り込む! シュートだ!`, "→ シュート / W でさらに前へ", "success", "choice");
+    } else {
+      setActionScene("dribble", carrier, near, `${carrier.name}、ボールを持って駆け上がる!`, "W=前進 / A・D=かわす / 接触でドリブル勝負", "", "choice");
+    }
+    render();
+  }
 }
 
 function knockbackBall(carrier, defender, strength) {
@@ -2886,6 +2930,13 @@ function renderMatch() {
         <div class="action-scene-host">
           ${renderActionScene()}
         </div>
+        ${state.advance ? "" : `
+          <div class="move-strip">
+            <button class="move-btn" data-action="step" data-ybias="-10" ${disableHomeTurn()} title="左へかわしながら前進 (A)">↖ かわす</button>
+            <button class="move-btn primary" data-action="step" data-ybias="0" ${disableHomeTurn()} title="ドリブルで前進 (W)">▲ 前進<span class="move-key">W</span></button>
+            <button class="move-btn" data-action="step" data-ybias="10" ${disableHomeTurn()} title="右へかわしながら前進 (D)">↗ かわす</button>
+          </div>
+        `}
         <div class="command-strip ${state.advance ? "awaiting" : ""}">
           ${state.advance ? `
             <button class="advance-btn" data-action="advancePlay">▶ 次へ<span class="advance-hint">クリック / Space / Enter　${state.progress.autoAdvance ? "(自動送りON)" : ""}</span></button>
@@ -3115,12 +3166,20 @@ function renderHelp() {
           <p>11vs11、30ターン制。終了時点で得点が多いチームの勝利。ボール保持者を中心に行動し、敵と接触するとコマンドバトル (VS 画面) に突入。</p>
         </article>
         <article>
+          <h2>盤面ドリブル (WASD / 前進ボタン)</h2>
+          <p>保持者を W=前進 / A・D=斜めにかわして進めます (ボタンは ▲前進 / ↖↗かわす)。守備者に接触するとドリブル勝負 (コマンドバトル) に。前進だけではターンは進まず、接触・パス・シュートの結果でターンが進みます。</p>
+        </article>
+        <article>
           <h2>コマンド (4方向)</h2>
-          <p>↑ドリブル (前進)、←パス (味方候補から番号選択)、→シュート (GK戦)、↓連携スペル (次判定強化)。クリック or キーボード ↑↓←→ / 1-4 で操作。</p>
+          <p>↑ドリブル (その場で勝負)、←パス (味方候補から番号選択)、→シュート (GK戦)、↓連携スペル (次判定強化)。クリック or キーボード ↑↓←→ / 1-4 で操作。</p>
+        </article>
+        <article>
+          <h2>メッセージ送り</h2>
+          <p>1行動ごとに結果が表示され、▶次へ (クリック / Space / Enter) で進みます。相手の手も1つずつ送って読めます。サイドの「自動送り」ONで自動進行。</p>
         </article>
         <article>
           <h2>キーボード操作</h2>
-          <p>↑→↓← または 1-4 = コマンド / Space = 通常 / S = スペル / Esc = キャンセル / G = ギャラリー / H = 遊び方 / M = 音 ON OFF。</p>
+          <p>WASD = 盤面移動 / ↑→↓← または 1-4 = コマンド / Space・Enter = 次へ・通常 / S = スペル / Esc = キャンセル / G = ギャラリー / H = 遊び方 / M = 音 ON OFF。</p>
         </article>
         <article>
           <h2>エンカウントの見方</h2>
@@ -3397,7 +3456,7 @@ function battleText(type, carrier, defender) {
   if (type === "shoot") return `${carrier.name}がシュート体勢。${defender.name}とのGK戦です。距離補正あり。`;
   if (type === "pass") return `${carrier.name}が展開を狙う。${defender.name}のカットを越えれば前進します。`;
   if (type === "team") return `${carrier.teamName}の連携スペル。次の判定に補正を乗せます。`;
-  return `${carrier.name}が仕掛ける。${defender.name}のタックルを抜ければゴールへ近づきます。`;
+  return `${carrier.name}が仕掛ける! 立ちはだかる${defender.name}を抜けばチャンスだ!`;
 }
 
 function spellCost(type) {
@@ -3492,6 +3551,7 @@ function bindEvents() {
           render();
         }
       }
+      if (action === "step") stepCarrier(parseFloat(button.dataset.ybias) || 0);
       if (action === "advancePlay") advancePlay();
       if (action === "toggleAuto") {
         state.progress.autoAdvance = !state.progress.autoAdvance;
@@ -3650,6 +3710,10 @@ function bindKeyboardEvents() {
       if (k === "Escape") { state.battle = null; state.vsScreen = null; render(); e.preventDefault(); return; }
     }
     if (state.screen === "match" && state.match && !state.match.finished && state.match.possession === "home" && !state.battle && !state.passPicker && !state.gkChoice && !state.interrupt) {
+      // WASD = 盤面ドリブル移動 (保持者を歩かせる)。 矢印/数字は従来コマンドのまま。
+      if (k === "w" || k === "W") { stepCarrier(0); e.preventDefault(); return; }
+      if (k === "a" || k === "A") { stepCarrier(-10); e.preventDefault(); return; }
+      if (k === "d" || k === "D") { stepCarrier(10); e.preventDefault(); return; }
       if (k === "ArrowUp" || k === "1") { openBattle("dribble"); e.preventDefault(); return; }
       if (k === "ArrowLeft" || k === "2") { openBattle("pass"); e.preventDefault(); return; }
       if (k === "ArrowRight" || k === "3") { openBattle("shoot"); e.preventDefault(); return; }

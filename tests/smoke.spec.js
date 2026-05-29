@@ -328,6 +328,19 @@ test("normal action keeps the field visible (no full-screen cut-in)", async ({ p
   await expect(page.locator(".action-scene")).toContainText(/攻撃値|守備値/);
 });
 
+test("ball carrier dribbles across the pitch via W key and move bar", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  // 盤面ドリブル移動バー(前進/かわす)が出ている。
+  await expect(page.locator(".move-strip")).toBeVisible();
+  // W で保持者(ボール)が攻撃方向(home=右)へ前進する。
+  const beforeX = await page.evaluate(() => parseFloat(document.querySelector(".ball").style.left));
+  await page.keyboard.press("w");
+  const afterX = await page.evaluate(() => parseFloat(document.querySelector(".ball").style.left));
+  expect(afterX).toBeGreaterThan(beforeX);
+});
+
 test("each action pauses for message-advance (paced play-by-play)", async ({ page }) => {
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();

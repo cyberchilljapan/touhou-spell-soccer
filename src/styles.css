@@ -533,7 +533,7 @@ button:disabled {
 
 .action-stage {
   position: relative;
-  min-height: 112px;
+  min-height: 138px;
   overflow: hidden;
   border: 2px solid rgba(255, 255, 255, 0.22);
   border-radius: 8px;
@@ -542,9 +542,46 @@ button:disabled {
     repeating-linear-gradient(90deg, rgba(46, 113, 74, 0.94) 0 18%, rgba(40, 101, 65, 0.94) 18% 36%);
 }
 
+/* 躍動感: アクションの動的スプライトを提示パネルの背景に敷く (選手ランナーは上に重なる)。 */
+.action-hero {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.action-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.62;
+  filter: saturate(1.2) contrast(1.1);
+  animation: heroIn 220ms ease-out both;
+}
+
+.action-scene.success .action-hero img,
+.action-scene.goal .action-hero img {
+  opacity: 0.78;
+  filter: saturate(1.35) contrast(1.18) brightness(1.08);
+}
+
+@keyframes heroIn {
+  0% { opacity: 0; transform: scale(1.08); }
+  100% { opacity: 0.62; transform: scale(1); }
+}
+
+.vn-advance-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--touhou-gold, #f0c85a);
+  animation: advancePulse 1100ms ease-in-out infinite;
+}
+
 .sprite-runner {
   position: absolute;
   top: 50%;
+  z-index: 1;
   display: grid;
   justify-items: center;
   gap: 2px;
@@ -627,6 +664,40 @@ button:disabled {
 .vn-detail {
   color: #cbd8d6;
   font-size: 13px;
+}
+
+/* 盤面ドリブル移動バー (キャプ翼風の保持者操作)。 */
+.move-strip {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1fr;
+  gap: 8px;
+  padding: 10px 14px 4px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.move-btn {
+  padding: 10px 8px;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.move-btn.primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 18px;
+  background: linear-gradient(180deg, #6fae53, #4d8a37);
+  color: #fff7df;
+  border: 2px solid #cdeeb0;
+}
+
+.move-btn .move-key {
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  padding: 1px 6px;
 }
 
 .command-strip {
