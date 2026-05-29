@@ -1889,7 +1889,7 @@ function resolveBattle(option) {
   }
 
   if (state.battle.type === "shoot") {
-    const distancePenalty = Math.max(0, goalDistance(carrier) - 18) * 0.72;
+    const distancePenalty = Math.max(0, goalDistance(carrier) - 20) * 0.6;
     const fatigue = fatiguePenalty(carrier);
     const baseAtk = roll(carrier.stats.shoot + boost + atkBonus - distancePenalty - fatigue + difficultyModifier(carrier.side), 28);
     if (fatigue >= 14) log(`💨 ${carrier.name}は息が上がり、シュートに伸びがない。`);
@@ -1995,9 +1995,9 @@ function finalizeShoot(carrier, gk, baseAtk, gkOption, useSpell, attackTier) {
   const isUlti = attackTier === "ultimate";
   const spellSave = gkOption === "spellsave";
   const cost = { catch: 6, punch: 10, rush: 14, spellsave: 20 }[gkOption] || 6;
-  const defMod = { catch: 1.18, punch: 1.28, rush: 0.85, spellsave: 1.5 }[gkOption] || 1.0;
+  const defMod = { catch: 1.06, punch: 1.16, rush: 0.82, spellsave: 1.34 }[gkOption] || 1.0;
   spend(gk, cost);
-  const def = roll(gk.stats.keep * defMod + gk.stats.block * 0.25 + (useSpell ? 4 : 0) + (spellSave ? 16 : 0) + difficultyModifier(gk.side), 28);
+  const def = roll(gk.stats.keep * defMod + gk.stats.block * 0.19 + (useSpell ? 4 : 0) + (spellSave ? 7 : 0) + difficultyModifier(gk.side), 28);
   const margin = baseAtk - def;
   const atkName = useSpell ? (isUlti ? characterUltimateName(carrier) : characterSpellName(carrier)) : "シュート";
   // 必殺シュート同士の拮抗 (差が僅か or スペルセーブ対抗) はクラッシュ演出。
@@ -2142,15 +2142,16 @@ function keepGoalkeeperInGoal(player) {
 
 function endTurn() {
   const match = state.match;
-  recoverTeam("home", 3);
-  recoverTeam("away", 3);
+  // 霊力経済をやや引き締め (消耗ドラマを効かせ、 終盤の残量を意思決定にする)。
+  recoverTeam("home", 2);
+  recoverTeam("away", 2);
   match.turn += 1;
   moveAiPlayers();
   // ハーフタイム (turn 16 開始時)
   if (match.turn === 16 && !match.halftimeShown) {
     match.halftimeShown = true;
-    recoverTeam("home", 25);
-    recoverTeam("away", 25);
+    recoverTeam("home", 20);
+    recoverTeam("away", 20);
     showJudge("halftime");
     state.halftimeReport = true;
     window.clearTimeout(state.halftimeReportTimer);
@@ -2158,7 +2159,7 @@ function endTurn() {
       state.halftimeReport = false;
       render();
     }, animMs(3200));
-    log(`ハーフタイム。両軍が霊力 +25 を回復。スコア ${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}。`);
+    log(`ハーフタイム。両軍が霊力 +20 を回復。スコア ${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}。`);
   }
   // BGM 切替 (intense for endgame)
   if (match.turn >= 24 && audio.currentBgm !== "intense") audio.playBgm("intense");
@@ -2171,6 +2172,8 @@ function endTurn() {
     clearMatchSave();
     match.finished = true;
     match.winner = match.score.home === match.score.away ? "draw" : match.score.home > match.score.away ? "home" : "away";
+    // 勝利 XP (死に設定だった XP_TABLE.win を解消)。 home roster のみ成長。
+    if (match.winner === "home") match.home.players.forEach((p) => gainXp(p, "win"));
     if (state.mode === "campaign" && match.winner === "home" && state.campaign) {
       state.campaign.wins += 1;
       if (unlockTeam(match.away.id)) {
@@ -2456,7 +2459,7 @@ const JUDGE_MAP = {
   support: { kind: "support", text: "SUPPORT!!", sub: "連携スペル" },
   intercept: { kind: "cut", text: "INTERCEPT!", sub: "インターセプト" },
   tackle: { kind: "stop", text: "TACKLE!", sub: "タックル成功" },
-  halftime: { kind: "support", text: "HALFTIME", sub: "前半終了 / 全員霊力+25" },
+  halftime: { kind: "support", text: "HALFTIME", sub: "前半終了 / 全員霊力+20" },
 };
 
 function showJudge(key) {
@@ -2912,7 +2915,7 @@ function renderHalftimeReport() {
         <div class="ht-title">HALFTIME REPORT</div>
         <div class="ht-score">${m.home.name} <span class="ht-score-num">${m.score.home}</span> - <span class="ht-score-num">${m.score.away}</span> ${m.away.name}</div>
         ${renderMatchStats(m)}
-        <div class="ht-hint">後半 開始 — 全員霊力 +25 回復</div>
+        <div class="ht-hint">後半 開始 — 全員霊力 +20 回復</div>
       </div>
     </div>
   `;
@@ -3270,7 +3273,7 @@ const TIER_COSTS = {
 const TIER_ATK_BONUS = {
   dribble: { normal: 0, spell: 28, ultimate: 48 },
   pass:    { normal: 0, spell: 26, ultimate: 44 },
-  shoot:   { normal: 0, spell: 34, ultimate: 58 },
+  shoot:   { normal: 6, spell: 34, ultimate: 52 },
   team:    { normal: 0, spell: 0, ultimate: 0 },
 };
 
@@ -3637,6 +3640,14 @@ window.__touhouSpellFutsalDebug = {
   // RNG シード制御 (決定的バランス検証/テスト用)。
   seedRng(seed = 12345) { seedRng(seed); },
   clearRng() { clearRng(); },
+  // 同一シードで roll 列が再現するか確認 (決定性テスト用)。
+  rngProbe(seed, n = 6) {
+    seedRng(seed);
+    const out = [];
+    for (let i = 0; i < n; i += 1) out.push(roll(50));
+    clearRng();
+    return out;
+  },
   // #11 回帰: 試合中にフォメ変更を模擬 → resetPositions が initialSlot 基準で一貫するか。
   resetPositionsAfterFormationChange(newFormation) {
     if (!state.match) return null;

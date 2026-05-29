@@ -365,6 +365,19 @@ test("low spirit power applies a fatigue penalty (stamina drama)", async ({ page
   expect(penalties.low).toBe(14);
 });
 
+test("seeded RNG is deterministic (balance verification foundation)", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  const r = await page.evaluate(() => {
+    const d = window.__touhouSpellFutsalDebug;
+    const a = JSON.stringify(d.rngProbe(7, 8));
+    const b = JSON.stringify(d.rngProbe(7, 8));
+    const c = JSON.stringify(d.rngProbe(8, 8));
+    return { sameSeedMatches: a === b, differentSeedDiffers: a !== c };
+  });
+  expect(r.sameSeedMatches).toBe(true);
+  expect(r.differentSeedDiffers).toBe(true);
+});
+
 test("position reset stays consistent even if formation changed mid-match", async ({ page }) => {
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();
