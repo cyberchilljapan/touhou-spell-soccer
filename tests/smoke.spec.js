@@ -365,6 +365,15 @@ test("low spirit power applies a fatigue penalty (stamina drama)", async ({ page
   expect(penalties.low).toBe(14);
 });
 
+test("position reset stays consistent even if formation changed mid-match", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  // 試合開始(4-4-2)後にフォメを 3-5-2 へ変えても、リセットは開始時スロットを保つ(GKがFW位置へ等の入替なし)。
+  const ok = await page.evaluate(() => window.__touhouSpellFutsalDebug.resetPositionsAfterFormationChange("3-5-2"));
+  expect(ok).toBe(true);
+});
+
 test("progress reset keeps the game playable (no playerXp crash)", async ({ page }) => {
   await page.goto(HTTP_URL);
   // 進行リセット後すぐフリー対戦を開始してもクラッシュしないこと (formation/tactic/playerXp 脱落バグ回帰)。

@@ -2109,10 +2109,17 @@ function kickoff(side) {
 }
 
 function resetPositions() {
-  const homeReset = cloneTeam(findTeam(state.match.home.id), "home").players;
-  const awayReset = cloneTeam(findTeam(state.match.away.id), "away").players;
-  state.match.home.players.forEach((player, index) => Object.assign(player, { x: homeReset[index].x, y: homeReset[index].y }));
-  state.match.away.players.forEach((player, index) => Object.assign(player, { x: awayReset[index].x, y: awayReset[index].y }));
+  // 各選手を試合開始時に確定した initialSlot へ戻す。 cloneTeam を再呼びしないので、
+  // 途中保存後に setup でフォーメーションを変えて再開しても、 現 progress.formation に
+  // 引きずられて選手とスロットが入れ替わる不整合 (GKがFW位置へ等) が起きない。
+  allPlayers().forEach((player) => {
+    if (player.role === "GK") {
+      keepGoalkeeperInGoal(player);
+    } else if (player.initialSlot) {
+      player.x = player.initialSlot.x;
+      player.y = player.initialSlot.y;
+    }
+  });
 }
 
 function keepGoalkeeperInGoal(player) {
@@ -2599,7 +2606,7 @@ function showCutin(text, player = null, flavor = "") {
   state.cutinTimer = window.setTimeout(() => {
     state.cutin = null;
     render();
-  }, animMs(player ? 1480 : 540));
+  }, animMs(player ? 1200 : 540));
 }
 
 // 汎用アクションスプライト (assets/anim/{type}_{n}.png) のフレーム数。 ディレイ式にめくる。
@@ -2613,6 +2620,9 @@ function actionAnimFrames(type) {
   return Array.from({ length: n }, (_, i) => `./assets/anim/${type}_${i + 1}.png`);
 }
 
+// 見せ場 (シュート/ゴール/セーブ) は長く、 routine (ドリブル/パス/守備) は短く=周回テンポ確保。
+const ACTION_CUTIN_BIG = new Set(["shoot", "goal", "gk_save"]);
+
 // キャプ翼風: 通常アクションの見せ場を汎用スプライトの大型カットインで前面表示 (タメ→放出のめくり)。
 function showActionCutin(type, label, flavor = "") {
   const frames = actionAnimFrames(type);
@@ -2621,6 +2631,7 @@ function showActionCutin(type, label, flavor = "") {
   window.clearTimeout(state.cutinFrameTimer);
   window.clearTimeout(state.vsScreenTimer);
   state.vsScreen = null;
+  const big = ACTION_CUTIN_BIG.has(type);
   state.cutin = {
     text: label,
     flavor: flavor || "",
@@ -2636,14 +2647,14 @@ function showActionCutin(type, label, flavor = "") {
       if (!state.cutin) return;
       state.cutin.frameIndex = (state.cutin.frameIndex + 1) % state.cutin.frames.length;
       render();
-      state.cutinFrameTimer = window.setTimeout(flip, animMs(150));
+      state.cutinFrameTimer = window.setTimeout(flip, animMs(big ? 150 : 130));
     };
-    state.cutinFrameTimer = window.setTimeout(flip, animMs(150));
+    state.cutinFrameTimer = window.setTimeout(flip, animMs(big ? 150 : 130));
   }
   state.cutinTimer = window.setTimeout(() => {
     state.cutin = null;
     render();
-  }, animMs(1050));
+  }, animMs(big ? 900 : 620));
 }
 
 function clearActionSceneLater() {
@@ -3198,7 +3209,7 @@ function encounterFieldClass(carrier, defender) {
 }
 
 function renderToken(player, carrier, defender) {
-  const ratio = player.guts / player.maxGuts;
+  const ratio = Math.min(1, player.maxGuts > 0 ? player.guts / player.maxGuts : 0);
   let staminaClass = "full";
   if (ratio < 0.3) staminaClass = "low";
   else if (ratio < 0.6) staminaClass = "mid";
@@ -3222,7 +3233,7 @@ function renderStatusCard(player) {
         ${renderPortrait(player, "mini")}
         <span>
           <strong>${player.name}</strong>${player.teamName} / ${player.role}${lv > 1 ? ` <span class="lv-badge">Lv${lv}${boost > 0 ? ` +${boost}` : ""}</span>` : ""}
-          <div class="meter"><span style="width:${Math.round(player.guts / player.maxGuts * 100)}%"></span></div>
+          <div class="meter"><span style="width:${Math.round(Math.min(1, player.maxGuts > 0 ? player.guts / player.maxGuts : 0) * 100)}%"></span></div>
           <span class="guts-num">霊力 ${player.guts}/${player.maxGuts}</span>
         </span>
       </div>
@@ -3609,6 +3620,16 @@ window.__touhouSpellFutsalDebug = {
     state.battle = null;
     state.gkChoice = { carrierId: shooter.id, gkId: gk.id, baseAtk: 120, useSpell, tier: useSpell ? "ultimate" : "normal" };
     render();
+  },
+  // #11 回帰: 試合中にフォメ変更を模擬 → resetPositions が initialSlot 基準で一貫するか。
+  resetPositionsAfterFormationChange(newFormation) {
+    if (!state.match) return null;
+    state.progress.formation = newFormation;
+    resetPositions();
+    render();
+    return state.match.home.players.every(
+      (p) => p.role === "GK" || (Math.abs(p.x - p.initialSlot.x) < 0.001 && Math.abs(p.y - p.initialSlot.y) < 0.001),
+    );
   },
   // 指定 player の霊力比率を設定し消耗ドラマを確認 (ratio 0-1)。
   setGutsRatio(playerId, ratio) {
