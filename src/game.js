@@ -1566,19 +1566,35 @@ function renderCutin() {
   `;
 }
 
+// 行動の主役キャラと動作 → そのキャラの動作CG (assets/actions)。
+function actionCGSrc(scene) {
+  const ok = scene.outcome === "success" || scene.outcome === "goal";
+  let actor = null, action = null;
+  if (scene.type === "dribble") { action = ok ? "dribble" : "tackle"; actor = ok ? scene.attacker : scene.defender; }
+  else if (scene.type === "pass") { action = ok ? "pass" : "intercept"; actor = ok ? scene.attacker : scene.defender; }
+  else if (scene.type === "shoot") { action = ok ? "shoot" : "block"; actor = ok ? scene.attacker : scene.defender; }
+  if (!actor || !action) return "";
+  return `./assets/actions/${actor.id}_${action}.png`;
+}
+
 function renderActionScene() {
   const scene = state.actionScene;
   if (!scene) return "";
   const phaseLabel = scene.phase === "choice" ? "COMMAND" : "RESULT";
-  // 躍動感: アクション種別の動的スプライト (assets/anim) を提示パネルに大きく敷く (フィールドは上で見えたまま)。
+  // 躍動感: 主役キャラの動作CG (assets/actions) を優先、 無ければ汎用スプライト(assets/anim)へフォールバック。
   const animN = ACTION_ANIM_FRAMES[scene.type];
   const success = scene.outcome === "success" || scene.outcome === "goal";
   const heroFrame = animN ? Math.min(success ? 2 : 1, animN) : 0;
-  const heroSrc = heroFrame ? `./assets/anim/${scene.type}_${heroFrame}.png` : "";
+  const genericSrc = heroFrame ? `./assets/anim/${scene.type}_${heroFrame}.png` : "";
+  const charSrc = actionCGSrc(scene);
+  const heroSrc = charSrc || genericSrc;
+  const onerr = genericSrc && genericSrc !== heroSrc
+    ? `this.onerror=null; this.src='${genericSrc}';`
+    : `this.onerror=null; this.parentElement.style.display='none';`;
   return `
     <div class="action-scene ${scene.outcome || ""}">
       <div class="action-stage">
-        ${heroSrc ? `<div class="action-hero"><img src="${heroSrc}" alt="" onerror="this.parentElement.style.display='none'" /></div>` : ""}
+        ${heroSrc ? `<div class="action-hero"><img src="${heroSrc}" alt="" onerror="${onerr}" /></div>` : ""}
         <div class="sprite-runner attacker">
           ${renderPortrait(scene.attacker, "sprite")}
           <span>${scene.attacker.name}</span>
