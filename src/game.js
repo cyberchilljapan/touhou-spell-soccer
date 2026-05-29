@@ -190,6 +190,12 @@ const state = {
   match: null,
   battle: null,
   cutin: null,
+  cutinTimer: null,
+  cutinFrameTimer: null,
+  hitstop: false,
+  hitstopTimer: null,
+  crashScene: null,
+  crashSceneTimer: null,
   actionScene: null,
   actionSceneTimer: null,
   previousScreen: "setup",
@@ -241,10 +247,16 @@ function clearMatchSave() {
 }
 
 function resumeMatch(saved) {
+  cancelPendingTimers();
   state.match = saved.match;
+  state.match.matchToken = ++matchSeq;
   state.mode = saved.mode || "campaign";
   state.campaign = saved.campaign || null;
   state.screen = "match";
+  state.battle = null;
+  state.gkChoice = null;
+  state.interrupt = null;
+  state.passPicker = null;
   audio.ensure();
   audio.startMusic();
   render();
@@ -255,8 +267,8 @@ const DIFFICULTY_REWARDS = {
   hard: { label: "HARD制覇", spiritBonus: 12, message: "HARD報酬: 次回以降、自チーム全員の初期霊力+12。" },
 };
 
-function loadProgress() {
-  const fallback = {
+function defaultProgress() {
+  return {
     unlockedTeams: ["hakurei"],
     campaignClears: 0,
     lastUnlocked: "hakurei",
@@ -266,7 +278,12 @@ function loadProgress() {
     formation: "4-4-2",
     tactic: "normal",
     playerXp: {},
+    animSpeed: "normal",
   };
+}
+
+function loadProgress() {
+  const fallback = defaultProgress();
   try {
     const raw = window.localStorage.getItem("touhouSpellFutsalSaveV1");
     if (!raw) return fallback;
@@ -288,6 +305,7 @@ function loadProgress() {
       formation: ["4-4-2", "4-3-3", "3-5-2"].includes(parsed.formation) ? parsed.formation : "4-4-2",
       tactic: ["normal", "offensive", "defensive", "counter"].includes(parsed.tactic) ? parsed.tactic : "normal",
       playerXp: (parsed.playerXp && typeof parsed.playerXp === "object") ? parsed.playerXp : {},
+      animSpeed: ["normal", "fast", "instant"].includes(parsed.animSpeed) ? parsed.animSpeed : "normal",
     };
   } catch (_error) {
     return fallback;
@@ -311,14 +329,14 @@ function unlockTeam(teamId) {
 }
 
 function resetProgress() {
-  state.progress = {
-    unlockedTeams: ["hakurei"],
-    campaignClears: 0,
-    lastUnlocked: "hakurei",
+  // 進行リセット。音設定 / 難易度 / 演出速度の「設定」は引き継ぎ、
+  // 解放 / クリア / XP / 編成は初期化する (formation/tactic/playerXp 脱落クラッシュ修正)。
+  const kept = {
     audioMuted: state.progress.audioMuted,
     difficulty: state.progress.difficulty,
-    difficultyClears: { easy: false, normal: false, hard: false },
+    animSpeed: state.progress.animSpeed,
   };
+  state.progress = { ...defaultProgress(), ...kept };
   saveProgress();
 }
 
@@ -359,19 +377,20 @@ const audio = {
     osc.start(ctx.currentTime + when);
     osc.stop(ctx.currentTime + when + duration + 0.02);
   },
-  noise(duration = 0.08, gain = 0.025) {
+  noise(duration = 0.08, gain = 0.025, when = 0) {
     const ctx = this.ensure();
     if (!ctx || state.progress.audioMuted) return;
+    const start = ctx.currentTime + when;
     const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
     const source = ctx.createBufferSource();
     const amp = ctx.createGain();
-    amp.gain.setValueAtTime(gain, ctx.currentTime);
-    amp.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+    amp.gain.setValueAtTime(gain, start);
+    amp.gain.exponentialRampToValueAtTime(0.0001, start + duration);
     source.buffer = buffer;
     source.connect(amp).connect(ctx.destination);
-    source.start();
+    source.start(start);
   },
   play(name) {
     if (state.progress.audioMuted) return;
@@ -425,6 +444,56 @@ const audio = {
     if (name === "page-turn") {
       this.tone(880, 0.02, "triangle", 0.018);
       this.tone(1320, 0.025, "triangle", 0.012, 0.02);
+    }
+    // 必殺技 SE: チャージ(タメ) → スプライトが放出フレームにめくれた瞬間のインパクト。
+    if (name === "spell-charge") {
+      [196, 262, 330, 392].forEach((f, i) => this.tone(f, 0.12, "sawtooth", 0.016 + i * 0.004, i * 0.05));
+      this.tone(523, 0.16, "triangle", 0.02, 0.2);
+    }
+    if (name === "spell-impact") {
+      this.noise(0.14, 0.03);
+      this.tone(90, 0.18, "sawtooth", 0.03);
+      this.tone(660, 0.1, "square", 0.028, 0.01);
+      this.tone(990, 0.14, "triangle", 0.024, 0.05);
+    }
+    if (name === "ultimate-charge") {
+      [110, 165, 220, 294, 392].forEach((f, i) => this.tone(f, 0.14, "sawtooth", 0.015 + i * 0.004, i * 0.06));
+      this.tone(587, 0.2, "triangle", 0.022, 0.3);
+    }
+    if (name === "ultimate-impact") {
+      this.noise(0.22, 0.034);
+      this.tone(70, 0.26, "sawtooth", 0.034);
+      [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.16, "triangle", 0.024, i * 0.03));
+    }
+    // 通常アクションの「タメ→着弾」2段 SE (必殺との差別化: 軽い square/saw/triangle, ノイズ層なし)。
+    if (name === "shoot-charge") {
+      this.tone(220, 0.12, "sawtooth", 0.022);
+      this.tone(440, 0.12, "sawtooth", 0.018, 0.04);
+    }
+    if (name === "shoot-impact") {
+      this.noise(0.05, 0.028);
+      this.tone(160, 0.08, "square", 0.026, 0.005);
+    }
+    if (name === "pass-charge") {
+      this.tone(523, 0.04, "triangle", 0.02);
+    }
+    if (name === "hitstop-cue") {
+      this.tone(80, 0.04, "square", 0.03);
+    }
+    // 必殺シュート vs 必殺セーブのクラッシュ火花 (低周波うなり + 金属ノイズ)。
+    if (name === "clash-spark") {
+      this.tone(80, 0.12, "square", 0.03);
+      this.noise(0.12, 0.026);
+      this.tone(80, 0.12, "square", 0.03, 0.1);
+      this.noise(0.12, 0.024, 0.1);
+    }
+    if (name === "goal-stamp") {
+      this.tone(1300, 0.05, "square", 0.04);
+      this.tone(1300, 0.05, "square", 0.04, 0.1);
+    }
+    if (name === "crowd-rumble") {
+      this.noise(0.5, 0.01);
+      this.tone(60, 0.4, "sine", 0.012, 0.05);
     }
   },
   playBgm(name) {
@@ -1064,7 +1133,7 @@ function cloneTeam(team, side) {
       const slot = roleSlots[usedSlots[member.role] % roleSlots.length];
       usedSlots[member.role] += 1;
       // XP boost: home 側 only、登録済み xp から stat ↑
-      const xpInfo = (side === "home" && state.progress.playerXp[member.id]) || null;
+      const xpInfo = (side === "home" && state.progress.playerXp && state.progress.playerXp[member.id]) || null;
       const boost = xpInfo ? Math.min((xpInfo.level - 1) * 2, 20) : 0;
       const boostedStats = boost > 0 ? Object.fromEntries(
         Object.entries(member.stats).map(([k, v]) => [k, Math.min(99, v + boost)])
@@ -1131,7 +1200,118 @@ function applyClearReward(team) {
   });
 }
 
+// 試合世代カウンタ。 画面遷移後に生き残った setTimeout / VN onComplete が
+// 破棄済み or 別試合の battle を触るレースを防ぐためトークン照合に使う。
+let matchSeq = 0;
+
+// 演出速度。 standard=1 / fast=0.5 / instant=0.12 でタイマーを一括スケール。
+function animScale() {
+  return { normal: 1, fast: 0.5, instant: 0.12 }[(state.progress && state.progress.animSpeed) || "normal"] || 1;
+}
+
+function animMs(ms) {
+  return Math.max(60, Math.round(ms * animScale()));
+}
+
+// インパクト保持/ヒットストップ専用。 下限を 120ms に引き上げ、 fast/instant でも「当たり」を潰さない。
+function impactMs(ms) {
+  return Math.max(120, Math.round(ms * animScale()));
+}
+
+// ヒットストップ: 決着の瞬間に演出を一瞬止め、 体感強度を上げる (視覚のみ。 ロジックは進行)。
+function hitstop(ms) {
+  state.hitstop = true;
+  audio.play("hitstop-cue");
+  window.clearTimeout(state.hitstopTimer);
+  state.hitstopTimer = window.setTimeout(() => {
+    state.hitstop = false;
+    render();
+  }, impactMs(ms));
+}
+
+// 遅延コールバック内で「今もこの試合か」を照合するガード。
+function matchAlive(token) {
+  return Boolean(state.match) && !state.match.finished && state.match.matchToken === token;
+}
+
+// 画面遷移 / 試合開始時に保留中の全タイマーと一時オーバーレイを破棄する。
+function cancelPendingTimers() {
+  [
+    state.vsScreenTimer,
+    state.actionSceneTimer,
+    state.judgeTimer,
+    state.halftimeReportTimer,
+    state.fieldShakeTimer,
+    state.cutinTimer,
+    state.cutinFrameTimer,
+    state.hitstopTimer,
+    state.crashSceneTimer,
+  ].forEach((t) => { if (t) window.clearTimeout(t); });
+  state.vsScreenTimer = null;
+  state.actionSceneTimer = null;
+  state.judgeTimer = null;
+  state.halftimeReportTimer = null;
+  state.fieldShakeTimer = null;
+  state.cutinTimer = null;
+  state.cutinFrameTimer = null;
+  state.hitstopTimer = null;
+  state.crashSceneTimer = null;
+  state.hitstop = false;
+  state.crashScene = null;
+  state.vsScreen = null;
+  state.cutin = null;
+  state.judge = null;
+  state.fieldShake = false;
+  state.halftimeReport = false;
+}
+
+// VS 画面を出して一定時間後に消す処理を集約 (演出速度を一元適用)。
+function showVsScreen(attacker, defender, label) {
+  state.vsScreen = { attacker, defender, label };
+  window.clearTimeout(state.vsScreenTimer);
+  state.vsScreenTimer = window.setTimeout(() => { state.vsScreen = null; render(); }, animMs(740));
+}
+
+// キャラ固有のスペルカード名を試合中の技名に使う (88 体ぶんの設定資産を活性化)。
+function characterSpellName(player) {
+  return player.spell;
+}
+
+function characterUltimateName(player) {
+  const base = player.spell;
+  return base.endsWith("真") ? base : `${base}・真`;
+}
+
+// 消耗ドラマ: 霊力が尽きかけると技のキレが鈍る (攻撃値への負補正)。
+function fatiguePenalty(player) {
+  const r = player.maxGuts > 0 ? player.guts / player.maxGuts : 1;
+  if (r < 0.25) return 14;
+  if (r < 0.5) return 6;
+  return 0;
+}
+
+// 状況実況: ゴール時に点差・残ターン・文脈から煽り文を生成する。
+function pushCommentary(text) {
+  if (text) log(text);
+}
+
+function goalCommentary(scorer) {
+  const m = state.match;
+  const mine = m.score[scorer.side];
+  const theirs = m.score[opponentSide(scorer.side)];
+  const diff = mine - theirs;
+  const left = m.maxTurns - m.turn;
+  const teamName = teamBySide(scorer.side).name;
+  if (left <= 3 && diff >= 1 && diff <= 1) return `📢 ロスタイム間際! ${scorer.name}の決勝点級ゴールが突き刺さった!`;
+  if (diff === 0) return `📢 ${scorer.name}が同点弾! ${teamName}が試合を振り出しに戻した!`;
+  if (diff === 1 && theirs >= 1) return `📢 ${scorer.name}が勝ち越し! ${teamName}がリードを奪い返す!`;
+  if (diff >= 3) return `📢 ${scorer.name}がダメ押し! ${teamName}が突き放す!`;
+  if (left <= 6) return `📢 終盤、${scorer.name}が均衡を破った!`;
+  return `📢 ${scorer.name}のゴール! ${teamName} ${mine}-${theirs} とする!`;
+}
+
 function startMatchCore(options = {}) {
+  cancelPendingTimers();
   audio.ensure();
   audio.play("kick");
   audio.playBgm("normal");
@@ -1144,6 +1324,7 @@ function startMatchCore(options = {}) {
   applyClearReward(home);
   const carrier = home.players.find((player) => player.role === "MF") || home.players[1];
   state.match = {
+    matchToken: ++matchSeq,
     home,
     away,
     turn: 1,
@@ -1262,6 +1443,11 @@ function cutinPath(player) {
   return `./assets/cutins/${player.id}.png`;
 }
 
+// スプライト風アニメ用フレーム: frame0 = 既存カットイン (タメ/詠唱)、 frame1 = {id}_b.png (放出/インパクト)。
+function cutinFramePath(player, frame) {
+  return frame >= 1 ? `./assets/cutins/${player.id}_b.png` : cutinPath(player);
+}
+
 function preMatchDialogue(home, away) {
   const data = PRE_MATCH_DIALOGUES[away.id] || {
     speaker: away.players[0].id,
@@ -1290,10 +1476,15 @@ function renderPortrait(player, extraClass = "") {
 function renderCutin() {
   const cutin = state.cutin;
   if (!cutin) return "";
-  const image = cutin.cutinSrc || cutin.portraitSrc || "";
-  const imageMarkup = image ? `<img src="${image}" alt="${cutin.playerName || cutin.text}" />` : "";
+  const frames = (cutin.frames && cutin.frames.length) ? cutin.frames : (cutin.fallback ? [cutin.fallback] : []);
+  const src = frames[cutin.frameIndex] || cutin.fallback || "";
+  // frameB ({id}_b.png) 未生成のキャラは onerror で frame0 にフォールバックし破綻させない。
+  const imageMarkup = src
+    ? `<img src="${src}" alt="${cutin.playerName || cutin.text}" data-frame="${cutin.frameIndex}" onerror="this.onerror=null;this.src='${cutin.fallback || src}'" />`
+    : "";
+  const variant = cutin.isAction ? "action-cutin" : (cutin.isSpell ? "spell-cutin" : "quick-cutin");
   return `
-    <div class="cutin ${cutin.isSpell ? "spell-cutin" : "quick-cutin"}">
+    <div class="cutin ${variant} ${cutin.frameIndex >= 1 ? "cutin-impact" : ""}">
       ${cutin.isSpell ? `
         <div class="spell-frame"></div>
         <div class="spell-burst"></div>
@@ -1305,6 +1496,7 @@ function renderCutin() {
         ${cutin.isSpell ? `<span class="spell-banner">SPELL CARD</span>` : ""}
         ${cutin.playerName ? `<strong>${cutin.playerName}</strong>` : ""}
         <span class="spell-name">${cutin.text}</span>
+        ${cutin.flavor ? `<span class="spell-flavor">${cutin.flavor}</span>` : ""}
       </div>
     </div>
   `;
@@ -1382,10 +1574,13 @@ function setActionScene(type, attacker, defender, message, detail = "", outcome 
 }
 
 function nearestOpponent(player) {
-  return teamBySide(opponentSide(player.side)).players
+  if (!player) return null;
+  const opponents = teamBySide(opponentSide(player.side)).players;
+  const outfield = opponents
     .filter((opponent) => opponent.role !== "GK")
     .map((opponent) => ({ opponent, d: distance(player, opponent) }))
-    .sort((a, b) => a.d - b.d)[0].opponent;
+    .sort((a, b) => a.d - b.d)[0];
+  return outfield ? outfield.opponent : (opponents[0] || null);
 }
 
 function nearestMateAhead(player) {
@@ -1483,16 +1678,17 @@ function selectPassTarget(index) {
   const target = picker.candidates[index];
   state.passPicker = null;
   const carrier = getCarrier();
+  if (!carrier) return;
+  const defender = nearestOpponent(carrier);
+  if (!defender) return;
   state.battle = {
     type: "pass",
     carrierId: carrier.id,
-    defenderId: nearestOpponent(carrier).id,
+    defenderId: defender.id,
     passTargetId: target.id,
   };
-  state.vsScreen = { attacker: carrier, defender: nearestOpponent(carrier), label: VS_LABELS.pass };
-  window.clearTimeout(state.vsScreenTimer);
-  state.vsScreenTimer = window.setTimeout(() => { state.vsScreen = null; render(); }, 740);
-  setActionScene("pass", carrier, nearestOpponent(carrier), `${target.name}へパスを狙う。`, "通常かスペルを選択", "", "choice");
+  showVsScreen(carrier, defender, VS_LABELS.pass);
+  setActionScene("pass", carrier, defender, `${target.name}へパスを狙う。`, "通常かスペルを選択", "", "choice");
   audio.play("battle");
   render();
 }
@@ -1514,24 +1710,28 @@ function renderPassPicker() {
 }
 
 function openBattle(type, skipRivalry = false) {
-  if (state.match.finished) return;
+  if (!state.match || state.match.finished) return;
   if (type === "pass" && state.match.possession === "home" && !state.battle) {
     // home の pass はピッカーを開く (但し rivalry VN 復帰時はスキップ)
     openPassPicker();
     return;
   }
   const carrier = getCarrier();
-  const defender = type === "shoot"
+  const defender = !carrier ? null : type === "shoot"
     ? teamBySide(opponentSide(carrier.side)).players.find((player) => player.role === "GK")
     : nearestOpponent(carrier);
+  // carrier / defender が解決できない (試合差し替え等) なら何もしない。
+  if (!carrier || !defender) return;
   // 因縁掛け合い VN (1 試合 1 ペア 1 回まで、 50% 確率)
-  if (!skipRivalry && carrier && defender && state.match && state.match.rivalryShown) {
+  if (!skipRivalry && state.match && state.match.rivalryShown) {
     const key = rivalryKey(carrier, defender);
     const dialogue = findRivalryDialogue(carrier, defender);
     if (dialogue && !state.match.rivalryShown[key] && Math.random() < 0.5) {
       state.match.rivalryShown[key] = true;
+      const token = state.match.matchToken;
       audio.play("encounter");
       startVn(dialogue, `因縁: ${carrier.name} vs ${defender.name}`, () => {
+        if (!matchAlive(token)) return; // VN 中に試合差し替え / 終了したら通常 flow に戻さない
         openBattle(type, true); // 通常 flow へ
       });
       return;
@@ -1540,12 +1740,7 @@ function openBattle(type, skipRivalry = false) {
   audio.play("battle");
   audio.play("encounter");
   state.battle = { type, carrierId: carrier.id, defenderId: defender.id };
-  state.vsScreen = { attacker: carrier, defender, label: VS_LABELS[type] || "VS" };
-  window.clearTimeout(state.vsScreenTimer);
-  state.vsScreenTimer = window.setTimeout(() => {
-    state.vsScreen = null;
-    render();
-  }, 740);
+  showVsScreen(carrier, defender, VS_LABELS[type] || "VS");
   setActionScene(type, carrier, defender, battleText(type, carrier, defender), "通常かスペルを選択", "", "choice");
   render();
 }
@@ -1573,10 +1768,31 @@ function renderVsScreen() {
   `;
 }
 
+function renderCrashScene() {
+  const cs = state.crashScene;
+  if (!cs) return "";
+  const gkPct = 100 - cs.atkPct;
+  const winner = cs.atkPct >= 50 ? "atk" : "def";
+  return `
+    <div class="crash-scene" data-winner="${winner}">
+      <div class="crash-spark"></div>
+      <div class="crash-banner">CLASH!!</div>
+      <div class="crash-gauge">
+        <span class="crash-side crash-atk" style="width:${cs.atkPct}%">${cs.atkName}</span>
+        <span class="crash-side crash-def" style="width:${gkPct}%">${cs.gkName}</span>
+      </div>
+      <div class="crash-sub">必殺 vs 必殺セーブ ── ${winner === "atk" ? "押し勝った!" : "受け止めた!"}</div>
+    </div>
+  `;
+}
+
 function resolveBattle(option) {
+  // 遅延発火で battle が消えていたり試合が終了 / 差し替わっていたら何もしない。
+  if (!state.match || state.match.finished || !state.battle) return;
   const match = state.match;
   const carrier = getCarrier();
   const defender = allPlayers().find((player) => player.id === state.battle.defenderId);
+  if (!carrier || !defender) { state.battle = null; render(); return; }
   const boost = match.boost || 0;
   match.boost = 0;
   // 旧 option (normal/spell) と新 option (normal/spell/ultimate) を統合
@@ -1588,7 +1804,7 @@ function resolveBattle(option) {
   const atkBonus = tierAtkBonus(t, tier);
 
   if (state.battle.type === "dribble") {
-    const atk = roll(carrier.stats.dribble + carrier.stats.speed * 0.35 + boost + atkBonus + difficultyModifier(carrier.side));
+    const atk = roll(carrier.stats.dribble + carrier.stats.speed * 0.35 + boost + atkBonus - fatiguePenalty(carrier) + difficultyModifier(carrier.side));
     const def = roll(defender.stats.tackle + defender.stats.speed * 0.25 + difficultyModifier(defender.side));
     spend(carrier, cost);
     bumpStat(carrier.side, "dribbles");
@@ -1601,7 +1817,8 @@ function resolveBattle(option) {
       advanceCarrier(carrier, isUlti ? 22 : isSpell ? 18 : 11);
       audio.play(isSpell ? "spell" : "kick");
       audio.play("dribble-break");
-      showCutin(isSpell ? (isUlti ? ultimateSpellName(carrier, "dribble") : actionSpellName(carrier, "dribble")) : "ドリブル突破", isSpell ? carrier : null);
+      if (isSpell) showCutin(isUlti ? characterUltimateName(carrier) : characterSpellName(carrier), carrier, carrier.spellText);
+      else showActionCutin("dribble", `${carrier.name} ドリブル突破`);
       setActionScene("dribble", carrier, defender, `${carrier.name}が${defender.name}を${isUlti ? "切り裂いて" : "抜いて"}前進。`, `攻撃値 ${Math.round(atk)} / 守備値 ${Math.round(def)} / 段階: ${tier}`, "success");
       showJudge("break");
       log(`${carrier.name}が${defender.name}を突破 (${tier})。攻撃値${Math.round(atk)} / 守備値${Math.round(def)}。`);
@@ -1612,8 +1829,10 @@ function resolveBattle(option) {
       bumpPlayerStat(defender, "tackles");
       // knockback: ball 位置を defender 側 (碰勝者) 寄りへ少し移動
       knockbackBall(carrier, defender, isUlti ? 14 : isSpell ? 10 : 7);
+      showActionCutin("tackle", `${defender.name} タックル!`);
       setActionScene("dribble", carrier, defender, `${defender.name}が止めた。ボールは相手側へ。`, `攻撃値 ${Math.round(atk)} / 守備値 ${Math.round(def)} / 段階: ${tier}`, "fail");
       showJudge("stop");
+      hitstop(66);
       turnover(defender, `${defender.name}が${carrier.name}を止めた (${tier})。攻撃値${Math.round(atk)} / 守備値${Math.round(def)}。`);
     }
   }
@@ -1622,7 +1841,7 @@ function resolveBattle(option) {
     const receiver = state.battle.passTargetId
       ? (allPlayers().find((p) => p.id === state.battle.passTargetId) || nearestMateAhead(carrier))
       : nearestMateAhead(carrier);
-    const atk = roll(carrier.stats.pass + boost + atkBonus + difficultyModifier(carrier.side));
+    const atk = roll(carrier.stats.pass + boost + atkBonus - fatiguePenalty(carrier) + difficultyModifier(carrier.side));
     const def = roll(defender.stats.block + defender.stats.speed * 0.2 + difficultyModifier(defender.side));
     spend(carrier, cost);
     bumpStat(carrier.side, "passes");
@@ -1634,9 +1853,11 @@ function resolveBattle(option) {
     if (atk >= def) {
       state.match.carrierId = receiver.id;
       receiver.x = clamp(receiver.x + (receiver.side === "home" ? (isUlti ? 14 : 8) : (isUlti ? -14 : -8)), 8, 92);
+      if (!isSpell) audio.play("pass-charge");
       audio.play(isSpell ? "spell" : "select");
       audio.play("pass-success");
-      showCutin(isSpell ? (isUlti ? ultimateSpellName(carrier, "pass") : actionSpellName(carrier, "pass")) : "スルーパス", isSpell ? carrier : null);
+      if (isSpell) showCutin(isUlti ? characterUltimateName(carrier) : characterSpellName(carrier), carrier, carrier.spellText);
+      else showActionCutin("pass", `${carrier.name} スルーパス`);
       setActionScene("pass", carrier, defender, `${receiver.name}へのパス成功。${isUlti ? "電光石火の前進。" : "攻撃が前へ進む。"}`, `攻撃値 ${Math.round(atk)} / カット値 ${Math.round(def)} / 段階: ${tier}`, "success");
       showJudge("through");
       log(`${carrier.name}から${receiver.name}へパス成功 (${tier})。${receiver.name}が前を向いた。`);
@@ -1646,15 +1867,19 @@ function resolveBattle(option) {
       bumpStat(defender.side, "intercepts");
       bumpPlayerStat(defender, "intercepts");
       knockbackBall(carrier, defender, isUlti ? 12 : isSpell ? 9 : 6);
+      showActionCutin("intercept", `${defender.name} インターセプト!`);
       setActionScene("pass", carrier, defender, `${defender.name}がパスカット。ボール保持が入れ替わる。`, `攻撃値 ${Math.round(atk)} / カット値 ${Math.round(def)} / 段階: ${tier}`, "fail");
       showJudge("cut");
+      hitstop(66);
       turnover(defender, `${defender.name}がパスカット (${tier})。${carrier.name}の展開を読んだ。`);
     }
   }
 
   if (state.battle.type === "shoot") {
     const distancePenalty = Math.max(0, goalDistance(carrier) - 18) * 0.72;
-    const baseAtk = roll(carrier.stats.shoot + boost + atkBonus - distancePenalty + difficultyModifier(carrier.side), 28);
+    const fatigue = fatiguePenalty(carrier);
+    const baseAtk = roll(carrier.stats.shoot + boost + atkBonus - distancePenalty - fatigue + difficultyModifier(carrier.side), 28);
+    if (fatigue >= 14) log(`💨 ${carrier.name}は息が上がり、シュートに伸びがない。`);
     spend(carrier, cost);
     bumpStat(carrier.side, "shots");
     bumpPlayerStat(carrier, "shots");
@@ -1662,9 +1887,14 @@ function resolveBattle(option) {
       bumpStat(carrier.side, "spellsUsed");
       bumpPlayerStat(carrier, isUlti ? "ultimatesUsed" : "spellsUsed");
     }
-    audio.play(isSpell ? "spell" : "kick");
+    // 通常シュートは「踏み込みタメ→着弾」の2段。 必殺は showCutin が spell/ultimate-charge/impact を担当。
+    if (!isSpell) {
+      audio.play("shoot-charge");
+      audio.play("shoot-impact");
+    }
     audio.play("whistle");
-    showCutin(isSpell ? (isUlti ? ultimateSpellName(carrier, "shoot") : actionSpellName(carrier, "shoot")) : "シュート", isSpell ? carrier : null);
+    if (isSpell) showCutin(isUlti ? characterUltimateName(carrier) : characterSpellName(carrier), carrier, carrier.spellText);
+    else showActionCutin("shoot", `${carrier.name} シュート`);
     // GK 選択: AWAY shoot → home GK は user 選択 / HOME shoot → away GK は AI 選択
     const gkSide = opponentSide(carrier.side);
     state.battle = null;
@@ -1679,9 +1909,15 @@ function resolveBattle(option) {
       render();
       return;
     } else {
-      const opts = ["catch", "punch", "rush"];
-      const pick = opts[Math.floor(Math.random() * opts.length)];
-      finalizeShoot(carrier, defender, baseAtk, pick, isSpell);
+      // AI GK: 必殺シュート (spell/ultimate) には一定確率でスペルセーブで真っ向対抗。
+      let pick;
+      if (isSpell && defender.guts >= 20 && Math.random() < (isUlti ? 0.55 : 0.4)) {
+        pick = "spellsave";
+      } else {
+        const affordable = ["catch", "punch", "rush"].filter((o) => defender.guts >= ({ catch: 6, punch: 10, rush: 14 })[o]);
+        pick = affordable.length ? affordable[Math.floor(Math.random() * affordable.length)] : "catch";
+      }
+      finalizeShoot(carrier, defender, baseAtk, pick, isSpell, tier);
     }
     return;
   }
@@ -1714,13 +1950,17 @@ function renderGkChoice() {
     { key: "punch", label: "パンチング", desc: "弾く守備、こぼれ球リスク (霊力10)", cost: 10 },
     { key: "rush", label: "飛び出し", desc: "間合いを詰める。抜かれリスク高 (霊力14)", cost: 14 },
   ];
+  // 必殺シュート (spell/ultimate) に対しては GK 固有スペルで真っ向対抗できる第4択。
+  if (gc.useSpell) {
+    opts.push({ key: "spellsave", label: `スペルセーブ: ${gk.spell}`, desc: "必殺に必殺で対抗。守備値大 (霊力20)", cost: 20 });
+  }
   return `
     <div class="dialog-overlay gk-overlay">
       <div class="dialog-card gk-card">
-        <div class="dialog-banner gk-banner">GK SAVE!</div>
-        <p>${carrier.name} のシュートが ${gk.name} に迫る!</p>
+        <div class="dialog-banner gk-banner">${gc.useSpell ? "必殺シュート迫る!!" : "GK SAVE!"}</div>
+        <p>${carrier.name} の${gc.useSpell ? (gc.tier === "ultimate" ? characterUltimateName(carrier) : characterSpellName(carrier)) : "シュート"}が ${gk.name} に迫る!</p>
         <div class="dialog-actions gk-actions">
-          ${opts.map((o) => `<button data-action="gk-choice" data-option="${o.key}" ${gk.guts < o.cost ? "disabled" : ""}>${o.label}<br><span class="gk-desc">${o.desc}</span></button>`).join("")}
+          ${opts.map((o) => `<button data-action="gk-choice" data-option="${o.key}" class="${o.key === "spellsave" ? "gk-spellsave" : ""}" ${gk.guts < o.cost ? "disabled" : ""}>${o.label}<br><span class="gk-desc">${o.desc}</span></button>`).join("")}
         </div>
       </div>
     </div>
@@ -1733,32 +1973,72 @@ function resolveGkChoice(option) {
   const carrier = allPlayers().find((p) => p.id === gc.carrierId);
   const gk = allPlayers().find((p) => p.id === gc.gkId);
   state.gkChoice = null;
-  finalizeShoot(carrier, gk, gc.baseAtk, option, gc.useSpell);
+  finalizeShoot(carrier, gk, gc.baseAtk, option, gc.useSpell, gc.tier);
 }
 
-function finalizeShoot(carrier, gk, baseAtk, gkOption, useSpell) {
+function finalizeShoot(carrier, gk, baseAtk, gkOption, useSpell, attackTier) {
+  if (!state.match || state.match.finished) return;
   const match = state.match;
-  const cost = { catch: 6, punch: 10, rush: 14 }[gkOption] || 6;
-  const defMod = { catch: 1.18, punch: 1.28, rush: 0.85 }[gkOption] || 1.0;
+  const isUlti = attackTier === "ultimate";
+  const spellSave = gkOption === "spellsave";
+  const cost = { catch: 6, punch: 10, rush: 14, spellsave: 20 }[gkOption] || 6;
+  const defMod = { catch: 1.18, punch: 1.28, rush: 0.85, spellsave: 1.5 }[gkOption] || 1.0;
   spend(gk, cost);
-  const def = roll(gk.stats.keep * defMod + gk.stats.block * 0.25 + (useSpell ? 4 : 0) + difficultyModifier(gk.side), 28);
-  if (baseAtk >= def) {
+  const def = roll(gk.stats.keep * defMod + gk.stats.block * 0.25 + (useSpell ? 4 : 0) + (spellSave ? 16 : 0) + difficultyModifier(gk.side), 28);
+  const margin = baseAtk - def;
+  const atkName = useSpell ? (isUlti ? characterUltimateName(carrier) : characterSpellName(carrier)) : "シュート";
+  // 必殺シュート同士の拮抗 (差が僅か or スペルセーブ対抗) はクラッシュ演出。
+  const clash = useSpell && (spellSave || Math.abs(margin) <= 12);
+  if (clash) {
+    // 鍔迫り合いゲージ: margin が正なら攻撃側が押し込む。 火花 2 連 SE。
+    audio.play("clash-spark");
+    state.crashScene = {
+      atkName,
+      gkName: gk.name,
+      gkSpell: spellSave ? gk.spell : "セーブ",
+      atkPct: clamp(Math.round(50 + margin * 2.5), 12, 88),
+    };
+    // ゲージは止め絵(hitstop)より長く見せて読ませる。
+    window.clearTimeout(state.crashSceneTimer);
+    state.crashSceneTimer = window.setTimeout(() => { state.crashScene = null; render(); }, animMs(900));
+  }
+
+  if (margin >= 0) {
+    // GOAL — 必殺がセーブを破った
     audio.play("goal");
     audio.play("ovation");
     bumpStat(carrier.side, "goals");
     bumpPlayerStat(carrier, "goals");
     match.score[carrier.side] += 1;
-    setActionScene("shoot", carrier, gk, `${carrier.name}のシュートが決まった。`, `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)} (${gkOption})`, "goal");
+    let msg;
+    if (clash && margin < 12) {
+      msg = `${atkName}と${gk.name}のセーブが激突! 火花を散らし、わずかにねじ込んだ!`;
+    } else if (useSpell && margin >= 18) {
+      msg = `${atkName}が${gk.name}のセーブを粉砕! ゴール!`;
+    } else {
+      msg = `${carrier.name}のシュートが決まった。${gk.name}届かず。`;
+    }
+    setActionScene("shoot", carrier, gk, msg, `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)} (${gkOption})`, "goal");
     showJudge("goal");
-    log(`${carrier.name}のシュートが決まった。${gk.name}届かず。攻撃値${Math.round(baseAtk)} / GK値${Math.round(def)}。`);
+    audio.play("goal-stamp");
+    if (useSpell) audio.play("crowd-rumble");
+    // 必殺ゴールは固有カットインの余韻を残す。 通常ゴールは汎用ゴール歓喜スプライトを前面に。
+    if (!useSpell) showActionCutin("goal", "GOAL!!");
+    hitstop(useSpell || margin >= 18 ? 200 : 120); // 必殺/粉砕ゴールは長め、 通常ゴールも当たりを止める
+    log(`${msg} 攻撃値${Math.round(baseAtk)} / GK値${Math.round(def)}。`);
+    pushCommentary(goalCommentary(carrier));
     kickoff(opponentSide(carrier.side));
-  } else if (gkOption === "punch") {
-    // こぼれ球: 周辺の味方/相手をランダムに carrier 化
+  } else if (gkOption === "punch" || (useSpell && margin >= -12)) {
+    // こぼれ球: パンチング、 もしくは必殺をセーブが受け切れず弾いた
     audio.play("save");
     bumpStat(gk.side, "saves");
     bumpPlayerStat(gk, "saves");
-    setActionScene("shoot", carrier, gk, `${gk.name}がパンチング! こぼれ球が転がる。`, `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)}`, "fail");
+    const msg = (useSpell && gkOption !== "punch")
+      ? `${gk.name}が${atkName}を弾いた! 威力に押され、こぼれ球が転がる!`
+      : `${gk.name}がパンチング! こぼれ球が転がる。`;
+    setActionScene("shoot", carrier, gk, msg, `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)}`, "fail");
     showJudge("save");
+    if (clash) hitstop(150); // 必殺を弾いたクラッシュは止め絵で見せる
     // GK 近辺の最寄りプレイヤーから 1 名を carrier に
     const nearby = allPlayers()
       .filter((p) => p.id !== gk.id && p.role !== "GK")
@@ -1767,14 +2047,25 @@ function finalizeShoot(carrier, gk, baseAtk, gkOption, useSpell) {
     const newCarrier = nearby ? nearby.p : gk;
     state.match.possession = newCarrier.side;
     state.match.carrierId = newCarrier.id;
-    log(`${gk.name}がパンチング。こぼれ球を${newCarrier.name}が拾った。`);
+    log(`${msg} ${newCarrier.name}が拾った。`);
   } else {
+    // 完全セーブ
     audio.play("save");
     bumpStat(gk.side, "saves");
     bumpPlayerStat(gk, "saves");
-    setActionScene("shoot", carrier, gk, `${gk.name}が${gkOption === "catch" ? "ジャンプキャッチ" : "飛び出しで"}阻止。`, `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)}`, "fail");
+    const how = spellSave ? `スペルセーブ「${gk.spell}」で`
+      : gkOption === "catch" ? "ジャンプキャッチで"
+      : gkOption === "rush" ? "飛び出しで"
+      : "";
+    const msg = spellSave
+      ? `${gk.name}が${atkName}を真っ向から受け止めた! ${gk.spell}、完全セーブ!`
+      : `${gk.name}が${how}阻止。`;
+    if (spellSave) showCutin(`${gk.name} ${gk.spell}`, gk, gk.spellText);
+    else showActionCutin("gk_save", `${gk.name} セーブ!`);
+    setActionScene("shoot", carrier, gk, msg, `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)}`, "fail");
     showJudge("save");
-    turnover(gk, `${gk.name}が${gkOption === "catch" ? "キャッチ" : "飛び出し"}でセーブ。${carrier.name}のシュートを止めた。攻撃値${Math.round(baseAtk)} / GK値${Math.round(def)}。`);
+    hitstop(spellSave ? 200 : 66); // スペルセーブ成立は必殺級の見せ場、 通常セーブは軽い止め
+    turnover(gk, `${gk.name}が${how || "セーブで"}${carrier.name}の${atkName}を止めた。攻撃値${Math.round(baseAtk)} / GK値${Math.round(def)}。`);
   }
   endTurn();
   clearActionSceneLater();
@@ -1846,7 +2137,7 @@ function endTurn() {
     state.halftimeReportTimer = window.setTimeout(() => {
       state.halftimeReport = false;
       render();
-    }, 3200);
+    }, animMs(3200));
     log(`ハーフタイム。両軍が霊力 +25 を回復。スコア ${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}。`);
   }
   // BGM 切替 (intense for endgame)
@@ -1881,7 +2172,7 @@ function endTurn() {
     log(`試合終了。${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}。${result}。`);
   } else {
     saveMatch();
-    if (state.match.possession === "away") setTimeout(enemyTurn, 420);
+    if (state.match.possession === "away") setTimeout(enemyTurn, animMs(420));
   }
 }
 
@@ -1905,7 +2196,9 @@ function maybeTriggerInterrupt(carrier) {
 
 function enemyTurn() {
   if (!state.match || state.match.finished || state.match.possession !== "away" || state.battle) return;
+  const token = state.match.matchToken;
   const carrier = getCarrier();
+  if (!carrier) return;
   if (maybeTriggerInterrupt(carrier)) {
     render();
     return;
@@ -1914,26 +2207,26 @@ function enemyTurn() {
   const tier = aiPickTier(carrier, action);
   if (action === "team") {
     state.battle = { type: "team", carrierId: carrier.id, defenderId: nearestOpponent(carrier).id };
-    state.vsScreen = { attacker: carrier, defender: nearestOpponent(carrier), label: VS_LABELS.team };
-    window.clearTimeout(state.vsScreenTimer);
-    state.vsScreenTimer = window.setTimeout(() => { state.vsScreen = null; render(); }, 740);
+    showVsScreen(carrier, nearestOpponent(carrier), VS_LABELS.team);
     render();
-    setTimeout(() => resolveBattle(tier), 720);
+    setTimeout(() => { if (matchAlive(token) && state.battle) resolveBattle(tier); }, animMs(720));
     return;
   }
   // AI 用に rivalry VN を skip 可能、 但しユーザーに見せたい場合は通す
   openBattle(action);
-  // VN が出てる間 resolveBattle が空 battle を触らないよう待機
+  // VN が出てる間 resolveBattle が空 battle を触らないよう待機。
+  // 画面遷移 / 再戦で別試合に変わったら token 不一致で打ち切る (破棄済み battle への誤射防止)。
   const tryResolve = () => {
+    if (!matchAlive(token)) return;
     if (state.vnScene) {
-      setTimeout(tryResolve, 240);
+      setTimeout(tryResolve, animMs(240));
     } else if (state.battle) {
-      setTimeout(() => resolveBattle(tier), 760);
+      setTimeout(() => { if (matchAlive(token) && state.battle) resolveBattle(tier); }, animMs(760));
     } else {
-      setTimeout(tryResolve, 240);
+      setTimeout(tryResolve, animMs(240));
     }
   };
-  setTimeout(tryResolve, 200);
+  setTimeout(tryResolve, animMs(200));
 }
 
 function aiPickAction(carrier) {
@@ -2037,6 +2330,8 @@ function renderInterruptPrompt() {
 function resolveInterrupt(option) {
   const ip = state.interrupt;
   if (!ip) return;
+  if (!state.match || state.match.finished) { state.interrupt = null; return; }
+  const token = state.match.matchToken;
   state.interrupt = null;
   const defender = ip.defender;
   const attacker = ip.attacker;
@@ -2044,30 +2339,33 @@ function resolveInterrupt(option) {
     log(`${defender.name}は介入を控えた。`);
     render();
     setTimeout(() => {
+      if (!matchAlive(token)) return;
       const carrier = getCarrier();
+      if (!carrier) return;
       const action = aiPickAction(carrier);
       const tier = aiPickTier(carrier, action);
       if (action === "team") {
         state.battle = { type: "team", carrierId: carrier.id, defenderId: nearestOpponent(carrier).id };
         render();
-        setTimeout(() => resolveBattle(tier), 520);
+        setTimeout(() => { if (matchAlive(token) && state.battle) resolveBattle(tier); }, animMs(520));
         return;
       }
       openBattle(action);
       const tryResolve = () => {
-        if (state.vnScene) setTimeout(tryResolve, 240);
-        else if (state.battle) setTimeout(() => resolveBattle(tier), 760);
-        else setTimeout(tryResolve, 240);
+        if (!matchAlive(token)) return;
+        if (state.vnScene) setTimeout(tryResolve, animMs(240));
+        else if (state.battle) setTimeout(() => { if (matchAlive(token) && state.battle) resolveBattle(tier); }, animMs(760));
+        else setTimeout(tryResolve, animMs(240));
       };
-      setTimeout(tryResolve, 200);
-    }, 320);
+      setTimeout(tryResolve, animMs(200));
+    }, animMs(320));
     return;
   }
   const cost = option === "tackle" ? 10 : 8;
   if (defender.guts < cost) {
     log(`${defender.name}の霊力不足で介入失敗。`);
     render();
-    setTimeout(enemyTurn, 320);
+    setTimeout(enemyTurn, animMs(320));
     return;
   }
   spend(defender, cost);
@@ -2090,7 +2388,7 @@ function resolveInterrupt(option) {
     setActionScene(option === "tackle" ? "dribble" : "pass", attacker, defender, `${defender.name}の介入は届かなかった。`, `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}`, "fail");
     log(`${defender.name}の${option === "tackle" ? "タックル" : "インターセプト"}は届かなかった。`);
     render();
-    setTimeout(enemyTurn, 380);
+    setTimeout(enemyTurn, animMs(380));
   }
 }
 
@@ -2151,13 +2449,13 @@ function showJudge(key) {
     state.fieldShakeTimer = window.setTimeout(() => {
       state.fieldShake = false;
       render();
-    }, 330);
+    }, animMs(330));
   }
   window.clearTimeout(state.judgeTimer);
   state.judgeTimer = window.setTimeout(() => {
     state.judge = null;
     render();
-  }, key === "halftime" ? 1200 : 470);
+  }, animMs(key === "halftime" ? 1200 : 470));
 }
 
 function bumpStat(side, key) {
@@ -2259,27 +2557,102 @@ function renderVnScene() {
   `;
 }
 
-function showCutin(text, player = null) {
+function showCutin(text, player = null, flavor = "") {
+  window.clearTimeout(state.cutinTimer);
+  window.clearTimeout(state.cutinFrameTimer);
+  // スペルカットイン(見せ場)は VS 画面より前面に立てる。 早押しで VS が残っていても消す。
+  if (player) {
+    window.clearTimeout(state.vsScreenTimer);
+    state.vsScreen = null;
+  }
+  // 表示フレーム列。 スペルカットイン (player有) は {id}.png(タメ) + {id}_b.png(放出) を
+  // ディレイ式にめくってスプライト風アニメにする。 _b.png 欠落時は onerror で frame0 にフォールバック。
+  let frames = [];
+  if (player && AVAILABLE_CUTINS.has(player.id)) {
+    frames = [cutinFramePath(player, 0), cutinFramePath(player, 1)];
+  } else if (player && AVAILABLE_PORTRAITS.has(player.id)) {
+    frames = [portraitPath(player)];
+  }
+  const isUlti = typeof text === "string" && text.endsWith("真");
   state.cutin = {
     text,
+    flavor: flavor || "",
     playerName: player ? player.name : "",
     isSpell: Boolean(player),
-    portraitSrc: player && AVAILABLE_PORTRAITS.has(player.id) ? portraitPath(player) : "",
-    cutinSrc: player && AVAILABLE_CUTINS.has(player.id) ? cutinPath(player) : "",
+    frames,
+    frameIndex: 0,
+    fallback: frames[0] || "",
   };
-  setTimeout(() => {
+  // 必殺技 SE: 表示時にチャージ(タメ)音。
+  if (player) audio.play(isUlti ? "ultimate-charge" : "spell-charge");
+  // 2 枚以上ならディレイ式にめくり、 放出フレーム到達時にインパクト音を同期。
+  if (frames.length > 1) {
+    const flip = () => {
+      if (!state.cutin) return;
+      state.cutin.frameIndex = (state.cutin.frameIndex + 1) % state.cutin.frames.length;
+      if (state.cutin.frameIndex === 1) audio.play(isUlti ? "ultimate-impact" : "spell-impact");
+      render();
+      state.cutinFrameTimer = window.setTimeout(flip, animMs(180));
+    };
+    state.cutinFrameTimer = window.setTimeout(flip, animMs(180));
+  }
+  state.cutinTimer = window.setTimeout(() => {
     state.cutin = null;
     render();
-  }, player ? 1480 : 540);
+  }, animMs(player ? 1480 : 540));
+}
+
+// 汎用アクションスプライト (assets/anim/{type}_{n}.png) のフレーム数。 ディレイ式にめくる。
+const ACTION_ANIM_FRAMES = {
+  shoot: 2, pass: 2, dribble: 2, tackle: 2, intercept: 2, gk_save: 2, goal: 3, kickoff: 1,
+};
+
+function actionAnimFrames(type) {
+  const n = ACTION_ANIM_FRAMES[type];
+  if (!n) return [];
+  return Array.from({ length: n }, (_, i) => `./assets/anim/${type}_${i + 1}.png`);
+}
+
+// キャプ翼風: 通常アクションの見せ場を汎用スプライトの大型カットインで前面表示 (タメ→放出のめくり)。
+function showActionCutin(type, label, flavor = "") {
+  const frames = actionAnimFrames(type);
+  if (!frames.length) return;
+  window.clearTimeout(state.cutinTimer);
+  window.clearTimeout(state.cutinFrameTimer);
+  window.clearTimeout(state.vsScreenTimer);
+  state.vsScreen = null;
+  state.cutin = {
+    text: label,
+    flavor: flavor || "",
+    playerName: "",
+    isSpell: false,
+    isAction: true,
+    frames,
+    frameIndex: 0,
+    fallback: frames[0],
+  };
+  if (frames.length > 1) {
+    const flip = () => {
+      if (!state.cutin) return;
+      state.cutin.frameIndex = (state.cutin.frameIndex + 1) % state.cutin.frames.length;
+      render();
+      state.cutinFrameTimer = window.setTimeout(flip, animMs(150));
+    };
+    state.cutinFrameTimer = window.setTimeout(flip, animMs(150));
+  }
+  state.cutinTimer = window.setTimeout(() => {
+    state.cutin = null;
+    render();
+  }, animMs(1050));
 }
 
 function clearActionSceneLater() {
   window.clearTimeout(state.actionSceneTimer);
   state.actionSceneTimer = window.setTimeout(() => {
-    if (state.battle || state.match.finished) return;
+    if (!state.match || state.battle || state.match.finished) return;
     state.actionScene = null;
     render();
-  }, 2600);
+  }, animMs(2600));
 }
 
 function clamp(value, min, max) {
@@ -2364,6 +2737,12 @@ function renderSetup() {
         <button class="${state.progress.tactic === "defensive" ? "selected-mode" : ""}" data-action="tactic" data-tactic="defensive">守備的</button>
         <button class="${state.progress.tactic === "counter" ? "selected-mode" : ""}" data-action="tactic" data-tactic="counter">カウンター</button>
       </div>
+      <div class="anim-speed-row difficulty-row">
+        <span class="formation-label">演出速度</span>
+        <button class="${state.progress.animSpeed === "normal" ? "selected-mode" : ""}" data-action="animSpeed" data-speed="normal">標準</button>
+        <button class="${state.progress.animSpeed === "fast" ? "selected-mode" : ""}" data-action="animSpeed" data-speed="fast">高速</button>
+        <button class="${state.progress.animSpeed === "instant" ? "selected-mode" : ""}" data-action="animSpeed" data-speed="instant">瞬間</button>
+      </div>
       <div class="mode-row">
         <button class="${state.mode === "campaign" ? "selected-mode" : ""}" data-action="mode" data-mode="campaign">ストーリー</button>
         <button class="${state.mode === "free" ? "selected-mode" : ""}" data-action="mode" data-mode="free">フリー対戦</button>
@@ -2372,12 +2751,12 @@ function renderSetup() {
       </div>
       <div class="team-select-grid">
         <div>
-          <h2 class="section-title">自チーム</h2>
-          <div class="team-list">${TEAMS.map((team) => teamButton(team, "home")).join("")}</div>
+          <h2 class="section-title">自チーム${state.mode === "campaign" ? ` <span class="campaign-note">ストーリーは博麗神社専用</span>` : ""}</h2>
+          <div class="team-list">${TEAMS.map((team) => teamButton(team, "home", state.mode === "campaign" && team.id !== "hakurei")).join("")}</div>
         </div>
         <div>
           <h2 class="section-title">相手チーム</h2>
-          <div class="team-list">${TEAMS.map((team) => teamButton(team, "away")).join("")}</div>
+          <div class="team-list">${TEAMS.map((team) => teamButton(team, "away", state.mode === "campaign" && team.id === "hakurei")).join("")}</div>
         </div>
       </div>
       <div class="start-row">
@@ -2388,15 +2767,17 @@ function renderSetup() {
   `;
 }
 
-function teamButton(team, side) {
+function teamButton(team, side, locked = false) {
   const selected = side === "home" ? state.homeTeamId === team.id : state.awayTeamId === team.id;
   const unlocked = state.progress.unlockedTeams.includes(team.id);
+  // locked = ストーリーモードで博麗神社以外の自チーム枠 (POV 整合のため選択不可)。
+  const attrs = locked ? "disabled" : `data-select="${side}" data-team="${team.id}"`;
   return `
-    <button class="team-button ${selected ? "selected" : ""} ${unlocked ? "unlocked" : "locked"}" data-select="${side}" data-team="${team.id}">
+    <button class="team-button ${selected ? "selected" : ""} ${unlocked ? "unlocked" : "locked"} ${locked ? "campaign-locked" : ""}" ${attrs}>
       <img src="${teamCg(team)}" alt="${team.name}" />
       <span class="team-button-copy">
         <strong>${team.name}</strong>
-        <span>${team.style} / ${unlocked ? "解放済み" : "未解放"}</span>
+        <span>${locked ? "ストーリー対象外" : `${team.style} / ${unlocked ? "解放済み" : "未解放"}`}</span>
         <span class="team-members">${team.members.map((member) => member.name).join(" / ")}</span>
       </span>
     </button>
@@ -2438,7 +2819,7 @@ function renderMatch() {
             <span class="banner-distance-num ${goalDistance(carrier) < 22 ? "danger" : ""}">${Math.round(goalDistance(carrier))}m</span>
           </div>
         </div>
-        <div class="field ${encounterFieldClass(carrier, defender)} ${state.fieldShake ? "shake" : ""}">
+        <div class="field ${encounterFieldClass(carrier, defender)} ${state.fieldShake ? "shake" : ""} ${state.hitstop ? "hitstop" : ""}">
           <div class="goal-label home-goal">自陣ゴール</div>
           <div class="goal-label away-goal">相手ゴール</div>
           <div class="attack-arrow">攻撃方向 →</div>
@@ -2492,6 +2873,7 @@ function renderMatch() {
     ${state.vsScreen ? renderVsScreen() : ""}
     ${state.interrupt ? renderInterruptPrompt() : ""}
     ${state.gkChoice ? renderGkChoice() : ""}
+    ${state.crashScene ? renderCrashScene() : ""}
     ${state.judge ? renderJudge() : ""}
     ${state.halftimeReport ? renderHalftimeReport() : ""}
   `;
@@ -2694,12 +3076,28 @@ function renderHelp() {
           <p>相手シュート時、自軍GKに「ジャンプキャッチ / パンチング / 飛び出し」3 択。パンチングはこぼれ球発生で攻防継続。</p>
         </article>
         <article>
+          <h2>必殺 vs 必殺クラッシュ</h2>
+          <p>スペル/究極シュートには GK 側も固有スペルで真っ向対抗できる「スペルセーブ」(霊力20、[4]) が出現。威力とセーブ値が拮抗すると火花を散らすクラッシュ、押し勝てば粉砕ゴール、受け切れず弾けばこぼれ球になります。</p>
+        </article>
+        <article>
+          <h2>消耗ドラマ</h2>
+          <p>霊力が減るほど技のキレが鈍り、攻撃値に負補正 (50%未満で-6、25%未満で-14)。終盤の体力管理が勝敗を分けます。ゴール時は状況実況 (📢) が流れます。</p>
+        </article>
+        <article>
           <h2>守備介入 (Interrupt)</h2>
           <p>敵のターン中に約 30% で「タックル / インターセプト / 待機」 prompt。霊力を消費して敵を止められる。</p>
         </article>
         <article>
           <h2>ストーリー</h2>
-          <p>自チーム選択で 7 連戦に挑戦。勝利すると相手チームがフリー対戦で解放。途中の試合は自動で保存され、再起動後も再開可能。</p>
+          <p>ストーリーは博麗神社視点専用の 7 連戦。勝利すると相手チームがフリー対戦で解放。途中の試合は自動保存され、再起動後も再開可能。他チームはフリー対戦で使えます。</p>
+        </article>
+        <article>
+          <h2>スペルカード (固有技)</h2>
+          <p>スペル / 究極を選ぶと、各キャラ固有のスペルカード名 (例: マスタースパークシュート、禁忌レーヴァテイン) とフレーバーがカットインに表示されます。究極は「・真」付き。</p>
+        </article>
+        <article>
+          <h2>演出速度</h2>
+          <p>標準 / 高速 / 瞬間 を Setup で切替。周回時はカットインや VS 画面を短縮。さらに表示中のカットイン・VS 画面はクリックで即スキップできます。</p>
         </article>
         <article>
           <h2>難易度</h2>
@@ -2871,8 +3269,9 @@ function ultimateSpellName(carrier, type) {
 
 function tierLabel(type, tier, carrier) {
   if (tier === "normal") return { dribble: "通常ドリブル", pass: "通常パス", shoot: "通常シュート", team: "連携合図" }[type];
-  if (tier === "spell") return actionSpellName(carrier, type);
-  if (tier === "ultimate") return ultimateSpellName(carrier, type);
+  // 連携 (team) は個人技ではないのでチーム連携スペル名、 それ以外はキャラ固有スペル名。
+  if (tier === "spell") return type === "team" ? actionSpellName(carrier, "team") : characterSpellName(carrier);
+  if (tier === "ultimate") return type === "team" ? ultimateSpellName(carrier, "team") : characterUltimateName(carrier);
   return "コマンド";
 }
 
@@ -2981,6 +3380,9 @@ function bindEvents() {
       }
       if (action === "mode") {
         state.mode = button.dataset.mode;
+        // ストーリーは博麗神社視点専用 (VN は全編 博麗神社 POV)。
+        // 他チームはフリー対戦でのみ自チームに選べる。
+        if (state.mode === "campaign") state.homeTeamId = "hakurei";
         render();
       }
       if (action === "resetProgress") {
@@ -3024,25 +3426,33 @@ function bindEvents() {
         saveProgress();
         render();
       }
+      if (action === "animSpeed") {
+        if (["normal", "fast", "instant"].includes(button.dataset.speed)) {
+          state.progress.animSpeed = button.dataset.speed;
+          saveProgress();
+          render();
+        }
+      }
       if (action === "reset") {
+        cancelPendingTimers();
         state.screen = "setup";
         state.match = null;
         state.battle = null;
-        state.vsScreen = null;
-        state.judge = null;
         state.passPicker = null;
         state.interrupt = null;
         state.gkChoice = null;
+        state.vnScene = null;
         render();
       }
       if (action === "battle") {
         const type = button.dataset.type;
         if (type === "team") {
-          state.battle = { type, carrierId: getCarrier().id, defenderId: nearestOpponent(getCarrier()).id };
-          state.vsScreen = { attacker: getCarrier(), defender: nearestOpponent(getCarrier()), label: VS_LABELS.team };
-          window.clearTimeout(state.vsScreenTimer);
-          state.vsScreenTimer = window.setTimeout(() => { state.vsScreen = null; render(); }, 740);
-          render();
+          const c = getCarrier();
+          if (c) {
+            state.battle = { type, carrierId: c.id, defenderId: nearestOpponent(c).id };
+            showVsScreen(c, nearestOpponent(c), VS_LABELS.team);
+            render();
+          }
         } else {
           openBattle(type);
         }
@@ -3081,6 +3491,17 @@ function bindEvents() {
   document.querySelectorAll(".pass-target-badge").forEach((badge) => {
     badge.addEventListener("click", () => {
       selectPassTarget(parseInt(badge.dataset.index, 10));
+    });
+  });
+
+  // カットイン / VS 画面をクリックで即スキップ (テンポ改善)。
+  document.querySelectorAll(".cutin, .vs-screen").forEach((el) => {
+    el.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      let changed = false;
+      if (state.cutin) { window.clearTimeout(state.cutinTimer); state.cutin = null; changed = true; }
+      if (state.vsScreen) { window.clearTimeout(state.vsScreenTimer); state.vsScreen = null; changed = true; }
+      if (changed) render();
     });
   });
 }
@@ -3131,6 +3552,7 @@ function bindKeyboardEvents() {
       if (k === "1") { resolveGkChoice("catch"); e.preventDefault(); return; }
       if (k === "2") { resolveGkChoice("punch"); e.preventDefault(); return; }
       if (k === "3") { resolveGkChoice("rush"); e.preventDefault(); return; }
+      if (k === "4" && state.gkChoice.useSpell) { resolveGkChoice("spellsave"); e.preventDefault(); return; }
     }
     if (state.battle) {
       if (k === "1" || k === " " || k === "Enter") { resolveBattle("normal"); e.preventDefault(); return; }
@@ -3143,11 +3565,12 @@ function bindKeyboardEvents() {
       if (k === "ArrowLeft" || k === "2") { openBattle("pass"); e.preventDefault(); return; }
       if (k === "ArrowRight" || k === "3") { openBattle("shoot"); e.preventDefault(); return; }
       if (k === "ArrowDown" || k === "4") {
-        state.battle = { type: "team", carrierId: getCarrier().id, defenderId: nearestOpponent(getCarrier()).id };
-        state.vsScreen = { attacker: getCarrier(), defender: nearestOpponent(getCarrier()), label: VS_LABELS.team };
-        window.clearTimeout(state.vsScreenTimer);
-        state.vsScreenTimer = window.setTimeout(() => { state.vsScreen = null; render(); }, 740);
-        render();
+        const c = getCarrier();
+        if (c) {
+          state.battle = { type: "team", carrierId: c.id, defenderId: nearestOpponent(c).id };
+          showVsScreen(c, nearestOpponent(c), VS_LABELS.team);
+          render();
+        }
         e.preventDefault();
         return;
       }
@@ -3177,6 +3600,24 @@ window.__touhouSpellFutsalDebug = {
   openPassPicker() {
     if (!state.match) startMatch();
     openPassPicker();
+  },
+  // 自軍 GK へ迫る (必殺) シュートの GK 選択を強制表示 (必殺セーブ UI 確認用)。
+  forceGkChoice(useSpell = true) {
+    if (!state.match) return;
+    const gk = state.match.home.players.find((p) => p.role === "GK");
+    const shooter = state.match.away.players.find((p) => p.role === "FW") || state.match.away.players[0];
+    state.battle = null;
+    state.gkChoice = { carrierId: shooter.id, gkId: gk.id, baseAtk: 120, useSpell, tier: useSpell ? "ultimate" : "normal" };
+    render();
+  },
+  // 指定 player の霊力比率を設定し消耗ドラマを確認 (ratio 0-1)。
+  setGutsRatio(playerId, ratio) {
+    if (!state.match) return null;
+    const pl = [...state.match.home.players, ...state.match.away.players].find((p) => p.id === playerId);
+    if (!pl) return null;
+    pl.guts = Math.round(pl.maxGuts * ratio);
+    render();
+    return fatiguePenalty(pl);
   },
   saveCurrentMatch() {
     saveMatch();

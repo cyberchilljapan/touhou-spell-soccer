@@ -1,0 +1,34 @@
+{
+  "shoot": [
+    "assets/anim/shoot_1.png",
+    "assets/anim/shoot_2.png"
+  ],
+  "dribble": [
+    "assets/anim/dribble_1.png",
+    "assets/anim/dribble_2.png"
+  ],
+  "goal": [
+    "assets/anim/goal_1.png",
+    "assets/anim/goal_2.png",
+    "assets/anim/goal_3.png"
+  ],
+  "pass": [
+    "assets/anim/pass_1.png",
+    "assets/anim/pass_2.png"
+  ],
+  "tackle": [
+    "assets/anim/tackle_1.png",
+    "assets/anim/tackle_2.png"
+  ],
+  "intercept": [
+    "assets/anim/intercept_1.png",
+    "assets/anim/intercept_2.png"
+  ],
+  "gk_save": [
+    "assets/anim/gk_save_1.png",
+    "assets/anim/gk_save_2.png"
+  ],
+  "kickoff": [
+    "assets/anim/kickoff_1.png"
+  ]
+}

@@ -59,7 +59,9 @@ test("spell command shows dedicated cut-in art", async ({ page }) => {
   await page.getByRole("button", { name: "試合開始" }).click();
   await page.getByRole("button", { name: /ドリブル/ }).click();
   await page.locator('[data-action="resolve"][data-option="spell"]').click();
-  await expect(page.locator('.cutin img[src="./assets/cutins/aya.png"]')).toBeVisible();
+  // カットインは {id}.png(タメ) と {id}_b.png(放出) を交互にめくるので両フレームを許容。
+  await expect(page.locator(".cutin img")).toBeVisible();
+  await expect(page.locator(".cutin img")).toHaveAttribute("src", /\/assets\/cutins\/aya(_b)?\.png$/);
 });
 
 test("non-leader character also shows dedicated cut-in art", async ({ page }) => {
@@ -68,7 +70,8 @@ test("non-leader character also shows dedicated cut-in art", async ({ page }) =>
   await page.getByRole("button", { name: "試合開始" }).click();
   await page.getByRole("button", { name: /ドリブル/ }).click();
   await page.locator('[data-action="resolve"][data-option="spell"]').click();
-  await expect(page.locator('.cutin img[src="./assets/cutins/sanae.png"]')).toBeVisible();
+  await expect(page.locator(".cutin img")).toBeVisible();
+  await expect(page.locator(".cutin img")).toHaveAttribute("src", /\/assets\/cutins\/sanae(_b)?\.png$/);
 });
 
 test("saved unlock progress is shown on setup screen", async ({ page }) => {
@@ -126,7 +129,8 @@ test("sprite VN action scene explains the current play", async ({ page }) => {
   await expect(page.locator(".action-scene")).toContainText("キックオフ");
   await page.getByRole("button", { name: /シュート/ }).click();
   await expect(page.locator(".action-scene")).toContainText("COMMAND / シュート勝負");
-  await expect(page.locator('[data-action="resolve"][data-option="spell"]')).toContainText("弾幕シュート");
+  // 保持者は博麗神社の MF 早苗。スペル段はキャラ固有スペルカード名を表示する。
+  await expect(page.locator('[data-action="resolve"][data-option="spell"]')).toContainText("奇跡のスルーパス");
   await page.locator('[data-action="resolve"][data-option="normal"]').click();
   await expect(page.locator(".action-scene")).toContainText(/GK値|攻撃値/);
 });
@@ -143,14 +147,16 @@ test("goalkeepers stay in front of each goal", async ({ page }) => {
   await expect(page.locator(".field")).toContainText("相手ゴール");
 });
 
-test("shoot action does not reuse pass spell name", async ({ page }) => {
+test("spell tier uses the carrier's own signature spell card name", async ({ page }) => {
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
   await page.getByRole("button", { name: /シュート/ }).click();
-  const spellButton = page.locator('[data-action="resolve"][data-option="spell"]');
-  await expect(spellButton).toContainText("弾幕シュート");
-  await expect(spellButton).not.toContainText("パス");
+  // 博麗神社の MF 早苗が保持者。固有スペル「奇跡のスルーパス」が技名に、究極は「・真」付きで出る。
+  await expect(page.locator('[data-action="resolve"][data-option="spell"]')).toContainText("奇跡のスルーパス");
+  await expect(page.locator('[data-action="resolve"][data-option="ultimate"]')).toContainText("奇跡のスルーパス・真");
+  // 通常段は固有スペル名を使わない。
+  await expect(page.locator('[data-action="resolve"][data-option="normal"]')).toContainText("通常シュート");
 });
 
 test("result panel shows character dialogue", async ({ page }) => {
@@ -267,4 +273,105 @@ test("mid-match save and resume button appears", async ({ page }) => {
   });
   await page.reload();
   await expect(page.getByRole("button", { name: /試合を再開/ })).toBeVisible();
+});
+
+test("animation speed selection is saved", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  // 「高速」はチーム説明文 (高速連携型) とも部分一致するため exact 指定。
+  await page.getByRole("button", { name: "高速", exact: true }).click();
+  const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem("touhouSpellFutsalSaveV1")));
+  expect(saved.animSpeed).toBe("fast");
+  await expect(page.getByRole("button", { name: "高速", exact: true })).toHaveClass(/selected-mode/);
+});
+
+test("story mode locks home to Hakurei and the enemy slot away from Hakurei", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  // 既定はストーリーモード。自チーム枠は博麗以外 (7) が、相手チーム枠は博麗 (1) がロックされる。
+  await expect(page.locator(".campaign-note")).toContainText("博麗神社専用");
+  await expect(page.locator(".team-button.campaign-locked")).toHaveCount(8);
+  // フリー対戦に切替えるとロックは外れる。
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await expect(page.locator(".team-button.campaign-locked")).toHaveCount(0);
+});
+
+test("spell cut-in shows the character spell flavor text", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  await page.getByRole("button", { name: /ドリブル/ }).click();
+  await page.locator('[data-action="resolve"][data-option="spell"]').click();
+  // 早苗の固有スペル名とフレーバー (spellText) がカットインに出る。
+  await expect(page.locator(".cutin .spell-name")).toContainText("奇跡のスルーパス");
+  await expect(page.locator(".cutin .spell-flavor")).toBeVisible();
+});
+
+test("spell cut-in plays a 2-frame delay sprite animation", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  await page.getByRole("button", { name: /ドリブル/ }).click();
+  await page.locator('[data-action="resolve"][data-option="spell"]').click();
+  // タメ(frame0) から 放出(frame1) へディレイ式にめくれることを確認。
+  await expect(page.locator('.cutin img[data-frame="0"]')).toBeVisible();
+  await expect(page.locator('.cutin img[data-frame="1"]')).toBeVisible({ timeout: 2000 });
+});
+
+test("normal action shows a generic Captain-Tsubasa-style action cut-in", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  await page.getByRole("button", { name: /ドリブル/ }).click();
+  await page.locator('[data-action="resolve"][data-option="normal"]').click();
+  // 通常ドリブルは汎用アクションスプライト(突破 or 被タックル)の大型カットインを前面表示。
+  await expect(page.locator(".cutin.action-cutin img")).toBeVisible();
+  await expect(page.locator(".cutin.action-cutin img")).toHaveAttribute("src", /\/assets\/anim\/(dribble|tackle)_\d\.png$/);
+});
+
+test("spell shot offers the GK a spell-save counter option", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.forceGkChoice(true));
+  // 必殺シュートには GK 固有スペルでの「スペルセーブ」第4択が出る。
+  await expect(page.locator(".gk-actions .gk-spellsave")).toBeVisible();
+  await expect(page.locator(".gk-card")).toContainText("必殺シュート迫る");
+  // 選ぶと必殺 vs 必殺の鍔迫り合いクラッシュ演出 (CLASH ゲージ) が出る。
+  await page.locator('[data-action="gk-choice"][data-option="spellsave"]').click();
+  await expect(page.locator(".crash-scene .crash-banner")).toContainText("CLASH");
+  await expect(page.locator(".crash-gauge")).toBeVisible();
+  await expect(page.locator(".action-scene")).toContainText(/GK値|攻撃値/);
+});
+
+test("normal shot does not show the spell-save option", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.forceGkChoice(false));
+  await expect(page.locator(".gk-card")).toBeVisible();
+  await expect(page.locator(".gk-actions .gk-spellsave")).toHaveCount(0);
+});
+
+test("low spirit power applies a fatigue penalty (stamina drama)", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  // 霊力満タンは補正0、25%未満で-14。
+  const penalties = await page.evaluate(() => {
+    const id = window.__touhouSpellFutsalDebug;
+    const carrierId = "sanae";
+    return { full: id.setGutsRatio(carrierId, 1.0), low: id.setGutsRatio(carrierId, 0.1) };
+  });
+  expect(penalties.full).toBe(0);
+  expect(penalties.low).toBe(14);
+});
+
+test("progress reset keeps the game playable (no playerXp crash)", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  // 進行リセット後すぐフリー対戦を開始してもクラッシュしないこと (formation/tactic/playerXp 脱落バグ回帰)。
+  page.on("pageerror", (err) => { throw err; });
+  await page.getByRole("button", { name: "進行リセット" }).click();
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  await expect(page.locator(".field")).toBeVisible();
+  await expect(page.locator(".player-token")).toHaveCount(22);
 });

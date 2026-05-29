@@ -466,6 +466,24 @@ button:disabled {
   animation: fieldShake 320ms ease 1;
 }
 
+/* ヒットストップ: 決着の瞬間、 全体を一瞬「止め絵」化する。 carrier を僅かに強調し、 進行中アニメを停止。 */
+.field.hitstop {
+  filter: brightness(1.16) saturate(1.12) contrast(1.06);
+}
+
+.field.hitstop .player-token,
+.field.hitstop .ball,
+.field.hitstop .cutin {
+  animation-play-state: paused;
+}
+
+.field.hitstop .player-token.carrier,
+.field.hitstop .player-token.target {
+  transform: translate(-50%, -50%) scale(1.22);
+  transition: transform 40ms ease;
+  z-index: 6;
+}
+
 @keyframes fieldShake {
   0%, 100% { transform: translate(0, 0); }
   10% { transform: translate(-4px, 1px); }
@@ -1303,6 +1321,66 @@ button:disabled {
   filter: saturate(1.15) contrast(1.08);
 }
 
+/* 放出フレーム ({id}_b.png) に切り替わった瞬間のインパクトフラッシュ (スプライトめくりの強調)。 */
+.cutin.cutin-impact {
+  animation: cutinImpactFlash 200ms ease both;
+}
+
+.cutin.cutin-impact img {
+  inset: -12% auto -12% -2%;
+  width: 64%;
+  filter: saturate(1.35) contrast(1.18) brightness(1.12);
+}
+
+@keyframes cutinImpactFlash {
+  0% { filter: brightness(1.7) saturate(1.4); }
+  100% { filter: brightness(1) saturate(1); }
+}
+
+/* === 汎用アクションカットイン (キャプ翼風・全面表示) === */
+.cutin.action-cutin {
+  background: rgba(0, 0, 0, 0.32);
+  animation: flash 360ms ease both;
+}
+
+.cutin.action-cutin img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(1.22) contrast(1.12);
+}
+
+.cutin.action-cutin.cutin-impact img {
+  inset: 0;
+  width: 100%;
+  filter: saturate(1.4) contrast(1.2) brightness(1.1);
+  transform: scale(1.04);
+}
+
+.cutin.action-cutin .cutin-copy {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  margin: 0;
+  justify-items: center;
+  align-content: flex-end;
+  padding: 0 0 6% 0;
+  text-align: center;
+}
+
+.cutin.action-cutin .spell-name {
+  font-size: clamp(22px, 4.2vw, 46px);
+  font-weight: 900;
+  color: #fff7df;
+  background: rgba(20, 20, 20, 0.6);
+  border: 2px solid rgba(248, 214, 121, 0.75);
+  padding: 8px 22px;
+  animation: spellNameSwing 300ms cubic-bezier(0.3, 1.5, 0.4, 1) both;
+  text-shadow: 0 0 8px var(--touhou-gold, #f0c85a), 3px 3px 0 #1a1006;
+}
+
 .cutin-shade {
   position: absolute;
   inset: 0;
@@ -1339,6 +1417,47 @@ button:disabled {
   font-weight: 900;
   text-align: center;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.36);
+}
+
+/* スペルカード固有技のフレーバー (spellText)。 spell-name より小さく控えめに。 */
+.cutin-copy .spell-flavor {
+  padding: 6px 12px;
+  border: 1px solid rgba(248, 214, 121, 0.5);
+  background: rgba(20, 20, 20, 0.62);
+  color: #f3e6c0;
+  font-size: clamp(11px, 1.4vw, 16px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-shadow: none;
+  box-shadow: none;
+  max-width: 100%;
+  animation: spellFlavorIn 420ms ease 120ms both;
+}
+
+@keyframes spellFlavorIn {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.campaign-note {
+  font-size: 11px;
+  font-weight: 700;
+  color: #151515;
+  background: var(--touhou-gold, #f0c85a);
+  padding: 2px 8px;
+  border-radius: 10px;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.team-button.campaign-locked {
+  opacity: 0.42;
+  filter: grayscale(0.6);
+  cursor: not-allowed;
+}
+
+.team-button.campaign-locked img {
+  filter: grayscale(0.8);
 }
 
 .team-cg-strip {
@@ -2008,6 +2127,24 @@ button:disabled {
   line-height: 1.3;
 }
 
+/* GK 固有スペルでの真っ向対抗。 3 択の下に全幅で目立たせる。 */
+.gk-actions .gk-spellsave {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, rgba(201, 29, 60, 0.92), rgba(120, 20, 60, 0.92));
+  color: #fff7df;
+  border: 2px solid var(--touhou-gold, #f0c85a);
+  box-shadow: 0 0 14px rgba(240, 200, 90, 0.5);
+}
+
+.gk-actions .gk-spellsave:disabled {
+  opacity: 0.4;
+  box-shadow: none;
+}
+
+.gk-actions .gk-spellsave .gk-desc {
+  color: #ffe9a8;
+}
+
 .gk-desc {
   display: block;
   margin-top: 4px;
@@ -2310,4 +2447,101 @@ button:disabled {
   .versus-preview {
     min-height: 200px;
   }
+}
+
+/* === 必殺 vs 必殺セーブ クラッシュ演出 (鍔迫り合いゲージ) === */
+.crash-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.62));
+  animation: crashIn 140ms ease both;
+}
+
+@keyframes crashIn {
+  0% { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.crash-scene .crash-spark {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  background: conic-gradient(from 0deg, transparent 0 8%, rgba(255, 240, 180, 0.85) 9% 11%, transparent 12% 20%, rgba(255, 120, 60, 0.7) 21% 23%, transparent 24%);
+  border-radius: 50%;
+  filter: blur(0.4px);
+  animation: crashSparkSpin 420ms linear infinite;
+  opacity: 0.85;
+}
+
+@keyframes crashSparkSpin {
+  to { transform: rotate(360deg); }
+}
+
+.crash-scene .crash-banner {
+  position: relative;
+  font-size: clamp(34px, 6vw, 72px);
+  font-weight: 900;
+  color: #fff7df;
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 14px var(--touhou-gold, #f0c85a), 4px 4px 0 #1a1006;
+  transform: skewX(-8deg);
+  animation: crashBannerPop 200ms cubic-bezier(0.3, 1.6, 0.4, 1) both;
+}
+
+@keyframes crashBannerPop {
+  0% { transform: skewX(-8deg) scale(0.4); opacity: 0; }
+  100% { transform: skewX(-8deg) scale(1); opacity: 1; }
+}
+
+.crash-scene .crash-gauge {
+  position: relative;
+  display: flex;
+  width: min(74%, 620px);
+  height: 34px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.crash-scene .crash-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: width 220ms ease;
+}
+
+.crash-scene .crash-atk {
+  background: linear-gradient(90deg, rgba(201, 29, 60, 0.95), rgba(240, 120, 60, 0.95));
+  justify-content: flex-start;
+  padding-left: 10px;
+}
+
+.crash-scene .crash-def {
+  background: linear-gradient(90deg, rgba(60, 120, 200, 0.9), rgba(40, 70, 130, 0.95));
+  justify-content: flex-end;
+  padding-right: 10px;
+}
+
+.crash-scene[data-winner="atk"] .crash-atk { box-shadow: inset 0 0 18px rgba(255, 240, 180, 0.8); }
+.crash-scene[data-winner="def"] .crash-def { box-shadow: inset 0 0 18px rgba(160, 220, 255, 0.8); }
+
+.crash-scene .crash-sub {
+  position: relative;
+  font-size: clamp(13px, 1.8vw, 18px);
+  font-weight: 700;
+  color: #f8d679;
+  text-shadow: 1px 1px 0 #1a1006;
 }
