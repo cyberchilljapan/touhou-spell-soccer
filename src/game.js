@@ -2475,7 +2475,7 @@ function resolveBattle(option) {
   if (state.battle.type === "shoot") {
     const distancePenalty = Math.max(0, goalDistance(carrier) - 20) * 0.6;
     const fatigue = fatiguePenalty(carrier);
-    const baseAtk = roll(carrier.stats.shoot + boost + atkBonus - distancePenalty - fatigue + difficultyModifier(carrier.side), 28);
+    const baseAtk = roll(carrier.stats.shoot + boost + atkBonus - distancePenalty - fatigue + difficultyModifier(carrier.side), 34);
     if (fatigue >= 14) log(`💨 ${carrier.name}は息が上がり、シュートに伸びがない。`);
     spend(carrier, cost);
     bumpStat(carrier.side, "shots");
@@ -2591,9 +2591,10 @@ function buildShootTailBeats(carrier, gk, baseAtk, gkOption, useSpell, attackTie
   const isUlti = attackTier === "ultimate";
   const spellSave = gkOption === "spellsave";
   const cost = { catch: 6, punch: 10, rush: 14, spellsave: 20 }[gkOption] || 6;
-  const defMod = { catch: 1.06, punch: 1.16, rush: 0.82, spellsave: 1.34 }[gkOption] || 1.0;
+  // バランス #7: 究極支配の解体。 catch を 1.06→1.18 で「究極vsキャッチ=100%」の確定をほどき、 spellsaveをやや軟化。
+  const defMod = { catch: 1.18, punch: 1.16, rush: 0.82, spellsave: 1.32 }[gkOption] || 1.0;
   spend(gk, cost);
-  const def = roll(gk.stats.keep * defMod + gk.stats.block * 0.19 + (useSpell ? 4 : 0) + (spellSave ? 7 : 0) + difficultyModifier(gk.side), 28);
+  const def = roll(gk.stats.keep * defMod + gk.stats.block * 0.19 + (useSpell ? 4 : 0) + (spellSave ? 6 : 0) + difficultyModifier(gk.side), 34);
   const margin = baseAtk - def;
   const atkName = useSpell ? (isUlti ? characterUltimateName(carrier, "shoot") : characterSpellName(carrier, "shoot")) : "シュート";
   const clash = useSpell && (spellSave || Math.abs(margin) <= 12);
@@ -4066,7 +4067,7 @@ const TIER_ATK_BONUS = {
   dribble: { normal: 0, spell: 28, ultimate: 48 },
   pass:    { normal: 0, spell: 26, ultimate: 44 },
   oneTwo:  { normal: 4, spell: 26, ultimate: 44 },
-  shoot:   { normal: 6, spell: 34, ultimate: 52 },
+  shoot:   { normal: 12, spell: 35, ultimate: 48 },
   team:    { normal: 0, spell: 0, ultimate: 0 },
 };
 

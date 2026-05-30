@@ -4,12 +4,12 @@
 // 解析ツール。 確定したら proposed の値を game.js に反映する。
 
 const SETS = {
-  // current = game.js に適用済みの値 (propC2)。 v6 の旧値は git 履歴参照。
+  // current = game.js に適用済みの値 (propBal4, #7究極支配の解体)。 旧値は git 履歴参照。
   current: {
-    atk: { normal: 6, spell: 34, ultimate: 52 },
-    gkDefMod: { catch: 1.06, punch: 1.16, rush: 0.82, spellsave: 1.34 },
-    gkSpellSaveBonus: 7, gkUseSpellBonus: 4, blockCoef: 0.19,
-    distStart: 20, distCoef: 0.60, variance: 28,
+    atk: { normal: 12, spell: 35, ultimate: 48 },
+    gkDefMod: { catch: 1.18, punch: 1.16, rush: 0.82, spellsave: 1.32 },
+    gkSpellSaveBonus: 6, gkUseSpellBonus: 4, blockCoef: 0.19,
+    distStart: 20, distCoef: 0.60, variance: 34,
   },
   propC2: {
     atk: { normal: 6, spell: 34, ultimate: 52 },
@@ -28,6 +28,32 @@ const SETS = {
     gkDefMod: { catch: 1.06, punch: 1.16, rush: 0.82, spellsave: 1.38 },
     gkSpellSaveBonus: 9, gkUseSpellBonus: 4, blockCoef: 0.19,
     distStart: 20, distCoef: 0.60, variance: 28,
+  },
+  // #7 究極支配の解体 + 通常地力: 究極atk↓ / catch強化+variance↑で究極vscatchの100%を崩す / 通常atk↑。
+  propBal1: {
+    atk: { normal: 12, spell: 34, ultimate: 47 },
+    gkDefMod: { catch: 1.16, punch: 1.16, rush: 0.82, spellsave: 1.34 },
+    gkSpellSaveBonus: 7, gkUseSpellBonus: 4, blockCoef: 0.19,
+    distStart: 20, distCoef: 0.60, variance: 32,
+  },
+  propBal2: {
+    atk: { normal: 14, spell: 34, ultimate: 45 },
+    gkDefMod: { catch: 1.18, punch: 1.16, rush: 0.82, spellsave: 1.32 },
+    gkSpellSaveBonus: 6, gkUseSpellBonus: 4, blockCoef: 0.19,
+    distStart: 20, distCoef: 0.58, variance: 34,
+  },
+  propBal3: {
+    atk: { normal: 11, spell: 33, ultimate: 48 },
+    gkDefMod: { catch: 1.14, punch: 1.15, rush: 0.82, spellsave: 1.33 },
+    gkSpellSaveBonus: 7, gkUseSpellBonus: 4, blockCoef: 0.19,
+    distStart: 20, distCoef: 0.60, variance: 30,
+  },
+  // 本命: 究極~61維持 + catch1.18&variance34で究極vscatchを~85に / 通常↑ / スペル↑&spellsaveに勝機。
+  propBal4: {
+    atk: { normal: 12, spell: 35, ultimate: 48 },
+    gkDefMod: { catch: 1.18, punch: 1.16, rush: 0.82, spellsave: 1.32 },
+    gkSpellSaveBonus: 6, gkUseSpellBonus: 4, blockCoef: 0.19,
+    distStart: 20, distCoef: 0.60, variance: 34,
   },
 };
 
