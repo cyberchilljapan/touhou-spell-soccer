@@ -652,6 +652,18 @@ button:disabled {
   background: rgba(8, 26, 16, 0.82);
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.7);
 }
+
+/* 下段(データエリア)のフィールドマップ。 原作CT3同様、 ボトムに常時表示。 */
+.ct3-box.ct3-map { position: relative; padding: 5px 6px; }
+.ct3-map-title { font-size: 9px; font-weight: 900; color: #f8d679; letter-spacing: 1px; margin-bottom: 3px; }
+.ct3-map .radar {
+  position: relative;
+  top: auto; left: auto;
+  width: 100%;
+  height: 92px;
+  z-index: auto;
+  box-shadow: none;
+}
 /* 攻撃側ターンが分かるよう枠色をうっすら。 */
 .stage-radar .radar::after {
   content: "MAP";

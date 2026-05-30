@@ -17,7 +17,7 @@ test("campaign match starts and resolves a command battle", async ({ page }) => 
   await expect(page.locator('img[src="./assets/team_cg/hakurei.png"]').first()).toBeVisible();
 
   await page.getByRole("button", { name: "異変開始" }).click();
-  await expect(page.locator(".field")).toBeVisible();
+  await expect(page.locator(".field-cg")).toBeVisible();
   await expect(page.locator(".ct3-timer")).toContainText("前半");
   await expect(page.locator(".ct3-panel")).toBeVisible();
 
@@ -230,7 +230,9 @@ test("each team has 11 players in 4-4-2 formation", async ({ page }) => {
 test("encounter visualization shows carrier aura and threat indicators", async ({ page }) => {
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "異変開始" }).click();
-  await expect(page.locator(".player-token.carrier")).toBeVisible();
+  // 位置把握は下段フィールドマップ(レーダー)。 上段は保持者のドリブルCG。
+  await expect(page.locator(".ct3-map .radar")).toBeVisible();
+  await expect(page.locator(".player-token.carrier")).toBeAttached();
   await expect(page.locator(".encounter-badge")).toBeAttached();
 });
 
@@ -253,7 +255,8 @@ test("judge stamp shows for successful shot", async ({ page }) => {
 test("keyboard arrow keys trigger commands", async ({ page }) => {
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "異変開始" }).click();
-  await page.keyboard.press("ArrowUp");
+  // 原作CT3: ↑ドリブル(移動)/←パス/→シュート/↓ワンツー。 →シュートはGK戦バトルカードを開く。
+  await page.keyboard.press("ArrowRight");
   await expect(page.locator(".battle-card")).toBeVisible();
 });
 
@@ -433,7 +436,7 @@ test("progress reset keeps the game playable (no playerXp crash)", async ({ page
   await page.getByRole("button", { name: "進行リセット" }).click();
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
-  await expect(page.locator(".field")).toBeVisible();
+  await expect(page.locator(".field-cg")).toBeVisible();
   await expect(page.locator(".player-token")).toHaveCount(22);
 });
 

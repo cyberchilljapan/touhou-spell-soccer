@@ -1840,7 +1840,7 @@ function actionHeroHtml(scene) {
 function renderActionScene() {
   const scene = state.actionScene;
   if (!scene) return "";
-  const phaseLabel = scene.phase === "choice" ? "COMMAND" : scene.phase === "flow" ? "PLAY" : "RESULT";
+  const phaseLabel = scene.phase === "choice" ? "COMMAND" : scene.phase === "flow" ? "PLAY" : scene.phase === "move" ? "DRIBBLE" : "RESULT";
   return `
     <div class="action-scene ${scene.type} ${scene.outcome || ""}">
       <div class="vn-box">
@@ -2592,36 +2592,33 @@ function carrierCanMove() {
     && !state.passPicker && !state.gkChoice && !state.interrupt && !state.vnScene;
 }
 
-// 原作CT3: ドリブル = 自由移動(8方向)。 ただし敵が近ければエンカウント(1対1のドリブル突破)。
-// dirX: +1=前進(攻撃方向) / -1=後退、 dirY: -1=左 / +1=右。 前進・横移動で敵が間合いなら
-// 移動せずエンカウント(=勝手に突っ込まない)。 後退は逃げる(エンカウントしない)。
-const ENCOUNTER_RANGE = 16;
+// 原作CT3: ドリブル = 自由移動(8方向)。 まず自由に動き、 守備者と「接触」した瞬間だけエンカウント。
+// dirX: +1=前進(攻撃方向) / -1=後退、 dirY: -1=左 / +1=右。 敵を避けて自由に回り込める。
+const CONTACT_RANGE = 10; // この至近に守備者が来たらエンカウント (これより遠ければ自由移動)
 const STEP_X = 7, STEP_Y = 9;
 function stepCarrier(dirX, dirY = 0) {
   if (!carrierCanMove()) return;
   const carrier = getCarrier();
   if (!carrier || carrier.role === "GK") return;
   const adir = carrier.side === "home" ? 1 : -1; // 攻撃方向
-  const near = nearestOpponent(carrier);
-  if (near && distance(carrier, near) < ENCOUNTER_RANGE && dirX >= 0) {
-    openBattle("dribble"); // 敵が間合い & 前進/横 → エンカウント
-    return;
-  }
   if (state.match) state.match.ballAir = false;
   spend(carrier, 1); // 原作: ドリブル(歩行)でガッツ漸減
+  // 自由移動 (どの方向にも動ける)。
   carrier.x = clamp(carrier.x + dirX * adir * STEP_X, 8, 92);
   carrier.y = clamp(carrier.y + dirY * STEP_Y, 16, 84);
   moveAiPlayers();
   audio.play("kick");
+  // 移動後、 守備者と接触していればエンカウント (突破バトルへ)。
   const after = nearestOpponent(carrier);
-  if (after && distance(carrier, after) < ENCOUNTER_RANGE && dirX >= 0) {
+  if (after && distance(carrier, after) < CONTACT_RANGE) {
     openBattle("dribble");
     return;
   }
+  // 自由移動継続。 上段にドリブルのスプライトアニメ + 芝スクロール。
   if (goalDistance(carrier) < 16) {
-    setActionScene("dribble", carrier, after, `${carrier.name}、ゴール前へ！ シュートだ!`, "→ シュート / WASD移動 / 敵が近いとエンカウント", "success", "choice");
+    setActionScene("dribble", carrier, after, `${carrier.name}、ゴール前へ斬り込む！ シュートだ!`, "WASD=自由移動 / 2パス 3シュート 4ワンツー", "success", "move");
   } else {
-    setActionScene("dribble", carrier, after, `${carrier.name}、ボールを持って移動。`, "WASD=8方向移動 / 敵が近いとエンカウント / パスは2", "", "choice");
+    setActionScene("dribble", carrier, after, `${carrier.name}、ドリブルで運ぶ。`, "WASD=自由8方向移動 / 2パス 3シュート 4ワンツー / 接触でエンカウント", "", "move");
   }
   render();
 }
@@ -3436,8 +3433,14 @@ function renderMatch() {
   // 上段の大スロット = アニメ主役・フィールド従。 演出/結果/エンカウント/送り待ち時は CG ショーケース、
   // 自由移動・コマンド選択中はピッチ。 (.field は DOM 常駐=ボール座標/トークン/cutin/テスト互換)
   const scene = state.actionScene;
-  const showCG = !!(state.battle || state.gkChoice || state.advance || state.cutin || state.playSeq
-    || (scene && (scene.phase === "result" || scene.phase === "flow")));
+  // 上段は常にアニメ主役。 自由移動中は保持者のドリブルスプライト、 エンカウント/結果は action CG。
+  const freeMove = match.possession === "home" && !state.battle && !state.advance && !state.passPicker
+    && !state.gkChoice && !state.interrupt && !state.playSeq && carrier;
+  let stageScene = (scene && (scene.phase === "result" || scene.phase === "flow" || scene.phase === "move")) ? scene : null;
+  if (!stageScene && freeMove) {
+    stageScene = { type: "dribble", attacker: carrier, defender, message: "", detail: "", outcome: "", phase: "move", focus: "attacker", forceAction: "dribble" };
+  }
+  const showCG = !!(state.battle || state.gkChoice || state.advance || state.cutin || state.playSeq || stageScene);
   const isGoal = !!(scene && scene.outcome === "goal");
   return `
     <div class="app-shell">
@@ -3452,11 +3455,10 @@ function renderMatch() {
             ${renderThreatOverlay(carrier, defender)}
             ${state.passPicker ? renderPassPicker() : ""}
           </div>
-          ${showCG ? `<div class="field-cg ${scene ? scene.type : ""} ${scene && scene.type === "dribble" ? "grass-scroll" : ""} ${isGoal ? "is-goal" : ""}">
-            ${scene ? actionHeroHtml(scene) : ""}
+          ${showCG ? `<div class="field-cg ${stageScene ? stageScene.type : ""} ${stageScene && stageScene.type === "dribble" ? "grass-scroll" : ""} ${isGoal ? "is-goal" : ""}">
+            ${stageScene ? actionHeroHtml(stageScene) : ""}
             ${isGoal ? renderGoalBanner(scene) : ""}
           </div>` : ""}
-          <div class="stage-radar" title="フィールドマップ (常時表示)">${renderRadar(carrier)}</div>
           ${state.cutin ? renderCutin() : ""}
         </div>
         <div class="ct3-panel">
@@ -3471,6 +3473,7 @@ function renderMatch() {
               <span class="ct3-team ${match.possession === "away" ? "on" : ""}">${match.away.name}</span>
             </div>
             <div class="ct3-box ct3-dist">${carrier.name} / ゴールまで <b>${Math.round(goalDistance(carrier))}</b>${match.ballAir ? `<span class="air-badge">⤴ 高い球! シュートで空中技</span>` : ""}</div>
+            <div class="ct3-box ct3-map" title="フィールドマップ"><div class="ct3-map-title">MAP</div>${renderRadar(carrier)}</div>
           </div>
           <div class="ct3-col ct3-mid">
             ${renderActionScene()}
