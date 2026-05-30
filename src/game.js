@@ -217,6 +217,8 @@ const state = {
   vnScene: null,
   halftimeReport: false,
   halftimeReportTimer: null,
+  playSeq: null,      // 多段演出シーケンサ (発動→過程→相手対応→合否)
+  ballMotion: null,   // ⚽スプライト挙動 { mode, from, to }
 };
 
 const SAVE_KEY = "touhouSpellFutsalSaveV1";
@@ -1251,6 +1253,15 @@ function gate() {
 }
 
 function advancePlay() {
+  // 入力 beat (GK選択/守備じゃんけん) で停止中は、 送りでは進めない (モーダルの選択で進む)。
+  if (state.gkChoice || state.interrupt) return;
+  // 多段演出シーケンス中は beat を1つ進める (送りボタン/Space/クリック 共通)。
+  if (state.playSeq) {
+    window.clearTimeout(state.advanceTimer);
+    state.advance = null;
+    advancePlaySeq();
+    return;
+  }
   if (!state.advance) return;
   window.clearTimeout(state.advanceTimer);
   state.advance = null;
@@ -1261,6 +1272,130 @@ function advancePlay() {
   } else {
     render(); // プレイヤーのコマンド待ち
   }
+}
+
+// ===== 多段演出シーケンサ (発動→過程→相手の対応→合否を 1手ずつメッセージ送りで見せる) =====
+// 設計: 結果計算は即時 / 効果適用は最終(合否)beatまで遅延 / 自動消滅オーバーレイは beat 寿命に吸収。
+
+// VS/cutin/crash/judge の自動消滅 timer を畳む (beat が寿命を握る)。
+function cancelTransientOverlays() {
+  [state.cutinTimer, state.cutinFrameTimer, state.vsScreenTimer, state.crashSceneTimer, state.judgeTimer]
+    .forEach((t) => { if (t) window.clearTimeout(t); });
+  state.cutin = null; state.vsScreen = null; state.crashScene = null; state.judge = null;
+}
+
+// beat 寿命のスペルカットイン (消滅 timer を張らず、 次 beat で差し替え)。 めくりアニメのみ継続。
+function buildBeatCutin(name, player) {
+  let frames = [];
+  if (player && AVAILABLE_CUTINS.has(player.id)) frames = [cutinFramePath(player, 0), cutinFramePath(player, 1)];
+  else if (player && AVAILABLE_PORTRAITS.has(player.id)) frames = [portraitPath(player)];
+  const isUlti = typeof name === "string" && name.endsWith("真");
+  state.cutin = { text: name, flavor: "", playerName: player ? player.name : "", isSpell: Boolean(player), frames, frameIndex: 0, fallback: frames[0] || "" };
+  if (player) audio.play(isUlti ? "ultimate-charge" : "spell-charge");
+  window.clearTimeout(state.cutinFrameTimer);
+  if (frames.length > 1) {
+    const flip = () => {
+      if (!state.cutin) return;
+      state.cutin.frameIndex = (state.cutin.frameIndex + 1) % state.cutin.frames.length;
+      if (state.cutin.frameIndex === 1) audio.play(isUlti ? "ultimate-impact" : "spell-impact");
+      render();
+      state.cutinFrameTimer = window.setTimeout(flip, animMs(180));
+    };
+    state.cutinFrameTimer = window.setTimeout(flip, animMs(180));
+  }
+}
+
+// 1 beat を画面へ反映 (単一 actionScene スロットを全置換)。
+function showBeat(beat) {
+  const s = beat.scene;
+  setActionScene(s.type, s.attacker, s.defender, s.message, s.detail || "", s.outcome || "", s.phase || "result");
+  if (state.actionScene) {
+    state.actionScene.focus = s.focus || null;          // 上段CGで誰を主役にするか
+    state.actionScene.forceAction = s.forceAction || null;
+    if (s.shotKind) state.actionScene.shotKind = s.shotKind;
+  }
+  window.clearTimeout(state.vsScreenTimer); state.vsScreen = beat.vs || null;
+  window.clearTimeout(state.crashSceneTimer); state.crashScene = beat.crash || null;
+  if (beat.cutin) buildBeatCutin(beat.cutin.name, beat.cutin.player);
+  else { window.clearTimeout(state.cutinFrameTimer); state.cutin = null; }
+  (beat.se || []).forEach((k) => audio.play(k));
+  if (beat.judge) showJudge(beat.judge);
+  if (beat.hitstop) hitstop(beat.hitstop);
+  if (beat.flash) screenFlash();
+  if (beat.onEnter) beat.onEnter();
+  render();
+}
+
+// シーケンス開始。
+function runPlay(beats, applyFn, token) {
+  cancelTransientOverlays();
+  state.battle = null;
+  state.playSeq = { token, beats, i: -1, apply: applyFn || null, applied: false };
+  advancePlaySeq();
+}
+
+// beat を1つ進める。 終端で効果適用→endTurn。 input beat で停止 (対話)。
+function advancePlaySeq() {
+  const ps = state.playSeq;
+  if (!ps) return;
+  if (!matchAlive(ps.token)) { state.playSeq = null; state.ballMotion = null; return; }
+  ps.i += 1;
+  if (ps.i >= ps.beats.length) {
+    state.playSeq = null;
+    state.ballMotion = null;
+    if (ps.apply && !ps.applied) { ps.applied = true; ps.apply(); }
+    // 合否beatの送りがターン終了の送りを兼ねる → 余分なゲートを挟まず次の展開へ。
+    endTurnBookkeeping();
+    if (!state.match || state.match.finished) { render(); return; }
+    if (state.match.possession === "away") { render(); enemyTurn(); }
+    else { render(); }
+    return;
+  }
+  const beat = ps.beats[ps.i];
+  // 合否(result) beat の直前で効果適用 (possession/score を最終beatで確定)。
+  if (beat.scene.phase === "result" && ps.apply && !ps.applied) { ps.applied = true; ps.apply(); }
+  showBeat(beat);
+  // 対話 beat: その beat に到達したときだけモーダルを立てて停止 (事前表示しない)。
+  if (beat.input === "gk") { if (beat.gk) state.gkChoice = beat.gk; render(); return; }
+  if (beat.input === "interrupt") { if (beat.interrupt) state.interrupt = beat.interrupt; render(); return; }
+  gateBeat(beat);
+}
+
+// beat 単位の送りゲート (既存 state.advance を流用=送りボタン/キー互換)。
+function gateBeat(beat) {
+  state.advance = true;
+  window.clearTimeout(state.advanceTimer);
+  state.advanceTimer = null;
+  render();
+  if (beat.auto !== false && state.progress && state.progress.autoAdvance) {
+    state.advanceTimer = window.setTimeout(() => advancePlay(), animMs(beat.ms || 1100));
+  }
+}
+
+// 走行中シーケンスの末尾に beat を足して再開 (GK/じゃんけんの選択後)。
+function resumePlaySeq(beats, applyFn) {
+  if (!state.playSeq) return;
+  state.playSeq.beats.push(...beats);
+  if (applyFn) state.playSeq.apply = applyFn;
+  advancePlaySeq();
+}
+
+// テスト用: playSeq を同期的に進める (入力 beat / 任意の停止条件で止める)。
+if (typeof window !== "undefined") {
+  window.__touhouSpellFutsalDrainSeq = function (opts = {}) {
+    const max = opts.max || 40;
+    let n = 0;
+    while (state.playSeq && n < max) {
+      if (state.gkChoice || state.interrupt) break;             // 入力待ちで停止
+      if (opts.untilCrash && state.crashScene) break;
+      advancePlaySeq();
+      n += 1;
+      if (opts.untilCrash && state.crashScene) break;
+      if (opts.untilResult && state.actionScene && state.actionScene.phase === "result") break;
+      if (opts.untilGoal && state.actionScene && state.actionScene.outcome === "goal") break;
+    }
+    return { playSeqActive: !!state.playSeq, gkChoice: !!state.gkChoice, outcome: state.actionScene && state.actionScene.outcome };
+  };
 }
 
 // ゴール時の全画面白フラッシュ (CT3 の衝撃演出)。
@@ -1324,6 +1459,8 @@ function cancelPendingTimers() {
   state.judge = null;
   state.fieldShake = false;
   state.halftimeReport = false;
+  state.playSeq = null;
+  state.ballMotion = null;
 }
 
 // VS 画面を出して一定時間後に消す処理を集約 (演出速度を一元適用)。
@@ -1567,50 +1704,158 @@ function renderCutin() {
 }
 
 // 行動の主役キャラと動作 → そのキャラの動作CG (assets/actions)。
-function actionCGSrc(scene) {
+// 動作別のコマ数 (生成側 FRAME_BUDGET と一致)。 ドリブルは走りで 3、 シュート/パスは 2、 守備は 1。
+const ACTION_FRAME_COUNT = {
+  dribble: 3, pass: 2, shoot: 2, block: 1, intercept: 2, tackle: 3, contest: 2, save: 3,
+  header: 3, overhead: 3, volley: 3, diving_header: 3,
+};
+
+// 空中シュートの種別ラベル。
+const AERIAL_LABEL = { header: "ヘディングシュート", overhead: "オーバーヘッドキック", volley: "ボレーシュート", diving_header: "ダイビングヘッド" };
+
+// 空中球のシュート種別をゴールまでの距離で選ぶ (近=ヘディング/オーバーヘッド、 中=ボレー、 遠=ボレー/ダイビングヘッド)。
+function pickAerialShot(p) {
+  const gd = goalDistance(p);
+  if (gd <= 12) return rng() < 0.35 ? "overhead" : "header";
+  if (gd <= 26) return rng() < 0.45 ? "volley" : "header";
+  return rng() < 0.6 ? "volley" : "diving_header";
+}
+
+// scene から「主役キャラ」と「動作名」を決める。 シュート阻止は GK の save。
+function actionActor(scene) {
+  // beat が主役/動作を明示指定していればそれに従う (多段演出)。
+  if (scene.focus && scene.forceAction) {
+    return { actor: scene.focus === "defender" ? scene.defender : scene.attacker, action: scene.forceAction };
+  }
   const ok = scene.outcome === "success" || scene.outcome === "goal";
-  let actor = null, action = null;
-  if (scene.type === "dribble") { action = ok ? "dribble" : "tackle"; actor = ok ? scene.attacker : scene.defender; }
-  else if (scene.type === "pass") { action = ok ? "pass" : "intercept"; actor = ok ? scene.attacker : scene.defender; }
-  else if (scene.type === "shoot") { action = ok ? "shoot" : "block"; actor = ok ? scene.attacker : scene.defender; }
+  // 開けたドリブル(stepCarrier)は対決でなく走り。 常に保持者のドリブル姿。
+  if (scene.type === "dribble") return { actor: scene.attacker, action: "dribble" };
+  if (scene.type === "pass") return { actor: ok ? scene.attacker : scene.defender, action: ok ? "pass" : "intercept" };
+  if (scene.type === "shoot") {
+    // 高低別シュート: scene.shotKind があればそれを使う (header/overhead/volley/diving_header)。
+    const kind = ok ? (scene.shotKind || "shoot") : "save";
+    return { actor: ok ? scene.attacker : scene.defender, action: kind };
+  }
+  return { actor: null, action: null };
+}
+
+function actionCGSrc(scene) {
+  const { actor, action } = actionActor(scene);
   if (!actor || !action) return "";
   return `./assets/actions/${actor.id}_${action}.png`;
 }
 
+// 動作 → 汎用スプライト(assets/anim) のフォールバック種別。
+const GENERIC_ANIM_FOR = { dribble: "dribble", tackle: "tackle", pass: "pass", shoot: "shoot", intercept: "intercept", save: "gk_save" };
+// 未生成動作は「意味の近い既存動作CG」へフォールバック (空中シュート→shoot 等)。 破綻より関連ポーズ。
+const FALLBACK_ACTION = { volley: "shoot", header: "shoot", overhead: "shoot", diving_header: "shoot", save: "block", contest: "tackle", block: "tackle", intercept: "tackle" };
+
+// 欠損画像の追跡 + フォールバック前進 (再render時の 404 連打を抑える)。
+if (typeof window !== "undefined") {
+  window.__imgMiss = window.__imgMiss || new Set();
+  window.__imgFallback = function (img) {
+    try {
+      window.__imgMiss.add(img.getAttribute("src"));
+      const chain = JSON.parse(img.getAttribute("data-chain") || "[]");
+      const next = chain.find((s) => !window.__imgMiss.has(s));
+      if (next && next !== img.getAttribute("src")) { img.src = next; }
+      else { img.onerror = null; img.style.display = "none"; }
+    } catch (e) { img.onerror = null; img.style.display = "none"; }
+  };
+}
+
+// 1コマ分の <img>。 候補チェーン(frame→単体CG→代替動作CG→汎用)を順に試し、
+// 既知の欠損(window.__imgMiss)は飛ばして再render時の404スパム/画像破綻を防ぐ。
+function actionFrameImg(actor, action, i, cls) {
+  const alt = FALLBACK_ACTION[action];
+  const gtype = GENERIC_ANIM_FOR[action] || (alt && GENERIC_ANIM_FOR[alt]) || "shoot";
+  const chain = [`./assets/actions/${actor.id}_${action}_${i}.png`, `./assets/actions/${actor.id}_${action}.png`];
+  if (alt) chain.push(`./assets/actions/${actor.id}_${alt}_1.png`);
+  chain.push(`./assets/anim/${gtype}_1.png`);
+  const miss = (typeof window !== "undefined" && window.__imgMiss) || null;
+  const start = (miss && chain.find((s) => !miss.has(s))) || chain[0];
+  return `<img class="hf ${cls}" src="${start}" alt="" data-chain='${JSON.stringify(chain)}' onerror="window.__imgFallback&&window.__imgFallback(this)" />`;
+}
+
+function actionFlipImgs(actor, action) {
+  const n = ACTION_FRAME_COUNT[action] || 1;
+  let imgs = "";
+  for (let i = 1; i <= n; i++) imgs += actionFrameImg(actor, action, i, `hf${i}`);
+  return imgs;
+}
+
+// ボール別スプライトの挙動クラス。 CG にはボールを焼き込まないので、 ここで重ねて動かす。
+function ballClassFor(action) {
+  if (action === "dribble") return "ball-foot";          // 足元で転がる
+  if (["pass", "shoot", "volley", "overhead", "header", "diving_header"].includes(action)) return "ball-fly"; // 飛行
+  if (action === "save") return "ball-save";             // GK の正面へ
+  return "";
+}
+
+// 競り合い(1対1): 両者の CG を回転しながらカットイン → 勝者が敗者を吹っ飛ばす。
+// 勝者=攻撃成功なら carrier(ドリブル突破)、 失敗なら defender(スライディングタックル)。
+function contestArenaHtml(scene) {
+  const attWon = scene.outcome === "success" || scene.outcome === "goal";
+  const att = scene.attacker, def = scene.defender;
+  if (!att || !def) return "";
+  const attAction = attWon ? "dribble" : "contest";
+  const defAction = attWon ? "contest" : "tackle";
+  const attRole = attWon ? "winner" : "loser";
+  const defRole = attWon ? "loser" : "winner";
+  const winnerSide = attWon ? "left" : "right";
+  // 勝者は決めポーズの中盤コマ (タックルは滑り込みの 2コマ目)。
+  const attImg = actionFrameImg(att, attAction, attAction === "dribble" ? 2 : 1, "cf-img");
+  const defImg = actionFrameImg(def, defAction, defAction === "tackle" ? 2 : 1, "cf-img");
+  return `
+    <div class="contest-arena">
+      <div class="contest-fighter left ${attRole} act-${attAction}">${attImg}<span class="cf-name">${att.name}</span></div>
+      <div class="contest-fighter right ${defRole} act-${defAction}">${defImg}<span class="cf-name">${def.name}</span></div>
+      <div class="clash-flash"></div>
+      <div class="hero-ball ball-foot contest-ball ${winnerSide}"><span class="ball-icon">⚽</span></div>
+    </div>`;
+}
+
+// 3コマフリップブック (パラパラ躍動) + ボール別スプライト。
+// 競り合い/ドリブル対決は両者カットインのアリーナ表示。
+function actionHeroHtml(scene) {
+  if (scene.type === "contest") return contestArenaHtml(scene);
+  const { actor, action } = actionActor(scene);
+  if (!actor || !action) return "";
+  const n = ACTION_FRAME_COUNT[action] || 1;
+  const imgs = actionFlipImgs(actor, action);
+  const ballCls = ballClassFor(action);
+  const ball = ballCls ? `<div class="hero-ball ${ballCls}"><span class="ball-icon">⚽</span></div>` : "";
+  return `<div class="action-hero flip-${n}">${imgs}${ball}</div>`;
+}
+
+// 下段中央: メッセージ枠のみ (CG は上段 .field-cg が actionHeroHtml で表示)。
+// .action-scene class とテキストはテスト互換のため温存。
 function renderActionScene() {
   const scene = state.actionScene;
   if (!scene) return "";
-  const phaseLabel = scene.phase === "choice" ? "COMMAND" : "RESULT";
-  // 躍動感: 主役キャラの動作CG (assets/actions) を優先、 無ければ汎用スプライト(assets/anim)へフォールバック。
-  const animN = ACTION_ANIM_FRAMES[scene.type];
-  const success = scene.outcome === "success" || scene.outcome === "goal";
-  const heroFrame = animN ? Math.min(success ? 2 : 1, animN) : 0;
-  const genericSrc = heroFrame ? `./assets/anim/${scene.type}_${heroFrame}.png` : "";
-  const charSrc = actionCGSrc(scene);
-  const heroSrc = charSrc || genericSrc;
-  const onerr = genericSrc && genericSrc !== heroSrc
-    ? `this.onerror=null; this.src='${genericSrc}';`
-    : `this.onerror=null; this.parentElement.style.display='none';`;
+  const phaseLabel = scene.phase === "choice" ? "COMMAND" : scene.phase === "flow" ? "PLAY" : "RESULT";
   return `
-    <div class="action-scene ${scene.outcome || ""}">
-      <div class="action-stage">
-        ${heroSrc ? `<div class="action-hero"><img src="${heroSrc}" alt="" onerror="${onerr}" /></div>` : ""}
-        <div class="sprite-runner attacker">
-          ${renderPortrait(scene.attacker, "sprite")}
-          <span>${scene.attacker.name}</span>
-        </div>
-        <div class="sprite-ball ${scene.type}"></div>
-        <div class="sprite-runner defender">
-          ${renderPortrait(scene.defender, "sprite")}
-          <span>${scene.defender.name}</span>
-        </div>
-      </div>
+    <div class="action-scene ${scene.type} ${scene.outcome || ""}">
       <div class="vn-box">
         <div class="vn-name">${phaseLabel} / ${scene.title}</div>
         <p>${scene.message}</p>
         ${scene.detail ? `<div class="vn-detail">${scene.detail}</div>` : ""}
         ${state.advance ? `<div class="vn-advance-hint">▼ クリック / Space で次へ</div>` : ""}
       </div>
+    </div>
+  `;
+}
+
+// ゴール時、上段 .field-cg に重ねる爽快感バナー (大きく・長く・送り待ちで視認可能に)。
+function renderGoalBanner(scene) {
+  const m = state.match;
+  const scorer = scene.attacker;
+  return `
+    <div class="goal-banner">
+      <div class="goal-rays"></div>
+      <div class="goal-text">GOAL!!</div>
+      <div class="goal-line">${m.home.name} <b>${m.score.home}</b> - <b>${m.score.away}</b> ${m.away.name}</div>
+      <div class="goal-by">⚽ ${scorer.role} ${scorer.name}</div>
     </div>
   `;
 }
@@ -1964,6 +2209,9 @@ function resolveBattle(option) {
   const t = state.battle.type;
   const cost = tierCost(t, tier);
   const atkBonus = tierAtkBonus(t, tier);
+  // 空中球(クロスで上がった高い球)。 シュート以外の行動を選ぶと地面に落ちる。
+  const ballAir = match.ballAir || false;
+  if (t !== "shoot") match.ballAir = false;
 
   if (state.battle.type === "dribble") {
     const atk = roll(carrier.stats.dribble + carrier.stats.speed * 0.35 + boost + atkBonus - fatiguePenalty(carrier) + difficultyModifier(carrier.side));
@@ -1971,35 +2219,32 @@ function resolveBattle(option) {
     spend(carrier, cost);
     bumpStat(carrier.side, "dribbles");
     bumpPlayerStat(carrier, "dribbles");
-    if (isSpell) {
-      bumpStat(carrier.side, "spellsUsed");
-      bumpPlayerStat(carrier, isUlti ? "ultimatesUsed" : "spellsUsed");
-    }
-    if (atk >= def) {
-      advanceCarrier(carrier, isUlti ? 22 : isSpell ? 18 : 11);
-      // 抜かれた守備者を後方へ突き放す (再接触で「同じ相手とまたすぐ」を防ぐ=明確な分離)。
-      const ddir = carrier.side === "home" ? 1 : -1;
-      defender.x = clamp(defender.x - ddir * 16, 6, 94);
-      defender.y = clamp(defender.y + (rng() * 10 - 5), 12, 88);
-      audio.play(isSpell ? "spell" : "kick");
-      audio.play("dribble-break");
-      if (isSpell) showCutin(isUlti ? characterUltimateName(carrier, "dribble") : characterSpellName(carrier, "dribble"), carrier, "");
-      // 通常ドリブルはカットインで盤面を隠さず、 フィールド上の前進 + 実況で見せる。
-      setActionScene("dribble", carrier, defender, `${carrier.name}が${defender.name}を${isUlti ? "切り裂いて" : "抜いて"}前進。`, `攻撃値 ${Math.round(atk)} / 守備値 ${Math.round(def)} / 段階: ${tier}`, "success");
-      showJudge("break");
-      log(`${carrier.name}が${defender.name}を突破 (${tier})。攻撃値${Math.round(atk)} / 守備値${Math.round(def)}。`);
-    } else {
-      audio.play("save");
-      audio.play("tackle");
-      bumpStat(defender.side, "tackles");
-      bumpPlayerStat(defender, "tackles");
-      // knockback: ball 位置を defender 側 (碰勝者) 寄りへ少し移動
-      knockbackBall(carrier, defender, isUlti ? 14 : isSpell ? 10 : 7);
-      setActionScene("dribble", carrier, defender, `${defender.name}が止めた。ボールは相手側へ。`, `攻撃値 ${Math.round(atk)} / 守備値 ${Math.round(def)} / 段階: ${tier}`, "fail");
-      showJudge("stop");
-      hitstop(66);
-      turnover(defender, `${defender.name}が${carrier.name}を止めた (${tier})。攻撃値${Math.round(atk)} / 守備値${Math.round(def)}。`);
-    }
+    if (isSpell) { bumpStat(carrier.side, "spellsUsed"); bumpPlayerStat(carrier, isUlti ? "ultimatesUsed" : "spellsUsed"); }
+    const win = atk >= def;
+    const detail = `攻撃値 ${Math.round(atk)} / 守備値 ${Math.round(def)} / 段階: ${tier}`;
+    const spellName = isUlti ? characterUltimateName(carrier, "dribble") : characterSpellName(carrier, "dribble");
+    // 多段: 仕掛け → DFの守備対応 → 合否(競り合いアリーナで突破 or スライディング奪取)。
+    const beats = [
+      { scene: { type: "dribble", attacker: carrier, defender, message: `${carrier.name}、ボールを運ぶ — 立ちはだかる${defender.name}！`, detail: `段階: ${tier}`, outcome: "", phase: "flow", focus: "attacker", forceAction: "dribble" }, se: ["kick"], ms: 850, ...(isSpell ? { cutin: { name: spellName, player: carrier } } : {}) },
+      { scene: { type: "dribble", attacker: carrier, defender, message: `${defender.name}が間合いを詰める — 体を寄せる！`, detail: `段階: ${tier}`, outcome: "", phase: "flow", focus: "defender", forceAction: "tackle" }, se: ["tackle"], ms: 850 },
+      win
+        ? { scene: { type: "contest", attacker: carrier, defender, message: `${carrier.name}が${defender.name}を${isUlti ? "切り裂いて" : "抜いて"}前進！`, detail, outcome: "success", phase: "result" }, judge: "break", se: [isSpell ? "spell" : "dribble-break"], hitstop: isSpell ? 120 : null }
+        : { scene: { type: "contest", attacker: carrier, defender, message: `${defender.name}がスライディングで奪った！ボールは相手へ。`, detail, outcome: "fail", phase: "result" }, judge: "stop", se: ["save", "tackle"], hitstop: 66 },
+    ];
+    const apply = () => {
+      if (win) {
+        advanceCarrier(carrier, isUlti ? 22 : isSpell ? 18 : 11);
+        const ddir = carrier.side === "home" ? 1 : -1;
+        defender.x = clamp(defender.x - ddir * 16, 6, 94);
+        defender.y = clamp(defender.y + (rng() * 10 - 5), 12, 88);
+      } else {
+        bumpStat(defender.side, "tackles"); bumpPlayerStat(defender, "tackles");
+        knockbackBall(carrier, defender, isUlti ? 14 : isSpell ? 10 : 7);
+        turnover(defender, `${defender.name}が${carrier.name}を止めた (${tier})。${detail}。`);
+      }
+    };
+    log(`${carrier.name} vs ${defender.name} ドリブル勝負 (${tier})。${detail}。`);
+    return runPlay(beats, apply, match.matchToken);
   }
 
   if (state.battle.type === "pass") {
@@ -2012,31 +2257,32 @@ function resolveBattle(option) {
     spend(carrier, cost);
     bumpStat(carrier.side, "passes");
     bumpPlayerStat(carrier, "passes");
-    if (isSpell) {
-      bumpStat(carrier.side, "spellsUsed");
-      bumpPlayerStat(carrier, isUlti ? "ultimatesUsed" : "spellsUsed");
-    }
-    if (atk >= def) {
-      state.match.carrierId = receiver.id;
-      receiver.x = clamp(receiver.x + (receiver.side === "home" ? (isUlti ? 14 : 8) : (isUlti ? -14 : -8)), 8, 92);
-      if (!isSpell) audio.play("pass-charge");
-      audio.play(isSpell ? "spell" : "select");
-      audio.play("pass-success");
-      if (isSpell) showCutin(isUlti ? characterUltimateName(carrier, "pass") : characterSpellName(carrier, "pass"), carrier, "");
-      setActionScene("pass", carrier, defender, `${receiver.name}へのパス成功。${isUlti ? "電光石火の前進。" : "攻撃が前へ進む。"}`, `攻撃値 ${Math.round(atk)} / カット値 ${Math.round(def)} / 段階: ${tier}`, "success");
-      showJudge("through");
-      log(`${carrier.name}から${receiver.name}へパス成功 (${tier})。${receiver.name}が前を向いた。`);
-    } else {
-      audio.play("save");
-      audio.play("intercept");
-      bumpStat(defender.side, "intercepts");
-      bumpPlayerStat(defender, "intercepts");
-      knockbackBall(carrier, defender, isUlti ? 12 : isSpell ? 9 : 6);
-      setActionScene("pass", carrier, defender, `${defender.name}がパスカット。ボール保持が入れ替わる。`, `攻撃値 ${Math.round(atk)} / カット値 ${Math.round(def)} / 段階: ${tier}`, "fail");
-      showJudge("cut");
-      hitstop(66);
-      turnover(defender, `${defender.name}がパスカット (${tier})。${carrier.name}の展開を読んだ。`);
-    }
+    if (isSpell) { bumpStat(carrier.side, "spellsUsed"); bumpPlayerStat(carrier, isUlti ? "ultimatesUsed" : "spellsUsed"); }
+    const win = atk >= def;
+    const detail = `攻撃値 ${Math.round(atk)} / カット値 ${Math.round(def)} / 段階: ${tier}`;
+    const spellName = isUlti ? characterUltimateName(carrier, "pass") : characterSpellName(carrier, "pass");
+    const isCross = win && distance(carrier, receiver) >= 22 && goalDistance(receiver) < 30;
+    // 多段: 出す → ボールが受け手へ向かう(導線上の敵がカット狙い) → 合否。
+    const beats = [
+      { scene: { type: "pass", attacker: carrier, defender, message: `${carrier.name}、${receiver.name}へパス！`, detail: `段階: ${tier}`, outcome: "success", phase: "flow", focus: "attacker", forceAction: "pass" }, se: [isSpell ? "spell" : "pass-charge"], ms: 850, ...(isSpell ? { cutin: { name: spellName, player: carrier } } : {}) },
+      { scene: { type: "pass", attacker: carrier, defender, message: `ボールが${receiver.name}へ走る — ${defender.name}が導線を狙う！`, detail: `段階: ${tier}`, outcome: "success", phase: "flow", focus: "defender", forceAction: "intercept" }, se: ["select"], ms: 850 },
+      win
+        ? { scene: { type: "pass", attacker: carrier, defender, message: isCross ? `${carrier.name}が高く上げた！${receiver.name}が空中の球を狙える！` : `${receiver.name}へのパス成功。${isUlti ? "電光石火の前進。" : "攻撃が前へ進む。"}`, detail, outcome: "success", phase: "result", focus: "attacker", forceAction: "pass" }, judge: "through", se: ["pass-success"] }
+        : { scene: { type: "pass", attacker: carrier, defender, message: `${defender.name}がパスカット！保持が入れ替わる。`, detail, outcome: "fail", phase: "result", focus: "defender", forceAction: "intercept" }, judge: "cut", se: ["save", "intercept"], hitstop: 66 },
+    ];
+    const apply = () => {
+      if (win) {
+        match.carrierId = receiver.id;
+        receiver.x = clamp(receiver.x + (receiver.side === "home" ? (isUlti ? 14 : 8) : (isUlti ? -14 : -8)), 8, 92);
+        match.ballAir = isCross;
+      } else {
+        bumpStat(defender.side, "intercepts"); bumpPlayerStat(defender, "intercepts");
+        knockbackBall(carrier, defender, isUlti ? 12 : isSpell ? 9 : 6);
+        turnover(defender, `${defender.name}がパスカット (${tier})。`);
+      }
+    };
+    log(`${carrier.name}→${receiver.name} パス勝負 (${tier})。${detail}。`);
+    return runPlay(beats, apply, match.matchToken);
   }
 
   if (state.battle.type === "shoot") {
@@ -2051,55 +2297,53 @@ function resolveBattle(option) {
       bumpStat(carrier.side, "spellsUsed");
       bumpPlayerStat(carrier, isUlti ? "ultimatesUsed" : "spellsUsed");
     }
-    // 通常シュートは「踏み込みタメ→着弾」の2段。 必殺は showCutin が spell/ultimate-charge/impact を担当。
-    if (!isSpell) {
-      audio.play("shoot-charge");
-      audio.play("shoot-impact");
-    }
-    audio.play("whistle");
-    // 通常シュートはカットインで隠さず GK との対決を盤面で見せる。 必殺のみ固有カットイン。
-    if (isSpell) showCutin(isUlti ? characterUltimateName(carrier, "shoot") : characterSpellName(carrier, "shoot"), carrier, "");
-    // GK 選択: AWAY shoot → home GK は user 選択 / HOME shoot → away GK は AI 選択
+    // 空中球なら球の高低・位置で空中シュート種別を決める (ヘディング/オーバーヘッド/ボレー/ダイビングヘッド)。
+    const shotKind = ballAir ? pickAerialShot(carrier) : "shoot";
+    match.ballAir = false;
+    match.pendingShotKind = shotKind;
+    if (ballAir) log(`${carrier.name}、空中の球を${AERIAL_LABEL[shotKind] || "シュート"}!`);
+    const shotName = isSpell ? (isUlti ? characterUltimateName(carrier, "shoot") : characterSpellName(carrier, "shoot")) : (AERIAL_LABEL[shotKind] || "シュート");
     const gkSide = opponentSide(carrier.side);
-    state.battle = null;
+    const token = match.matchToken;
+    // 原作CT3の流れ: シュート発射 → ボールがゴールへ向かう演出 → GK行動 → 合否(goal/キャッチ/こぼれ球)。
+    const head = [
+      { scene: { type: "shoot", attacker: carrier, defender, message: `${carrier.name}、${shotName}！`, detail: `段階: ${tier}`, outcome: "success", phase: "flow", focus: "attacker", forceAction: shotKind, shotKind }, se: [isSpell ? "spell" : "shoot-charge"], ms: 900, ...(isSpell ? { cutin: { name: shotName, player: carrier } } : {}) },
+      { scene: { type: "shoot", attacker: carrier, defender, message: `ボールはゴールへ突き刺さる軌道！ GK ${defender.name} の前へ —`, detail: `段階: ${tier}`, outcome: "success", phase: "flow", focus: "attacker", forceAction: shotKind, shotKind }, se: ["shoot-impact", "whistle"], ms: 900 },
+    ];
     if (gkSide === "home") {
-      state.gkChoice = {
-        carrierId: carrier.id,
-        gkId: defender.id,
-        baseAtk,
-        useSpell: isSpell,
-        tier,
+      // home GK = ユーザー4択。 入力 beat に到達したときモーダルを立てる (事前表示しない)。
+      const inputBeat = {
+        scene: { type: "shoot", attacker: carrier, defender, message: `${defender.name}、どう止める!?`, detail: `段階: ${tier}`, outcome: "", phase: "flow", focus: "defender", forceAction: "save" },
+        input: "gk", auto: false,
+        gk: { carrierId: carrier.id, gkId: defender.id, baseAtk, useSpell: isSpell, tier, shotKind, resumeSeq: true },
       };
-      render();
-      return;
+      runPlay([...head, inputBeat], null, token);
     } else {
-      // AI GK: 必殺シュート (spell/ultimate) には一定確率でスペルセーブで真っ向対抗。
-      let pick;
-      if (isSpell && defender.guts >= 20 && rng() < (isUlti ? 0.55 : 0.4)) {
-        pick = "spellsave";
-      } else {
-        const affordable = ["catch", "punch", "rush"].filter((o) => defender.guts >= ({ catch: 6, punch: 10, rush: 14 })[o]);
-        pick = affordable.length ? affordable[Math.floor(rng() * affordable.length)] : "catch";
-      }
-      finalizeShoot(carrier, defender, baseAtk, pick, isSpell, tier);
+      // away GK = AI 即決 → 後続 beat を結合。
+      const pick = aiGkPick(defender, isSpell, isUlti);
+      const tail = buildShootTailBeats(carrier, defender, baseAtk, pick, isSpell, tier, shotKind);
+      runPlay([...head, ...tail.beats], tail.apply, token);
     }
     return;
   }
 
   if (state.battle.type === "team") {
     spend(carrier, cost);
-    audio.play("spell");
-    match.boost = TIER_TEAM_BOOST[tier];
     recoverTeam(carrier.side, TIER_TEAM_RECOVER[tier]);
     if (isSpell) bumpStat(carrier.side, "spellsUsed");
-    showCutin(isUlti ? `${actionSpellName(carrier, "team")}・真` : actionSpellName(carrier, "team"), carrier);
-    setActionScene("team", carrier, defender, `${teamBySide(carrier.side).name}が${isUlti ? "全身全霊で前進" : "全員で前へ出る"}。`, `次の判定+${TIER_TEAM_BOOST[tier]} / 全員霊力+${TIER_TEAM_RECOVER[tier]} / 段階: ${tier}`, "success");
-    showJudge("support");
-    log(`${teamBySide(carrier.side).name}が連携スペル発動 (${tier})。次の判定+${TIER_TEAM_BOOST[tier]}、全員霊力+${TIER_TEAM_RECOVER[tier]}。`);
+    const teamName = teamBySide(carrier.side).name;
+    const spellName = isUlti ? `${actionSpellName(carrier, "team")}・真` : actionSpellName(carrier, "team");
+    const beats = [
+      { scene: { type: "team", attacker: carrier, defender, message: `${teamName}、${spellName}発動！`, detail: `段階: ${tier}`, outcome: "success", phase: "flow", focus: "attacker", forceAction: "contest" }, cutin: { name: spellName, player: carrier }, se: ["spell"], ms: 900 },
+      { scene: { type: "team", attacker: carrier, defender, message: `${teamName}が${isUlti ? "全身全霊で前へ出る" : "全員で前へ出る"}！`, detail: `次の判定+${TIER_TEAM_BOOST[tier]} / 全員霊力+${TIER_TEAM_RECOVER[tier]}`, outcome: "success", phase: "result", focus: "attacker", forceAction: "contest" }, judge: "support" },
+    ];
+    const apply = () => { match.boost = TIER_TEAM_BOOST[tier]; };
+    log(`${teamName}が連携スペル (${tier})。次判定+${TIER_TEAM_BOOST[tier]}、霊力+${TIER_TEAM_RECOVER[tier]}。`);
+    return runPlay(beats, apply, match.matchToken);
   }
 
   state.battle = null;
-  endTurn(); // 結果表示 + メッセージ送りゲートは endTurn 内で行う
+  endTurn(); // (フォールバック) 通常はここに到達しない
 }
 
 function renderGkChoice() {
@@ -2129,17 +2373,29 @@ function renderGkChoice() {
   `;
 }
 
+// AI GK の選択 (必殺には一定確率でスペルセーブ対抗)。
+function aiGkPick(gk, useSpell, isUlti) {
+  if (useSpell && gk.guts >= 20 && rng() < (isUlti ? 0.55 : 0.4)) return "spellsave";
+  const affordable = ["catch", "punch", "rush"].filter((o) => gk.guts >= ({ catch: 6, punch: 10, rush: 14 })[o]);
+  return affordable.length ? affordable[Math.floor(rng() * affordable.length)] : "catch";
+}
+
 function resolveGkChoice(option) {
   const gc = state.gkChoice;
   if (!gc) return;
   const carrier = allPlayers().find((p) => p.id === gc.carrierId);
   const gk = allPlayers().find((p) => p.id === gc.gkId);
   state.gkChoice = null;
-  finalizeShoot(carrier, gk, gc.baseAtk, option, gc.useSpell, gc.tier);
+  const tail = buildShootTailBeats(carrier, gk, gc.baseAtk, option, gc.useSpell, gc.tier, gc.shotKind || "shoot");
+  if (state.playSeq && gc.resumeSeq) {
+    resumePlaySeq(tail.beats, tail.apply);   // 走行中シーケンスに GK行動→合否 beat を継ぐ
+  } else {
+    runPlay(tail.beats, tail.apply, state.match ? state.match.matchToken : null); // forceGkChoice 等の単独経路
+  }
 }
 
-function finalizeShoot(carrier, gk, baseAtk, gkOption, useSpell, attackTier) {
-  if (!state.match || state.match.finished) return;
+// finalizeShoot を「合否計算 + GK行動→合否の beat 列 + 効果適用関数」に分解 (即計算・適用遅延)。
+function buildShootTailBeats(carrier, gk, baseAtk, gkOption, useSpell, attackTier, shotKind) {
   const match = state.match;
   const isUlti = attackTier === "ultimate";
   const spellSave = gkOption === "spellsave";
@@ -2149,88 +2405,71 @@ function finalizeShoot(carrier, gk, baseAtk, gkOption, useSpell, attackTier) {
   const def = roll(gk.stats.keep * defMod + gk.stats.block * 0.19 + (useSpell ? 4 : 0) + (spellSave ? 7 : 0) + difficultyModifier(gk.side), 28);
   const margin = baseAtk - def;
   const atkName = useSpell ? (isUlti ? characterUltimateName(carrier, "shoot") : characterSpellName(carrier, "shoot")) : "シュート";
-  // 必殺シュート同士の拮抗 (差が僅か or スペルセーブ対抗) はクラッシュ演出。
   const clash = useSpell && (spellSave || Math.abs(margin) <= 12);
+  const goal = margin >= 0;
+  const spill = !goal && (gkOption === "punch" || (useSpell && margin >= -12));
+  const gkLabel = { catch: "ジャンプキャッチ", punch: "パンチング", rush: "飛び出し", spellsave: `スペルセーブ「${gk.spell}」` }[gkOption] || "セーブ";
+  const detail = `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)}`;
+  const beats = [];
+  // GK 行動 beat (キーパーの行動)
+  beats.push({
+    scene: { type: "shoot", attacker: carrier, defender: gk, message: `GK ${gk.name}、${gkLabel}！`, detail, outcome: "", phase: "flow", focus: "defender", forceAction: "save" },
+    se: [spellSave ? "spell" : "save"], ms: 900,
+    ...(spellSave ? { cutin: { name: `${gk.name} ${gk.spell}`, player: gk } } : {}),
+  });
+  // 必殺 vs スペルセーブ/僅差はクラッシュ beat
   if (clash) {
-    // 鍔迫り合いゲージ: margin が正なら攻撃側が押し込む。 火花 2 連 SE。
-    audio.play("clash-spark");
-    state.crashScene = {
-      atkName,
-      gkName: gk.name,
-      gkSpell: spellSave ? gk.spell : "セーブ",
-      atkPct: clamp(Math.round(50 + margin * 2.5), 12, 88),
-    };
-    // ゲージは止め絵(hitstop)より長く見せて読ませる。
-    window.clearTimeout(state.crashSceneTimer);
-    state.crashSceneTimer = window.setTimeout(() => { state.crashScene = null; render(); }, animMs(900));
+    beats.push({
+      scene: { type: "shoot", attacker: carrier, defender: gk, message: `${atkName} と ${gk.name} のセーブが激突！火花が散る！`, detail, outcome: "", phase: "flow", focus: "defender", forceAction: "save" },
+      crash: { atkName, gkName: gk.name, gkSpell: spellSave ? gk.spell : "セーブ", atkPct: clamp(Math.round(50 + margin * 2.5), 12, 88) },
+      se: ["clash-spark"], hitstop: 120, ms: 1100,
+    });
   }
-
-  if (margin >= 0) {
-    // GOAL — 必殺がセーブを破った
-    audio.play("goal");
-    audio.play("ovation");
-    bumpStat(carrier.side, "goals");
-    bumpPlayerStat(carrier, "goals");
-    match.score[carrier.side] += 1;
-    let msg;
-    if (clash && margin < 12) {
-      msg = `${atkName}と${gk.name}のセーブが激突! 火花を散らし、わずかにねじ込んだ!`;
-    } else if (useSpell && margin >= 18) {
-      msg = `${atkName}が${gk.name}のセーブを粉砕! ゴール!`;
-    } else {
-      msg = `${carrier.name}のシュートが決まった。${gk.name}届かず。`;
-    }
-    setActionScene("shoot", carrier, gk, msg, `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)} (${gkOption})`, "goal");
-    showJudge("goal");
-    screenFlash();
-    audio.play("goal-stamp");
-    if (useSpell) audio.play("crowd-rumble");
-    // 必殺ゴールは固有カットインの余韻を残す。 通常ゴールは汎用ゴール歓喜スプライトを前面に。
-    if (!useSpell) showActionCutin("goal", "GOAL!!");
-    hitstop(useSpell || margin >= 18 ? 200 : 120); // 必殺/粉砕ゴールは長め、 通常ゴールも当たりを止める
-    log(`${msg} 攻撃値${Math.round(baseAtk)} / GK値${Math.round(def)}。`);
-    pushCommentary(goalCommentary(carrier));
-    kickoff(opponentSide(carrier.side));
-  } else if (gkOption === "punch" || (useSpell && margin >= -12)) {
-    // こぼれ球: パンチング、 もしくは必殺をセーブが受け切れず弾いた
-    audio.play("save");
-    bumpStat(gk.side, "saves");
-    bumpPlayerStat(gk, "saves");
-    const msg = (useSpell && gkOption !== "punch")
-      ? `${gk.name}が${atkName}を弾いた! 威力に押され、こぼれ球が転がる!`
-      : `${gk.name}がパンチング! こぼれ球が転がる。`;
-    setActionScene("shoot", carrier, gk, msg, `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)}`, "fail");
-    showJudge("save");
-    if (clash) hitstop(150); // 必殺を弾いたクラッシュは止め絵で見せる
-    // GK 近辺の最寄りプレイヤーから 1 名を carrier に
-    const nearby = allPlayers()
-      .filter((p) => p.id !== gk.id && p.role !== "GK")
-      .map((p) => ({ p, d: distance(p, gk) }))
-      .sort((a, b) => a.d - b.d)[0];
-    const newCarrier = nearby ? nearby.p : gk;
-    state.match.possession = newCarrier.side;
-    state.match.carrierId = newCarrier.id;
-    log(`${msg} ${newCarrier.name}が拾った。`);
+  // 合否 beat
+  if (goal) {
+    const msg = (clash && margin < 12) ? `火花を散らし、わずかにねじ込んだ！`
+      : (useSpell && margin >= 18) ? `${atkName}が${gk.name}のセーブを粉砕！`
+      : `${carrier.name}のシュートが決まった！${gk.name}届かず。`;
+    beats.push({
+      scene: { type: "shoot", attacker: carrier, defender: gk, message: msg, detail: `${detail} (${gkOption})`, outcome: "goal", phase: "result", focus: "attacker", forceAction: shotKind, shotKind },
+      goal: true, judge: "goal", flash: true, hitstop: (useSpell || margin >= 18) ? 220 : 150, se: ["goal", "goal-stamp", "crowd-rumble", "ovation"], ms: 1700,
+    });
+  } else if (spill) {
+    const msg = (useSpell && gkOption !== "punch") ? `${gk.name}が${atkName}を弾いた！こぼれ球が転がる！` : `${gk.name}がパンチング！こぼれ球が転がる。`;
+    beats.push({
+      scene: { type: "shoot", attacker: carrier, defender: gk, message: msg, detail, outcome: "fail", phase: "result", focus: "defender", forceAction: "save" },
+      judge: "save", se: ["save"], hitstop: clash ? 150 : null,
+    });
   } else {
-    // 完全セーブ
-    audio.play("save");
-    bumpStat(gk.side, "saves");
-    bumpPlayerStat(gk, "saves");
-    const how = spellSave ? `スペルセーブ「${gk.spell}」で`
-      : gkOption === "catch" ? "ジャンプキャッチで"
-      : gkOption === "rush" ? "飛び出しで"
-      : "";
-    const msg = spellSave
-      ? `${gk.name}が${atkName}を真っ向から受け止めた! ${gk.spell}、完全セーブ!`
-      : `${gk.name}が${how}阻止。`;
-    if (spellSave) showCutin(`${gk.name} ${gk.spell}`, gk, gk.spellText);
-    // 通常セーブはカットインで隠さず盤面で見せる。 スペルセーブのみ固有カットイン。
-    setActionScene("shoot", carrier, gk, msg, `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)}`, "fail");
-    showJudge("save");
-    hitstop(spellSave ? 200 : 66); // スペルセーブ成立は必殺級の見せ場、 通常セーブは軽い止め
-    turnover(gk, `${gk.name}が${how || "セーブで"}${carrier.name}の${atkName}を止めた。攻撃値${Math.round(baseAtk)} / GK値${Math.round(def)}。`);
+    const how = spellSave ? `スペルセーブ「${gk.spell}」で` : gkOption === "catch" ? "ジャンプキャッチで" : gkOption === "rush" ? "飛び出しで" : "";
+    const msg = spellSave ? `${gk.name}が${atkName}を真っ向から受け止めた！完全セーブ！` : `${gk.name}が${how}阻止。`;
+    beats.push({
+      scene: { type: "shoot", attacker: carrier, defender: gk, message: msg, detail, outcome: "fail", phase: "result", focus: "defender", forceAction: "save" },
+      judge: "save", se: ["save"], hitstop: spellSave ? 200 : 66,
+    });
   }
-  endTurn(); // 結果表示 + メッセージ送りゲートは endTurn 内で行う
+  // 効果適用 (最終 result beat 直前に1回)。
+  const apply = () => {
+    if (!state.match) return;
+    if (goal) {
+      bumpStat(carrier.side, "goals"); bumpPlayerStat(carrier, "goals");
+      match.score[carrier.side] += 1;
+      pushCommentary(goalCommentary(carrier));
+      kickoff(opponentSide(carrier.side));
+      log(`📢 ${carrier.name}のゴール！ ${detail}。`);
+    } else if (spill) {
+      bumpStat(gk.side, "saves"); bumpPlayerStat(gk, "saves");
+      const nearby = allPlayers().filter((p) => p.id !== gk.id && p.role !== "GK").map((p) => ({ p, d: distance(p, gk) })).sort((a, b) => a.d - b.d)[0];
+      const nc = nearby ? nearby.p : gk;
+      match.possession = nc.side; match.carrierId = nc.id;
+      log(`${gk.name}が弾いた。${nc.name}が拾った。`);
+    } else {
+      bumpStat(gk.side, "saves"); bumpPlayerStat(gk, "saves");
+      turnover(gk, `${gk.name}が${carrier.name}の${atkName}を止めた。${detail}。`);
+    }
+    match.pendingShotKind = null;
+  };
+  return { beats, apply };
 }
 
 function advanceCarrier(player, amount) {
@@ -2256,6 +2495,8 @@ function stepCarrier(yBias) {
   if (!carrierCanMove()) return;
   const carrier = getCarrier();
   if (!carrier || carrier.role === "GK") return;
+  if (state.match) state.match.ballAir = false; // ドリブルで運べば球は足元(地上)に
+
   const dir = carrier.side === "home" ? 1 : -1;
   carrier.x = clamp(carrier.x + 7 * dir, 8, 92);
   if (yBias) carrier.y = clamp(carrier.y + yBias, 16, 84);
@@ -2288,6 +2529,7 @@ function knockbackBall(carrier, defender, strength) {
 
 function turnover(newCarrier, message) {
   const loser = getCarrier();
+  state.match.ballAir = false; // 保持が入れ替われば高い球は仕切り直し
   state.match.possession = newCarrier.side;
   state.match.carrierId = newCarrier.id;
   if (newCarrier.role === "GK") keepGoalkeeperInGoal(newCarrier);
@@ -2303,6 +2545,7 @@ function turnover(newCarrier, message) {
 }
 
 function kickoff(side) {
+  state.match.ballAir = false;
   state.match.possession = side;
   const team = teamBySide(side);
   const carrier = team.players.find((player) => player.role === "MF") || team.players[1];
@@ -2329,7 +2572,14 @@ function keepGoalkeeperInGoal(player) {
   player.y = 50;
 }
 
+// ターン終了の簿記 (回復/turn++/ハーフ/終了判定/save)。 gate は呼ばない。
 function endTurn() {
+  endTurnBookkeeping();
+  if (!state.match || state.match.finished) { render(); return; }
+  gate(); // 非シーケンス経路 (じゃんけん等) はここで送りゲート
+}
+
+function endTurnBookkeeping() {
   const match = state.match;
   // 霊力経済をやや引き締め (消耗ドラマを効かせ、 終盤の残量を意思決定にする)。
   recoverTeam("home", 2);
@@ -2382,11 +2632,8 @@ function endTurn() {
     }
     const result = match.winner === "draw" ? "引き分け" : match.winner === "home" ? `${match.home.name}の勝利` : `${match.away.name}の勝利`;
     log(`試合終了。${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}。${result}。`);
-    render();
   } else {
     saveMatch();
-    // 1 行動ごとに結果を見せ、 メッセージ送り (or auto) まで次の展開を止める。
-    gate();
   }
 }
 
@@ -2567,34 +2814,38 @@ function resolveInterrupt(option) {
   const atk = roll(atkStat + difficultyModifier(attacker.side));
   const defStat = option === "tackle" ? defender.stats.tackle : defender.stats.block;
   const def = roll(defStat + defender.stats.speed * 0.3 + matchBonus);
-  audio.play(option === "tackle" ? "tackle" : "intercept");
-  if (def >= atk) {
-    bumpStat(defender.side, option === "tackle" ? "tackles" : "intercepts");
-    bumpPlayerStat(defender, option === "tackle" ? "tackles" : "intercepts");
-    knockbackBall(attacker, defender, 9);
-    showJudge(option === "tackle" ? "tackle" : "intercept");
-    setActionScene(option === "tackle" ? "dribble" : "pass", attacker, defender, `${defender.name}の${optLabel}が刺さった!${matched ? " 読み的中、" : ""}ボール奪取!`, `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}${matched ? " / 読み的中" : " / 読み外し"}`, "success");
-    turnover(defender, `${defender.name}が${attacker.name}から${optLabel}で奪取。`);
-    state.battle = null;
-    endTurn();
+  const defWin = def >= atk;
+  const defForce = option === "tackle" ? "tackle" : "intercept";
+  const detail = `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}${matched ? " / 読み的中" : " / 読み外し"}`;
+  // 多段: 敵の仕掛け+こちらの守備発動 → 読み合いの合否。
+  const beats = [
+    { scene: { type: aiAction === "dribble" ? "contest" : "pass", attacker, defender, message: `${attacker.name}の${aiLabel}！ ${defender.name}が${optLabel}で読む！`, detail: matched ? "読み的中！" : "読み合い…", outcome: "", phase: "flow", focus: "defender", forceAction: defForce }, se: [defForce], ms: 900 },
+  ];
+  if (defWin) {
+    // 奪取: タックルは競り合いアリーナ(敵=loser)、 パスカットは単体インターセプト。
+    beats.push(option === "tackle"
+      ? { scene: { type: "contest", attacker, defender, message: `${defender.name}の${optLabel}が刺さった！${matched ? "読み的中、" : ""}ボール奪取！`, detail, outcome: "fail", phase: "result" }, judge: "tackle", se: ["save"], hitstop: 66 }
+      : { scene: { type: "pass", attacker, defender, message: `${defender.name}が${optLabel}！${matched ? "読み的中、" : ""}ボール奪取！`, detail, outcome: "fail", phase: "result", focus: "defender", forceAction: "intercept" }, judge: "intercept", se: ["save"], hitstop: 66 });
   } else {
-    // 防御失敗 → 相手の攻撃が通る
-    showJudge("break");
-    if (aiAction === "dribble") {
+    beats.push(aiAction === "dribble"
+      ? { scene: { type: "contest", attacker, defender, message: `${attacker.name}が${defender.name}の${optLabel}をかわして突破！`, detail, outcome: "success", phase: "result" }, judge: "break", se: ["dribble-break"] }
+      : { scene: { type: "pass", attacker, defender, message: `${attacker.name}が${defender.name}を越えてパスを通した！`, detail, outcome: "success", phase: "result", focus: "attacker", forceAction: "pass" }, judge: "through", se: ["pass-success"] });
+  }
+  const apply = () => {
+    if (defWin) {
+      bumpStat(defender.side, option === "tackle" ? "tackles" : "intercepts");
+      bumpPlayerStat(defender, option === "tackle" ? "tackles" : "intercepts");
+      knockbackBall(attacker, defender, 9);
+      turnover(defender, `${defender.name}が${attacker.name}から${optLabel}で奪取。`);
+    } else if (aiAction === "dribble") {
       advanceCarrier(attacker, 14);
-      setActionScene("dribble", attacker, defender, `${attacker.name}が${defender.name}の${optLabel}をかわして突破!`, `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}${matched ? "" : " / 読み外し"}`, "fail");
-      log(`${attacker.name}が${defender.name}の${optLabel}をかわして前進。`);
     } else {
       const recv = nearestMateAhead(attacker);
-      if (recv) {
-        state.match.carrierId = recv.id;
-        recv.x = clamp(recv.x + (recv.side === "home" ? 8 : -8), 8, 92);
-      }
-      setActionScene("pass", attacker, defender, `${attacker.name}が${defender.name}の${optLabel}を越えてパスを通した!`, `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}${matched ? "" : " / 読み外し"}`, "fail");
-      log(`${attacker.name}が${defender.name}を越えてパス成功。`);
+      if (recv) { state.match.carrierId = recv.id; recv.x = clamp(recv.x + (recv.side === "home" ? 8 : -8), 8, 92); }
     }
-    endTurn();
-  }
+  };
+  log(`${defender.name} ${optLabel} vs ${attacker.name} ${aiLabel} (読み${matched ? "的中" : "外し"})。${detail}。`);
+  runPlay(beats, apply, token);
 }
 
 function moveAiPlayers() {
@@ -2997,18 +3248,30 @@ function renderMatch() {
   const match = state.match;
   const carrier = getCarrier();
   const defender = carrier ? nearestOpponent(carrier) : null;
+  // 上段の大スロット = アニメ主役・フィールド従。 演出/結果/エンカウント/送り待ち時は CG ショーケース、
+  // 自由移動・コマンド選択中はピッチ。 (.field は DOM 常駐=ボール座標/トークン/cutin/テスト互換)
+  const scene = state.actionScene;
+  const showCG = !!(state.battle || state.gkChoice || state.advance || state.cutin || state.playSeq
+    || (scene && (scene.phase === "result" || scene.phase === "flow")));
+  const isGoal = !!(scene && scene.outcome === "goal");
   return `
     <div class="app-shell">
       <section class="match-area ct3">
-        <div class="field ${encounterFieldClass(carrier, defender)} ${state.fieldShake ? "shake" : ""} ${state.hitstop ? "hitstop" : ""}">
-          <div class="goal-label home-goal">自陣ゴール</div>
-          <div class="goal-label away-goal">相手ゴール</div>
-          <div class="attack-arrow">攻撃方向 →</div>
-          ${renderRadar(carrier)}
-          ${allPlayers().map((player) => renderToken(player, carrier, defender)).join("")}
-          <div class="ball" style="left:${carrier.x}%;top:${carrier.y}%;"><span class="ball-icon">⚽</span></div>
-          ${renderThreatOverlay(carrier, defender)}
-          ${state.passPicker ? renderPassPicker() : ""}
+        <div class="match-stage ${showCG ? "stage-cg" : "stage-pitch"} ${state.fieldShake ? "shake" : ""} ${state.hitstop ? "hitstop" : ""}">
+          <div class="field ${encounterFieldClass(carrier, defender)}">
+            <div class="goal-label home-goal">自陣ゴール</div>
+            <div class="goal-label away-goal">相手ゴール</div>
+            <div class="attack-arrow">攻撃方向 →</div>
+            ${renderRadar(carrier)}
+            ${allPlayers().map((player) => renderToken(player, carrier, defender)).join("")}
+            <div class="ball" style="left:${carrier.x}%;top:${carrier.y}%;"><span class="ball-icon">⚽</span></div>
+            ${renderThreatOverlay(carrier, defender)}
+            ${state.passPicker ? renderPassPicker() : ""}
+          </div>
+          ${showCG ? `<div class="field-cg ${scene ? scene.type : ""} ${scene && scene.type === "dribble" ? "grass-scroll" : ""} ${isGoal ? "is-goal" : ""}">
+            ${scene ? actionHeroHtml(scene) : ""}
+            ${isGoal ? renderGoalBanner(scene) : ""}
+          </div>` : ""}
           ${state.cutin ? renderCutin() : ""}
         </div>
         <div class="ct3-panel">
@@ -3022,7 +3285,7 @@ function renderMatch() {
               <span class="ct3-scoreline"><b>${match.score.home}</b> - <b>${match.score.away}</b></span>
               <span class="ct3-team ${match.possession === "away" ? "on" : ""}">${match.away.name}</span>
             </div>
-            <div class="ct3-box ct3-dist">${carrier.name} / ゴールまで <b>${Math.round(goalDistance(carrier))}</b></div>
+            <div class="ct3-box ct3-dist">${carrier.name} / ゴールまで <b>${Math.round(goalDistance(carrier))}</b>${match.ballAir ? `<span class="air-badge">⤴ 高い球! シュートで空中技</span>` : ""}</div>
           </div>
           <div class="ct3-col ct3-mid">
             ${renderActionScene()}
@@ -3036,7 +3299,7 @@ function renderMatch() {
               <div class="command-title">コマンド</div>
               <button class="cmd-row" data-action="battle" data-type="dribble" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ドリブル<span class="cmd-key">1</span></button>
               <button class="cmd-row" data-action="battle" data-type="pass" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> パス<span class="cmd-key">2</span></button>
-              <button class="cmd-row" data-action="battle" data-type="shoot" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> シュート<span class="cmd-key">3</span></button>
+              <button class="cmd-row ${match.ballAir ? "aerial" : ""}" data-action="battle" data-type="shoot" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ${match.ballAir ? "空中シュート" : "シュート"}<span class="cmd-key">3</span></button>
               <button class="cmd-row" data-action="battle" data-type="team" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> 連携スペル<span class="cmd-key">4</span></button>
               <div class="move-row">
                 <button class="move-btn" data-action="step" data-ybias="-10" title="左へかわす (A)">↖</button>
@@ -3725,7 +3988,7 @@ function bindEvents() {
 
   // メッセージ送り待ち中は、 実況メッセージ / フィールドのクリックでも次へ進める。
   if (state.advance) {
-    document.querySelectorAll(".action-scene-host, .field, .play-banner").forEach((el) => {
+    document.querySelectorAll(".match-stage, .field, .field-cg, .vn-box, .play-banner").forEach((el) => {
       el.addEventListener("click", (ev) => {
         if (ev.target.closest("[data-action], [data-select], [data-index]")) return;
         advancePlay();
@@ -3894,6 +4157,37 @@ window.__touhouSpellFutsalDebug = {
   },
   saveCurrentMatch() {
     saveMatch();
+  },
+  // 高い球(クロス)状態をセットして空中シュートUI/分岐を確認。
+  setHighBall(on = true) {
+    if (!state.match) startMatch();
+    state.match.ballAir = on;
+    render();
+    return state.match.ballAir;
+  },
+  // 距離別の空中シュート種別を確認 (決定的検証用にシード可)。
+  aerialKindAt(dist) {
+    const c = getCarrier();
+    if (!c) return null;
+    const goalX = c.side === "home" ? 100 : 0;
+    const saved = c.x;
+    c.x = c.side === "home" ? clamp(goalX - dist, 6, 94) : clamp(goalX + dist, 6, 94);
+    const kind = pickAerialShot(c);
+    c.x = saved;
+    return kind;
+  },
+  // アクションCG/競り合い/ボール演出の視認確認用に action-scene を直接出す。
+  showAction(type = "contest", outcome = "success", shotKind = null, actorId = null, defId = null) {
+    if (!state.match) startMatch();
+    if (window.__touhouSpellFutsalSkipStory) state.vsScreen = null;
+    const all = [...state.match.home.players, ...state.match.away.players];
+    const carrier = (actorId && all.find((p) => p.id === actorId)) || getCarrier() || state.match.home.players[0];
+    const def = (defId && all.find((p) => p.id === defId)) || nearestOpponent(carrier) || state.match.away.players.find((p) => p.role !== "GK") || state.match.away.players[0];
+    state.battle = null; state.cutin = null; state.vsScreen = null; state.vnScene = null;
+    setActionScene(type, carrier, def, `${carrier.name}の${type}テスト`, "検証用", outcome);
+    if (shotKind) state.actionScene.shotKind = shotKind;
+    render();
+    return { carrier: carrier.id, defender: def.id, type, outcome };
   },
   // 試合を即時に勝利させる (storyShown 確認用)
   autoWinMatch() {

@@ -120,8 +120,9 @@ def workflow(char_id, prompt, seed):
     }
 
 
-def wait_for_prompt(prompt_id):
-    for _ in range(180):
+def wait_for_prompt(prompt_id, max_wait=600):
+    # Anima 1024² は時折 VAE/モデル再読込で遅延するため余裕を持って待つ (10分)。
+    for _ in range(max_wait):
         history = request_json(f"/history/{urllib.parse.quote(prompt_id)}")
         if prompt_id in history:
             return history[prompt_id]

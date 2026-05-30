@@ -27,6 +27,8 @@ test("campaign match starts and resolves a command battle", async ({ page }) => 
   await expect(page.locator('.battle-card img[src="./assets/portraits/sanae.png"]')).toBeVisible();
   await page.locator('[data-action="resolve"][data-option="normal"]').click();
   await expect(page.locator(".battle-card")).toHaveCount(0);
+  // 行動は多段演出(仕掛け→守備→合否)。 合否beatまで送ると 攻撃値/守備値 が出る。
+  await page.evaluate(() => window.__touhouSpellFutsalDrainSeq({ untilResult: true }));
   await expect(page.locator(".action-scene")).toContainText(/攻撃値|守備値/);
   await expect(page.locator(".log-entry").first()).toBeVisible();
 });
@@ -131,6 +133,8 @@ test("sprite VN action scene explains the current play", async ({ page }) => {
   // 保持者は博麗神社の MF 早苗。スペル段はアクションに一致した技名 (シュート系) を表示する。
   await expect(page.locator('[data-action="resolve"][data-option="spell"]')).toContainText("シュート");
   await page.locator('[data-action="resolve"][data-option="normal"]').click();
+  // シュートは多段演出(発射→着弾→GK→合否)。 合否beatまで送ると GK値/攻撃値 が出る。
+  await page.evaluate(() => window.__touhouSpellFutsalDrainSeq({ untilResult: true }));
   await expect(page.locator(".action-scene")).toContainText(/GK値|攻撃値/);
 });
 
@@ -313,15 +317,16 @@ test("spell cut-in plays a 2-frame delay sprite animation", async ({ page }) => 
   await expect(page.locator('.cutin img[data-frame="1"]')).toBeVisible({ timeout: 2000 });
 });
 
-test("normal action keeps the field visible (no full-screen cut-in)", async ({ page }) => {
+test("normal action shows the CG showcase on top, not a full-screen cut-in overlay", async ({ page }) => {
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
   await page.getByRole("button", { name: /ドリブル/ }).click();
   await page.locator('[data-action="resolve"][data-option="normal"]').click();
-  // 通常アクションは盤面を隠さない (大型カットインは見せ場限定に格下げ)。フィールドと実況で結果を見せる。
+  await page.evaluate(() => window.__touhouSpellFutsalDrainSeq({ untilResult: true }));
+  // 通常アクションは全画面カットインoverlayを出さない (見せ場限定)。結果は上段CGショーケース(.field-cg)+下段実況で見せる。
   await expect(page.locator(".cutin.action-cutin")).toHaveCount(0);
-  await expect(page.locator(".field")).toBeVisible();
+  await expect(page.locator(".field-cg")).toBeVisible();
   await expect(page.locator(".action-scene")).toContainText(/攻撃値|守備値/);
 });
 
@@ -346,9 +351,9 @@ test("each action pauses for message-advance (paced play-by-play)", async ({ pag
   await page.locator('[data-action="resolve"][data-option="normal"]').click();
   // 行動後はメッセージ送り待ち: 「▶ 次へ」が出て、 送るまで展開が止まる。
   await expect(page.locator(".advance-btn")).toBeVisible();
-  // 送ると進行が続く。
+  // 送ると進行が続く (上段は state により ピッチ or 次の結果CG。 試合ステージは常在)。
   await page.locator(".advance-btn").click();
-  await expect(page.locator(".field")).toBeVisible();
+  await expect(page.locator(".match-stage")).toBeVisible();
 });
 
 test("auto-advance toggle is saved", async ({ page }) => {
@@ -368,8 +373,9 @@ test("spell shot offers the GK a spell-save counter option", async ({ page }) =>
   // 必殺シュートには GK 固有スペルでの「スペルセーブ」第4択が出る。
   await expect(page.locator(".gk-actions .gk-spellsave")).toBeVisible();
   await expect(page.locator(".gk-card")).toContainText("必殺シュート迫る");
-  // 選ぶと必殺 vs 必殺の鍔迫り合いクラッシュ演出 (CLASH ゲージ) が出る。
+  // 選ぶと GK行動→必殺 vs 必殺の鍔迫り合いクラッシュ beat へ。 送ってクラッシュまで進める。
   await page.locator('[data-action="gk-choice"][data-option="spellsave"]').click();
+  await page.evaluate(() => window.__touhouSpellFutsalDrainSeq({ untilCrash: true }));
   await expect(page.locator(".crash-scene .crash-banner")).toContainText("CLASH");
   await expect(page.locator(".crash-gauge")).toBeVisible();
   await expect(page.locator(".action-scene")).toContainText(/GK値|攻撃値/);
@@ -429,4 +435,30 @@ test("progress reset keeps the game playable (no playerXp crash)", async ({ page
   await page.getByRole("button", { name: "試合開始" }).click();
   await expect(page.locator(".field")).toBeVisible();
   await expect(page.locator(".player-token")).toHaveCount(22);
+});
+
+test("high ball (cross) enables an aerial shot and shows the indicator", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  // 高い球をセット → 空中シュートUI (バッジ + コマンド表記) が出る。
+  const air = await page.evaluate(() => window.__touhouSpellFutsalDebug.setHighBall(true));
+  expect(air).toBe(true);
+  await expect(page.locator(".air-badge")).toBeVisible();
+  await expect(page.locator(".cmd-row.aerial")).toContainText("空中シュート");
+  // 距離別に空中シュート種別が割り当たる (近=ヘディング/オーバーヘッド, 遠=ボレー/ダイビングヘッド)。
+  const kinds = await page.evaluate(() => [8, 20, 40].map((d) => window.__touhouSpellFutsalDebug.aerialKindAt(d)));
+  const valid = new Set(["header", "overhead", "volley", "diving_header"]);
+  for (const k of kinds) expect(valid.has(k)).toBe(true);
+});
+
+test("dribbling grounds a high ball (no stale aerial state)", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.setHighBall(true));
+  await expect(page.locator(".air-badge")).toBeVisible();
+  // W で運ぶと球は地上に戻り、 空中シュートUIが消える。
+  await page.keyboard.press("w");
+  await expect(page.locator(".air-badge")).toHaveCount(0);
 });
