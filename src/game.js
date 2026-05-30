@@ -220,6 +220,7 @@ const state = {
   playSeq: null,      // 多段演出シーケンサ (発動→過程→相手対応→合否)
   ballMotion: null,   // ⚽スプライト挙動 { mode, from, to }
   commandMenu: null,  // 原作Bボタン式の方向コマンドメニュー (上ドリブル/左パス/右シュート/下ワンツー)
+  drawerOpen: false,  // 補助ドロワー (ログ/ステータス/チームCG)。 原作CT3に無いので試合中は既定で畳む。
 };
 
 const SAVE_KEY = "touhouSpellFutsalSaveV1";
@@ -3482,8 +3483,17 @@ function renderMatch() {
   const showCG = !!(state.battle || state.gkChoice || state.advance || state.cutin || state.playSeq || stageScene);
   const isGoal = !!(scene && scene.outcome === "goal");
   return `
-    <div class="app-shell">
+    <div class="app-shell in-match">
       <section class="match-area ct3">
+        <div class="match-toolbar">
+          <span class="mt-title">東方スペルサッカー</span>
+          <span class="mt-spacer"></span>
+          <button class="mt-btn" data-action="openGallery">ギャラリー</button>
+          <button class="mt-btn" data-action="openHelp">遊び方</button>
+          <button class="mt-btn auto-toggle ${state.progress.autoAdvance ? "on" : ""}" data-action="toggleAuto" title="ONで自動的にメッセージを送る">自動送り ${state.progress.autoAdvance ? "ON" : "OFF"}</button>
+          <button class="mt-btn" data-action="toggleDrawer" title="ログ/ステータス">${state.drawerOpen ? "▾ 閉じる" : "▸ 詳細"}</button>
+          ${!match.finished ? `<button class="mt-btn" data-action="reset">チーム選択へ戻る</button>` : ""}
+        </div>
         <div class="match-stage ${showCG ? "stage-cg" : "stage-pitch"} ${state.fieldShake ? "shake" : ""} ${state.hitstop ? "hitstop" : ""}">
           <div class="field ${encounterFieldClass(carrier, defender)}">
             <div class="goal-label home-goal">自陣ゴール</div>
@@ -3518,6 +3528,7 @@ function renderMatch() {
             <div class="ct3-box ct3-map" title="フィールドマップ"><div class="ct3-map-title">MAP</div>${renderRadar(carrier)}</div>
           </div>
           <div class="ct3-col ct3-mid">
+            ${scene && scene.type === "kickoff" && match.preMatchDialogue ? renderEventDialogue(match.preMatchDialogue) : ""}
             ${renderActionScene()}
           </div>
           <div class="ct3-col ct3-right">
@@ -3552,19 +3563,14 @@ function renderMatch() {
           </div>
         </div>
       </section>
-      <aside class="side-panel">
+      <aside class="match-drawer ${state.drawerOpen ? "open" : ""}" aria-hidden="${state.drawerOpen ? "false" : "true"}">
+        <div class="drawer-head">
+          <span class="drawer-title">詳細 / ログ</span>
+          <button class="drawer-close" data-action="toggleDrawer">✕</button>
+        </div>
         <div class="team-cg-strip">
           <img src="${teamCg(match.home)}" alt="${match.home.name}" />
           <img src="${teamCg(match.away)}" alt="${match.away.name}" />
-        </div>
-        <div class="panel-section">
-          <button data-action="openGallery">ギャラリー</button>
-          <button data-action="openHelp">遊び方</button>
-          <button class="auto-toggle ${state.progress.autoAdvance ? "on" : ""}" data-action="toggleAuto" title="ONで自動的にメッセージを送る">自動送り ${state.progress.autoAdvance ? "ON" : "OFF"}</button>
-        </div>
-        <div class="panel-section">
-          <h2 class="section-title">試合前イベント</h2>
-          ${renderEventDialogue(match.preMatchDialogue)}
         </div>
         <div class="panel-section">
           <h2 class="section-title">保持者ステータス</h2>
@@ -3576,12 +3582,11 @@ function renderMatch() {
         </div>
         <div class="panel-section">
           ${state.mode === "campaign" && state.campaign ? `<div class="campaign-progress">STAGE ${state.campaign.index + 1} / ${state.campaign.opponents.length}　勝利 ${state.campaign.wins}</div>` : ""}
-          <button data-action="reset">チーム選択へ戻る</button>
         </div>
-        ${match.finished ? renderResultPanel() : ""}
         <div class="log">${state.logs.map((entry) => `<div class="log-entry">${entry}</div>`).join("")}</div>
       </aside>
     </div>
+    ${match.finished ? `<div class="result-overlay">${renderResultPanel()}</div>` : ""}
     ${state.battle ? renderBattle() : ""}
     ${state.vsScreen ? renderVsScreen() : ""}
     ${state.interrupt ? renderInterruptPrompt() : ""}
@@ -3630,6 +3635,7 @@ function renderResultPanel() {
       ${campaignWon && !campaignCleared ? `<button class="primary" data-action="nextCampaign">次の対戦へ</button>` : ""}
       ${campaignCleared ? `<p class="ending-cta-text">幻想郷トーナメント 制覇</p><button class="primary" data-action="viewEnding">エンディングを見る</button>` : ""}
       <button class="primary" data-action="retry">再戦する</button>
+      <button data-action="reset">チーム選択へ戻る</button>
     </div>
   `;
 }
@@ -4164,6 +4170,10 @@ function bindEvents() {
       if (action === "cmdClose") closeCommandMenu();
       if (action === "teamCmd") teamCommand(button.dataset.cmd);
       if (action === "advancePlay") advancePlay();
+      if (action === "toggleDrawer") {
+        state.drawerOpen = !state.drawerOpen;
+        render();
+      }
       if (action === "toggleAuto") {
         state.progress.autoAdvance = !state.progress.autoAdvance;
         saveProgress();

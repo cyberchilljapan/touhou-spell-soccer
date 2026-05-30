@@ -30,6 +30,8 @@ test("campaign match starts and resolves a command battle", async ({ page }) => 
   // 行動は多段演出(仕掛け→守備→合否)。 合否beatまで送ると 攻撃値/守備値 が出る。
   await page.evaluate(() => window.__touhouSpellFutsalDrainSeq({ untilResult: true }));
   await expect(page.locator(".action-scene")).toContainText(/攻撃値|守備値/);
+  // ログは原作CT3に無いので補助ドロワー(既定で畳む)へ。 開いて確認。
+  await page.locator('.mt-btn[data-action="toggleDrawer"]').click();
   await expect(page.locator(".log-entry").first()).toBeVisible();
 });
 
