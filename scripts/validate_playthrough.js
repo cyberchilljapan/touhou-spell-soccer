@@ -18,7 +18,8 @@ const URL = "http://127.0.0.1:8787/";
   const snap = () => page.evaluate(() => ({
     turn: (document.querySelector(".ct3-clock") || {}).textContent || "",
     score: (document.querySelector(".ct3-scoreline") || {}).textContent || "",
-    hasCmd: !!document.querySelector('.cmd-row[data-type="dribble"]:not([disabled])'),
+    hasCmd: !!document.querySelector('.cmd-row[data-type="pass"]:not([disabled])'),
+    hasBattle: !!document.querySelector('[data-action="resolve"]'),
     hasGk: !!document.querySelector('[data-action="gk-choice"]'),
     hasInterrupt: !!document.querySelector('[data-action="interrupt"]'),
     hasAdvance: !!document.querySelector(".advance-btn"),
@@ -33,19 +34,23 @@ const URL = "http://127.0.0.1:8787/";
       await click('[data-action="gk-choice"]');
     } else if (st.hasInterrupt) {
       await click('[data-action="interrupt"][data-option="tackle"]');
-    } else if (st.hasCmd) {
-      const c = ["dribble", "pass", "shoot", "team", "dribble", "shoot"][steps % 6];
-      await click(`.cmd-row[data-type="${c}"]`);
-      await page.waitForTimeout(40);
-      // 受け手選択(pass)
-      const badge = page.locator('.pass-target-badge');
-      if (await badge.count()) await click('.pass-target-badge');
-      // tier を巡回 (normal/spell/ultimate) で全 beat 経路を踏む
+    } else if (st.hasBattle) {
+      // エンカウント/シュート等のバトルカード → 段階を巡回して解決。
       const tier = ["normal", "normal", "spell", "ultimate"][steps % 4];
-      await page.waitForTimeout(30);
       let r = page.locator(`[data-action="resolve"][data-option="${tier}"]`);
-      if (!(await r.count())) r = page.locator('[data-action="resolve"][data-option="normal"]');
       await click(`[data-action="resolve"][data-option="${(await r.count()) ? tier : "normal"}"]`);
+    } else if (st.hasCmd) {
+      const r6 = steps % 6;
+      if (r6 < 3) {
+        // ドリブル前進=移動。 W で進める (敵が近ければエンカウント)。
+        try { await page.keyboard.press("w"); } catch (e) {}
+      } else {
+        const c = ["pass", "shoot", "team"][r6 - 3];
+        await click(`.cmd-row[data-type="${c}"]`);
+        await page.waitForTimeout(40);
+        const badge = page.locator('.pass-target-badge');
+        if (await badge.count()) await click('.pass-target-badge');
+      }
     } else if (st.hasAdvance) {
       await click(".advance-btn");
     } else {

@@ -586,6 +586,31 @@ button:disabled {
 
 .radar svg { width: 100%; height: 100%; display: block; }
 
+/* フィールドマップを常時表示 (演出CG表示中でも状況把握できるよう、 隅に固定オーバーレイ)。 */
+.stage-radar {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+.stage-radar .radar {
+  top: 8px;
+  left: 8px;
+  width: 152px;
+  height: 96px;
+  z-index: 8;
+  background: rgba(8, 26, 16, 0.82);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.7);
+}
+/* 攻撃側ターンが分かるよう枠色をうっすら。 */
+.stage-radar .radar::after {
+  content: "MAP";
+  position: absolute;
+  top: 1px; right: 3px;
+  font-size: 8px; font-weight: 900;
+  color: rgba(255, 255, 255, 0.55);
+}
+
 /* ゴール時の全画面白フラッシュ (CT3 の衝撃)。 */
 .screen-flash {
   position: fixed;

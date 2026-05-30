@@ -21,7 +21,7 @@ test("campaign match starts and resolves a command battle", async ({ page }) => 
   await expect(page.locator(".ct3-timer")).toContainText("TURN 1");
   await expect(page.locator(".ct3-panel")).toBeVisible();
 
-  await page.getByRole("button", { name: /ドリブル/ }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.startBattle("dribble"));
   await expect(page.locator(".battle-card")).toBeVisible();
   await expect(page.locator(".action-scene")).toContainText("COMMAND / ドリブル突破");
   await expect(page.locator('.battle-card img[src="./assets/portraits/sanae.png"]')).toBeVisible();
@@ -48,7 +48,7 @@ test("all team portraits can appear in battle", async ({ page }) => {
     await page.getByRole("button", { name: "フリー対戦" }).click();
     await page.locator(`[data-select="home"][data-team]`, { hasText: item.team }).click();
     await page.getByRole("button", { name: "試合開始" }).click();
-    await page.getByRole("button", { name: /ドリブル/ }).click();
+    await page.evaluate(() => window.__touhouSpellFutsalDebug.startBattle("dribble"));
     await expect(page.locator(`.battle-card img[src="./assets/portraits/${item.portrait}"]`).first()).toBeVisible();
   }
 });
@@ -58,7 +58,7 @@ test("spell command shows dedicated cut-in art", async ({ page }) => {
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.locator('[data-select="home"][data-team="youkai_mountain"]').click();
   await page.getByRole("button", { name: "試合開始" }).click();
-  await page.getByRole("button", { name: /ドリブル/ }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.startBattle("dribble"));
   await page.locator('[data-action="resolve"][data-option="spell"]').click();
   // カットインは {id}.png(タメ) と {id}_b.png(放出) を交互にめくるので両フレームを許容。
   await expect(page.locator(".cutin img")).toBeVisible();
@@ -69,7 +69,7 @@ test("non-leader character also shows dedicated cut-in art", async ({ page }) =>
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
-  await page.getByRole("button", { name: /ドリブル/ }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.startBattle("dribble"));
   await page.locator('[data-action="resolve"][data-option="spell"]').click();
   await expect(page.locator(".cutin img")).toBeVisible();
   await expect(page.locator(".cutin img")).toHaveAttribute("src", /\/assets\/cutins\/sanae(_b)?\.png$/);
@@ -237,7 +237,7 @@ test("encounter visualization shows carrier aura and threat indicators", async (
 test("vs screen appears when battle starts", async ({ page }) => {
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "異変開始" }).click();
-  await page.getByRole("button", { name: /ドリブル/ }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.startBattle("dribble"));
   await expect(page.locator(".vs-screen")).toBeVisible();
 });
 
@@ -300,7 +300,7 @@ test("spell cut-in shows the action-matched move name (dribble move)", async ({ 
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
-  await page.getByRole("button", { name: /ドリブル/ }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.startBattle("dribble"));
   await page.locator('[data-action="resolve"][data-option="spell"]').click();
   // ドリブルのスペル技名はドリブル系の技名 (アクション一致) を出す。
   await expect(page.locator(".cutin .spell-name")).toContainText("突破");
@@ -310,7 +310,7 @@ test("spell cut-in plays a 2-frame delay sprite animation", async ({ page }) => 
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
-  await page.getByRole("button", { name: /ドリブル/ }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.startBattle("dribble"));
   await page.locator('[data-action="resolve"][data-option="spell"]').click();
   // タメ(frame0) から 放出(frame1) へディレイ式にめくれることを確認。
   await expect(page.locator('.cutin img[data-frame="0"]')).toBeVisible();
@@ -321,7 +321,7 @@ test("normal action shows the CG showcase on top, not a full-screen cut-in overl
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
-  await page.getByRole("button", { name: /ドリブル/ }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.startBattle("dribble"));
   await page.locator('[data-action="resolve"][data-option="normal"]').click();
   await page.evaluate(() => window.__touhouSpellFutsalDrainSeq({ untilResult: true }));
   // 通常アクションは全画面カットインoverlayを出さない (見せ場限定)。結果は上段CGショーケース(.field-cg)+下段実況で見せる。
@@ -347,7 +347,7 @@ test("each action pauses for message-advance (paced play-by-play)", async ({ pag
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
-  await page.getByRole("button", { name: /ドリブル/ }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.startBattle("dribble"));
   await page.locator('[data-action="resolve"][data-option="normal"]').click();
   // 行動後はメッセージ送り待ち: 「▶ 次へ」が出て、 送るまで展開が止まる。
   await expect(page.locator(".advance-btn")).toBeVisible();

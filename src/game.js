@@ -2454,9 +2454,8 @@ function buildShootTailBeats(carrier, gk, baseAtk, gkOption, useSpell, attackTie
     if (goal) {
       bumpStat(carrier.side, "goals"); bumpPlayerStat(carrier, "goals");
       match.score[carrier.side] += 1;
-      pushCommentary(goalCommentary(carrier));
+      pushCommentary(goalCommentary(carrier)); // 「○○のゴール! 1-0とする!」(これ1本に集約)
       kickoff(opponentSide(carrier.side));
-      log(`📢 ${carrier.name}のゴール！ ${detail}。`);
     } else if (spill) {
       bumpStat(gk.side, "saves"); bumpPlayerStat(gk, "saves");
       const nearby = allPlayers().filter((p) => p.id !== gk.id && p.role !== "GK").map((p) => ({ p, d: distance(p, gk) })).sort((a, b) => a.d - b.d)[0];
@@ -2485,36 +2484,42 @@ function advanceCarrier(player, amount) {
 // 保持者を盤面で歩かせられる状態か (自軍ターン・バトル/送り待ち/各種モーダル中でない)。
 function carrierCanMove() {
   return state.screen === "match" && Boolean(state.match) && !state.match.finished
-    && state.match.possession === "home" && !state.battle && !state.advance
+    && state.match.possession === "home" && !state.battle && !state.advance && !state.playSeq
     && !state.passPicker && !state.gkChoice && !state.interrupt && !state.vnScene;
 }
 
-// キャプ翼3風: 保持者を1歩ドリブル前進させる (turn は消費しない=endTurn を呼ばない)。
-// W=前進 / A・D=斜め前進でかわす。 守備者に接触したら既存ドリブルバトルへ自動遷移。
+// 原作CT3: ドリブル = 移動。 ただし敵が近ければエンカウント(1対1のドリブル突破バトル)。
+// 移動前に敵接近を判定し、 近ければバトルへ(=勝手に相手へ突っ込まない)。 離れていれば1マス前進。
+const ENCOUNTER_RANGE = 16;
 function stepCarrier(yBias) {
   if (!carrierCanMove()) return;
   const carrier = getCarrier();
   if (!carrier || carrier.role === "GK") return;
-  if (state.match) state.match.ballAir = false; // ドリブルで運べば球は足元(地上)に
-
+  // 敵が近い → エンカウント (移動せず、 ドリブル突破の1対1へ)。
+  const near = nearestOpponent(carrier);
+  if (near && distance(carrier, near) < ENCOUNTER_RANGE) {
+    openBattle("dribble");
+    return;
+  }
+  // 離れている → 1マス前進 (ボールは足元、 他プレイヤーも1ターン移動)。
+  if (state.match) state.match.ballAir = false;
   const dir = carrier.side === "home" ? 1 : -1;
   carrier.x = clamp(carrier.x + 7 * dir, 8, 92);
   if (yBias) carrier.y = clamp(carrier.y + yBias, 16, 84);
   moveAiPlayers();
   audio.play("kick");
-  const def = nearestOpponent(carrier);
-  if (def && distance(carrier, def) < 14) {
-    // 接触: 立ちはだかる守備者 → 既存ドリブルバトル (VS→tier→突破/奪取)。
+  const after = nearestOpponent(carrier);
+  // 前進後に敵が間合いに入っていれば、 そのままエンカウント。
+  if (after && distance(carrier, after) < ENCOUNTER_RANGE) {
     openBattle("dribble");
-  } else {
-    const near = def || nearestOpponent(carrier);
-    if (goalDistance(carrier) < 16) {
-      setActionScene("dribble", carrier, near, `${carrier.name}、ゴール前へ斬り込む! シュートだ!`, "→ シュート / W でさらに前へ", "success", "choice");
-    } else {
-      setActionScene("dribble", carrier, near, `${carrier.name}、ボールを持って駆け上がる!`, "W=前進 / A・D=かわす / 接触でドリブル勝負", "", "choice");
-    }
-    render();
+    return;
   }
+  if (goalDistance(carrier) < 16) {
+    setActionScene("dribble", carrier, after, `${carrier.name}、ゴール前へ斬り込む! シュートだ!`, "→ シュート / ドリブル前進(1)でさらに前へ", "success", "choice");
+  } else {
+    setActionScene("dribble", carrier, after, `${carrier.name}、ボールを持って前進!`, "ドリブル前進=移動 / 敵が近いとエンカウント / パスは2", "", "choice");
+  }
+  render();
 }
 
 function knockbackBall(carrier, defender, strength) {
@@ -2844,7 +2849,7 @@ function resolveInterrupt(option) {
       if (recv) { state.match.carrierId = recv.id; recv.x = clamp(recv.x + (recv.side === "home" ? 8 : -8), 8, 92); }
     }
   };
-  log(`${defender.name} ${optLabel} vs ${attacker.name} ${aiLabel} (読み${matched ? "的中" : "外し"})。${detail}。`);
+  log(`${defender.name} ${optLabel} vs ${attacker.name} ${aiLabel}。${detail}。`);
   runPlay(beats, apply, token);
 }
 
@@ -3262,7 +3267,6 @@ function renderMatch() {
             <div class="goal-label home-goal">自陣ゴール</div>
             <div class="goal-label away-goal">相手ゴール</div>
             <div class="attack-arrow">攻撃方向 →</div>
-            ${renderRadar(carrier)}
             ${allPlayers().map((player) => renderToken(player, carrier, defender)).join("")}
             <div class="ball" style="left:${carrier.x}%;top:${carrier.y}%;"><span class="ball-icon">⚽</span></div>
             ${renderThreatOverlay(carrier, defender)}
@@ -3272,6 +3276,7 @@ function renderMatch() {
             ${scene ? actionHeroHtml(scene) : ""}
             ${isGoal ? renderGoalBanner(scene) : ""}
           </div>` : ""}
+          <div class="stage-radar" title="フィールドマップ (常時表示)">${renderRadar(carrier)}</div>
           ${state.cutin ? renderCutin() : ""}
         </div>
         <div class="ct3-panel">
@@ -3297,7 +3302,7 @@ function renderMatch() {
               ${renderCarrierStatBox(carrier)}
             ` : `
               <div class="command-title">コマンド</div>
-              <button class="cmd-row" data-action="battle" data-type="dribble" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ドリブル<span class="cmd-key">1</span></button>
+              <button class="cmd-row" data-action="step" data-ybias="0" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ドリブル前進<span class="cmd-key">1</span></button>
               <button class="cmd-row" data-action="battle" data-type="pass" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> パス<span class="cmd-key">2</span></button>
               <button class="cmd-row ${match.ballAir ? "aerial" : ""}" data-action="battle" data-type="shoot" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ${match.ballAir ? "空中シュート" : "シュート"}<span class="cmd-key">3</span></button>
               <button class="cmd-row" data-action="battle" data-type="team" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> 連携スペル<span class="cmd-key">4</span></button>
@@ -4076,7 +4081,8 @@ function bindKeyboardEvents() {
       if (k === "w" || k === "W") { stepCarrier(0); e.preventDefault(); return; }
       if (k === "a" || k === "A") { stepCarrier(-10); e.preventDefault(); return; }
       if (k === "d" || k === "D") { stepCarrier(10); e.preventDefault(); return; }
-      if (k === "ArrowUp" || k === "1") { openBattle("dribble"); e.preventDefault(); return; }
+      // 原作CT3: ドリブル=1マス前進 (守備と接触したときだけエンカウント)。 パス/シュートは直接行動。
+      if (k === "ArrowUp" || k === "1") { stepCarrier(0); e.preventDefault(); return; }
       if (k === "ArrowLeft" || k === "2") { openBattle("pass"); e.preventDefault(); return; }
       if (k === "ArrowRight" || k === "3") { openBattle("shoot"); e.preventDefault(); return; }
       if (k === "ArrowDown" || k === "4") {
@@ -4157,6 +4163,13 @@ window.__touhouSpellFutsalDebug = {
   },
   saveCurrentMatch() {
     saveMatch();
+  },
+  // 原作モデルでは dribble バトルは接触エンカウント時のみ。 テスト用に直接エンカウントを起こす。
+  startBattle(type = "dribble") {
+    if (!state.match) startMatch();
+    if (window.__touhouSpellFutsalSkipStory) state.vsScreen = null;
+    openBattle(type);
+    return !!state.battle;
   },
   // 高い球(クロス)状態をセットして空中シュートUI/分岐を確認。
   setHighBall(on = true) {
