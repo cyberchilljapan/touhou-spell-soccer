@@ -271,6 +271,22 @@ test("pass picker opens with candidate badges", async ({ page }) => {
   await expect(page.locator(".pass-target-badge").first()).toBeVisible();
 });
 
+// 回帰防止: 行動後(結果シーンが残った状態)でもパスピッカーの badge が見えて「クリックで」通ること。
+// 旧バグ: ピッカーが .field 内→stage-cg で visibility:hidden / badge が scale パルスでクリック不安定。
+test("pass target badge is clickable after a prior action (not just by keyboard)", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "異変開始" }).click();
+  // 直前の行動の結果シーン (phase=result) を残してから開く = 実プレイの状況
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.showAction("dribble", "success"));
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.openPassPicker());
+  const badge = page.locator(".pass-target-badge").first();
+  await expect(badge).toBeVisible();
+  await badge.click(); // force なしで通る = 安定してクリックできる
+  // パスは VS 画面 or バトルカードへ進む (ピッカーは閉じる)
+  await expect(page.locator(".pass-picker-overlay")).toHaveCount(0);
+  await expect(page.locator(".vs-screen, .battle-card").first()).toBeVisible();
+});
+
 test("mid-match save and resume button appears", async ({ page }) => {
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "異変開始" }).click();

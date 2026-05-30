@@ -2955,9 +2955,11 @@ button:disabled {
   min-width: 64px;
 }
 
+/* 位置を動かす scale パルスは「常に動く=クリック対象が不安定」になるため、 グロウ点滅に変更
+   (badge は translate(-50%,-50%) 固定のまま=クリック確実)。 */
 @keyframes passBadgePulse {
-  0% { transform: translate(-50%, -50%) scale(1); }
-  100% { transform: translate(-50%, -50%) scale(1.08); }
+  0% { box-shadow: 0 6px 14px rgba(0, 0, 0, 0.5); border-color: var(--touhou-gold); }
+  100% { box-shadow: 0 0 16px 3px rgba(248, 214, 121, 0.85), 0 6px 14px rgba(0, 0, 0, 0.5); border-color: #fff; }
 }
 
 .ptb-num {

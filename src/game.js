@@ -3579,7 +3579,9 @@ function renderMatch() {
   if (!stageScene && freeMove) {
     stageScene = { type: "dribble", attacker: carrier, defender, message: "", detail: "", outcome: "", phase: "move", focus: "attacker", forceAction: "dribble" };
   }
-  const showCG = !!(state.battle || state.gkChoice || state.advance || state.cutin || state.playSeq || stageScene);
+  // パス先ピッカー中はピッチを表示する (badge は .field 内に座標配置=CG showcase で隠れると
+  // クリック不能になるため)。 パスは「ピッチ上で味方位置を見て出す」ので原作的にも正しい。
+  const showCG = !state.passPicker && !!(state.battle || state.gkChoice || state.advance || state.cutin || state.playSeq || stageScene);
   const isGoal = !!(scene && scene.outcome === "goal");
   const isCelebrate = !!(scene && scene.outcome === "celebrate");
   // POV-A: シュートがGKに迫る局面 (GK行動=focus defender) を背後ローアングル遠近で見せる。
