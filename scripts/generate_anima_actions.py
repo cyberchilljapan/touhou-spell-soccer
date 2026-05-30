@@ -57,7 +57,8 @@ NEG = ("worst quality, low quality, score_1, score_2, score_3, blurry, jpeg arti
        "top hat, tuxedo, business suit, magician costume, modern clothes, "
        "military uniform, soldier, army helmet, steel helmet, peaked cap, backpack, rifle, gun, "
        "bad hands, bad anatomy, malformed hands, mutated hands, extra fingers, missing fingers, "
-       "fused fingers, too many fingers, extra arms, extra legs, extra limbs, deformed")
+       "fused fingers, too many fingers, extra arms, extra legs, extra limbs, deformed, "
+       "blob, amorphous, melted body, fused limbs, limbs fused to torso, indistinct anatomy, shapeless mass")
 
 # 各動作 3 コマ (タメ→動作→振り抜き) のポーズ。 ボール無し・キャラ本来の衣装・白背景・全身。
 ACTION_PHASES = {
@@ -154,7 +155,8 @@ SAMPLE_CHARS = {
 
 
 def workflow(char_id, action, phase_desc, nl_look, seed):
-    positive = f"{POS_PREFIX}{nl_look}, {phase_desc}, plain solid white background, clean cel shading, full body visible, single character, dynamic action pose, no ball"
+    # 「clear separated limbs / coherent anatomy」で極端ポーズ(オーバーヘッド/ダイブ等)の塊化・破綻を抑制。
+    positive = f"{POS_PREFIX}{nl_look}, {phase_desc}, plain solid white background, clean cel shading, full body visible with clear separated arms and legs, anatomically coherent readable pose, single character, dynamic action pose, no ball"
     return {
         "1": {"class_type": "UNETLoader", "inputs": {"unet_name": "anima-base-v1.0.safetensors", "weight_dtype": "default"}},
         "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen_3_06b_base.safetensors", "type": "stable_diffusion", "device": "default"}},
