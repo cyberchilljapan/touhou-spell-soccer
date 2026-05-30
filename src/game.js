@@ -1944,6 +1944,20 @@ function renderCelebrateBanner(scene) {
   `;
 }
 
+// 実機CT3 シュートvsGKの背後ローアングルPOV (POV-A): 手前に守備の背中シルエットを大きく並べ、
+// 奥の主役は小さく見せて遠近を強調。 専用CG素材が無いので頭+肩のCSSシルエットで近似。
+function renderPovForeground() {
+  // 手前に4人ぶんの背中シルエット (左右に見切れ、 中央2人が大きい)。
+  return `
+    <div class="pov-foreground">
+      <div class="pov-fig f0"></div>
+      <div class="pov-fig f1"></div>
+      <div class="pov-fig f2"></div>
+      <div class="pov-fig f3"></div>
+    </div>
+  `;
+}
+
 // CT3 右カラムの保持者ステータス (相手ターン中など、 コマンドを出さないときに表示)。
 function renderCarrierStatBox(p) {
   if (!p) return "";
@@ -3553,6 +3567,8 @@ function renderMatch() {
   const showCG = !!(state.battle || state.gkChoice || state.advance || state.cutin || state.playSeq || stageScene);
   const isGoal = !!(scene && scene.outcome === "goal");
   const isCelebrate = !!(scene && scene.outcome === "celebrate");
+  // POV-A: シュートがGKに迫る局面 (GK行動=focus defender) を背後ローアングル遠近で見せる。
+  const isPovA = !!(scene && scene.type === "shoot" && scene.focus === "defender" && !isGoal && !isCelebrate);
   return `
     <div class="app-shell in-match">
       <section class="match-area ct3">
@@ -3575,8 +3591,9 @@ function renderMatch() {
             ${renderThreatOverlay(carrier, defender)}
             ${state.passPicker ? renderPassPicker() : ""}
           </div>
-          ${showCG ? `<div class="field-cg ${stageScene ? stageScene.type : ""} ${stageScene && stageScene.type === "dribble" ? "grass-scroll" : ""} ${isGoal ? "is-goal" : ""} ${isCelebrate ? "is-celebrate" : ""}">
+          ${showCG ? `<div class="field-cg ${stageScene ? stageScene.type : ""} ${stageScene && stageScene.type === "dribble" ? "grass-scroll" : ""} ${isGoal ? "is-goal" : ""} ${isCelebrate ? "is-celebrate" : ""} ${isPovA ? "is-povA" : ""}">
             ${stageScene && !isCelebrate ? actionHeroHtml(stageScene) : ""}
+            ${isPovA ? renderPovForeground() : ""}
             ${isGoal ? renderGoalBanner(scene) : ""}
             ${isCelebrate ? renderCelebrateBanner(scene) : ""}
           </div>` : ""}
@@ -4538,7 +4555,7 @@ window.__touhouSpellFutsalDebug = {
     return kind;
   },
   // アクションCG/競り合い/ボール演出の視認確認用に action-scene を直接出す。
-  showAction(type = "contest", outcome = "success", shotKind = null, actorId = null, defId = null) {
+  showAction(type = "contest", outcome = "success", shotKind = null, actorId = null, defId = null, focus = null) {
     if (!state.match) startMatch();
     if (window.__touhouSpellFutsalSkipStory) state.vsScreen = null;
     const all = [...state.match.home.players, ...state.match.away.players];
@@ -4547,6 +4564,7 @@ window.__touhouSpellFutsalDebug = {
     state.battle = null; state.cutin = null; state.vsScreen = null; state.vnScene = null;
     setActionScene(type, carrier, def, `${carrier.name}の${type}テスト`, "検証用", outcome);
     if (shotKind) state.actionScene.shotKind = shotKind;
+    if (focus) state.actionScene.focus = focus;
     render();
     return { carrier: carrier.id, defender: def.id, type, outcome };
   },

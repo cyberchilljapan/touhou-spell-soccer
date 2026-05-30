@@ -1213,6 +1213,19 @@ button:disabled {
 .celebrate-hero { height: clamp(120px, 30vh, 220px); width: auto; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.7)) saturate(1.1); animation: goalFaceShake 240ms ease-in-out 3; }
 .celebrate-mate { width: clamp(48px, 9vw, 78px); height: clamp(48px, 9vw, 78px); object-fit: cover; border: 2px solid #fff; border-radius: 4px; filter: brightness(0.9); align-self: flex-end; margin-bottom: 8px; }
 
+/* 実機CT3 シュートvsGK 背後ローアングルPOV-A: 奥の主役を小さく、 手前に守備の背中シルエットを大きく。 */
+.field-cg.is-povA .action-hero { transform: scale(0.72) translateY(-15%); transform-origin: center 42%; }
+.pov-foreground { position: absolute; left: 0; right: 0; bottom: 0; height: 52%; z-index: 4; pointer-events: none; filter: blur(1.2px); }
+.pov-foreground::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 64%; background: linear-gradient(180deg, transparent, rgba(0,0,0,0.45)); }
+/* 各フィギュア = 背中向きの選手 (頭+肩。 紺グラデ+上端リムライトでピント外れの前景に)。 */
+.pov-fig { position: absolute; bottom: 0; height: 78%; }
+.pov-fig::after { content: ""; position: absolute; left: 50%; transform: translateX(-50%); bottom: 48%; width: 34%; height: 30%; border-radius: 50% 50% 46% 46%; background: linear-gradient(180deg, #20243a, #0a0c16); box-shadow: 0 -1px 0 rgba(150,180,255,0.18) inset; }
+.pov-fig::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 54%; background: linear-gradient(180deg, #1a1e30, #06070d); border-radius: 42% 42% 0 0 / 70% 70% 0 0; box-shadow: 0 -2px 0 rgba(150,180,255,0.12) inset; }
+.pov-fig.f0 { left: -4%; width: 28%; }
+.pov-fig.f1 { left: 21%; width: 30%; z-index: 2; height: 84%; }
+.pov-fig.f2 { left: 50%; width: 30%; z-index: 2; height: 84%; }
+.pov-fig.f3 { left: 77%; width: 28%; }
+
 .vn-advance-hint {
   margin-top: 6px;
   font-size: 12px;
