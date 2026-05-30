@@ -1902,6 +1902,7 @@ function actionTitle(type) {
   return {
     dribble: "ドリブル突破",
     pass: "パス展開",
+    oneTwo: "ワンツー",
     shoot: "シュート勝負",
     team: "連携スペル",
   }[type] || "コマンド";
@@ -1942,6 +1943,17 @@ function nearestMateAhead(player) {
 
 function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+// 原作の「ゴールデンコンビ」翻案: 特定ペアのワンツーは威力ボーナス。
+const COMBO_PAIRS = [
+  ["reimu", "marisa"], ["lunasa", "merlin"], ["lunasa", "lyrica"], ["merlin", "lyrica"],
+  ["sakuya", "remilia"], ["sanae", "kanako"], ["youmu", "kasen"], ["suika", "yuugi"],
+  ["nitori", "momiji"], ["satori", "orin"], ["byakuren", "ichirin"], ["miko", "futo"],
+];
+function isComboPair(a, b) {
+  if (!a || !b) return false;
+  return COMBO_PAIRS.some(([x, y]) => (a.id === x && b.id === y) || (a.id === y && b.id === x));
 }
 
 // 点 p から線分 a-b への最短距離 (パスの導線=ボール軌道に対する近さ判定用)。
@@ -2010,6 +2022,7 @@ function clearRewardLabels() {
 const VS_LABELS = {
   dribble: "DRIBBLE BREAK",
   pass: "PASS PLAY",
+  oneTwo: "ONE-TWO",
   shoot: "SHOOT vs GK",
   team: "TEAM SPELL",
 };
@@ -2108,6 +2121,12 @@ function openBattle(type, skipRivalry = false) {
       const intc = passInterceptor(carrier, receiver);
       defender = intc.p;
       if (receiver) passExtra = { passTargetId: receiver.id, laneDist: intc.laneDist };
+    } else if (type === "oneTwo") {
+      // ワンツー: 壁役=前方の味方。 行き(保持者→壁)導線の敵がカット役。
+      const wall = nearestMateAhead(carrier);
+      const intc = wall ? passInterceptor(carrier, wall) : { p: nearestOpponent(carrier), laneDist: 99 };
+      defender = intc.p || nearestOpponent(carrier);
+      if (wall) passExtra = { wallId: wall.id, laneDist: intc.laneDist };
     } else {
       defender = nearestOpponent(carrier);
     }
@@ -2282,6 +2301,45 @@ function resolveBattle(option) {
       }
     };
     log(`${carrier.name}→${receiver.name} パス勝負 (${tier})。${detail}。`);
+    return runPlay(beats, apply, match.matchToken);
+  }
+
+  if (state.battle.type === "oneTwo") {
+    // 原作ワンツー: 保持者→壁役へパス→ワンタッチでリターン→保持者が前へ抜け出して受け直す。
+    const wall = state.battle.wallId ? allPlayers().find((p) => p.id === state.battle.wallId) : nearestMateAhead(carrier);
+    spend(carrier, cost);
+    bumpStat(carrier.side, "passes"); bumpPlayerStat(carrier, "passes");
+    if (isSpell) { bumpStat(carrier.side, "spellsUsed"); bumpPlayerStat(carrier, isUlti ? "ultimatesUsed" : "spellsUsed"); }
+    if (!wall) {
+      // 壁役不在 → 単独前進にフォールバック。
+      const beats0 = [{ scene: { type: "dribble", attacker: carrier, defender, message: `${carrier.name}、壁役が見つからず単独で運ぶ。`, detail: `段階: ${tier}`, outcome: "success", phase: "result", focus: "attacker", forceAction: "dribble" }, judge: "break", se: ["kick"] }];
+      return runPlay(beats0, () => advanceCarrier(carrier, 10), match.matchToken);
+    }
+    const combo = isComboPair(carrier, wall);
+    const laneDist = (state.battle && state.battle.laneDist) || 0;
+    const atk = roll((carrier.stats.pass + wall.stats.pass) / 2 + (combo ? 18 : 0) + boost + atkBonus - fatiguePenalty(carrier) + difficultyModifier(carrier.side));
+    const def = roll(defender.stats.block + defender.stats.speed * 0.2 - laneDist * 1.6 + difficultyModifier(defender.side));
+    const win = atk >= def;
+    const detail = `攻撃値 ${Math.round(atk)} / カット値 ${Math.round(def)} / 段階: ${tier}${combo ? " / コンビ冴え" : ""}`;
+    const spellName = isUlti ? characterUltimateName(carrier, "pass") : characterSpellName(carrier, "pass");
+    const beats = [
+      { scene: { type: "pass", attacker: carrier, defender, message: `${carrier.name}、${wall.name}へワンツー！`, detail: `段階: ${tier}`, outcome: "success", phase: "flow", focus: "attacker", forceAction: "pass" }, se: [isSpell ? "spell" : "pass-charge"], ms: 800, ...(isSpell ? { cutin: { name: spellName, player: carrier } } : {}) },
+      { scene: { type: "pass", attacker: wall, defender, message: `${wall.name}がワンタッチでリターン！ ${carrier.name}が前へ走り込む！`, detail: `段階: ${tier}`, outcome: "success", phase: "flow", focus: "attacker", forceAction: "pass" }, se: ["select"], ms: 800 },
+      win
+        ? { scene: { type: "pass", attacker: carrier, defender, message: `${combo ? `${carrier.name}と${wall.name}のコンビが冴える！ ` : ""}壁パスが通った！ ${carrier.name}が抜け出した！`, detail, outcome: "success", phase: "result", focus: "attacker", forceAction: "pass" }, judge: "through", se: ["pass-success"] }
+        : { scene: { type: "pass", attacker: carrier, defender, message: `${defender.name}がワンツーを読んでカット！`, detail, outcome: "fail", phase: "result", focus: "defender", forceAction: "intercept" }, judge: "cut", se: ["save", "intercept"], hitstop: 66 },
+    ];
+    const apply = () => {
+      if (win) {
+        advanceCarrier(carrier, isUlti ? 26 : isSpell ? 22 : 18); // 大きく前進して受け直し(キープ)
+        match.carrierId = carrier.id;
+      } else {
+        bumpStat(defender.side, "intercepts"); bumpPlayerStat(defender, "intercepts");
+        knockbackBall(carrier, defender, isUlti ? 12 : 8);
+        turnover(defender, `${defender.name}が${carrier.name}のワンツーをカット (${tier})。`);
+      }
+    };
+    log(`${carrier.name}⇔${wall.name} ワンツー (${tier})。${detail}。`);
     return runPlay(beats, apply, match.matchToken);
   }
 
@@ -2504,6 +2562,7 @@ function stepCarrier(dirX, dirY = 0) {
     return;
   }
   if (state.match) state.match.ballAir = false;
+  spend(carrier, 1); // 原作: ドリブル(歩行)でガッツ漸減
   carrier.x = clamp(carrier.x + dirX * adir * STEP_X, 8, 92);
   carrier.y = clamp(carrier.y + dirY * STEP_Y, 16, 84);
   moveAiPlayers();
@@ -3316,7 +3375,8 @@ function renderMatch() {
               <button class="cmd-row" data-action="step" data-dx="1" data-dy="0" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ドリブル前進<span class="cmd-key">1</span></button>
               <button class="cmd-row" data-action="battle" data-type="pass" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> パス<span class="cmd-key">2</span></button>
               <button class="cmd-row ${match.ballAir ? "aerial" : ""}" data-action="battle" data-type="shoot" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ${match.ballAir ? "空中シュート" : "シュート"}<span class="cmd-key">3</span></button>
-              <button class="cmd-row" data-action="battle" data-type="team" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> 連携スペル<span class="cmd-key">4</span></button>
+              <button class="cmd-row" data-action="battle" data-type="oneTwo" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ワンツー<span class="cmd-key">4</span></button>
+              <button class="cmd-row" data-action="battle" data-type="team" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> 連携スペル<span class="cmd-key">5</span></button>
               <div class="move-pad" title="自由8方向移動 (WASD/QEZC) — 敵が近いとエンカウント">
                 <button class="move-btn" data-action="step" data-dx="1" data-dy="-1" title="前左 (Q)">↖</button>
                 <button class="move-btn primary" data-action="step" data-dx="1" data-dy="0" title="前進 (W)">▲</button>
@@ -3741,6 +3801,7 @@ function renderStatusCard(player) {
 const TIER_COSTS = {
   dribble: { normal: 8, spell: 22, ultimate: 36 },
   pass:    { normal: 6, spell: 18, ultimate: 30 },
+  oneTwo:  { normal: 10, spell: 24, ultimate: 38 }, // 原作ワンツーリターン相当
   shoot:   { normal: 12, spell: 30, ultimate: 48 },
   team:    { normal: 8, spell: 16, ultimate: 28 },
 };
@@ -3748,6 +3809,7 @@ const TIER_COSTS = {
 const TIER_ATK_BONUS = {
   dribble: { normal: 0, spell: 28, ultimate: 48 },
   pass:    { normal: 0, spell: 26, ultimate: 44 },
+  oneTwo:  { normal: 4, spell: 26, ultimate: 44 },
   shoot:   { normal: 6, spell: 34, ultimate: 52 },
   team:    { normal: 0, spell: 0, ultimate: 0 },
 };
@@ -4106,11 +4168,12 @@ function bindKeyboardEvents() {
       if (k === "e" || k === "E") { stepCarrier(1, 1); e.preventDefault(); return; }
       if (k === "z" || k === "Z") { stepCarrier(-1, -1); e.preventDefault(); return; }
       if (k === "c" || k === "C") { stepCarrier(-1, 1); e.preventDefault(); return; }
-      // ドリブル前進=移動。 パス/シュートは直接行動。
+      // 原作OFコマンド: 1ドリブル(移動)/2パス/3シュート/4ワンツー。 5=連携スペル(アレンジ枠)。
       if (k === "ArrowUp" || k === "1") { stepCarrier(1, 0); e.preventDefault(); return; }
       if (k === "ArrowLeft" || k === "2") { openBattle("pass"); e.preventDefault(); return; }
       if (k === "ArrowRight" || k === "3") { openBattle("shoot"); e.preventDefault(); return; }
-      if (k === "ArrowDown" || k === "4") {
+      if (k === "ArrowDown" || k === "4") { openBattle("oneTwo"); e.preventDefault(); return; }
+      if (k === "5") {
         const c = getCarrier();
         if (c) {
           state.battle = { type: "team", carrierId: c.id, defenderId: nearestOpponent(c).id };
