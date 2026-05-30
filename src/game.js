@@ -2648,6 +2648,23 @@ function renderCommandMenu() {
   `;
 }
 
+// 原作チームコマンド: みんなあがれ(全員前進) / みんなもどれ(全員後退)。 陣形(initialSlot)を恒久シフト。
+function teamCommand(cmd) {
+  if (!state.match || state.match.finished || state.match.possession !== "home") return;
+  if (state.battle || state.advance || state.playSeq || state.passPicker || state.gkChoice || state.interrupt) return;
+  const team = teamBySide("home");
+  const off = (cmd === "advance" ? 1 : cmd === "retreat" ? -1 : 0) * 8;
+  if (!off) return;
+  team.players.forEach((p) => {
+    if (p.role === "GK" || !p.initialSlot) return;
+    p.initialSlot.x = clamp(p.initialSlot.x + off, 16, 82);
+    p.x = clamp(p.x + off, 12, 90);
+  });
+  log(cmd === "advance" ? "チームコマンド: みんなあがれ！ 全員が前へ出る。" : "チームコマンド: みんなもどれ！ 全員が下がって守る。");
+  audio.play("select");
+  render();
+}
+
 function knockbackBall(carrier, defender, strength) {
   // ball を defender 側に少し動かす (失敗 carrier から離れる)
   const dir = defender.side === "home" ? 1 : -1;
@@ -3445,6 +3462,11 @@ function renderMatch() {
               <button class="cmd-row ${match.ballAir ? "aerial" : ""}" data-action="battle" data-type="shoot" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ${match.ballAir ? "空中シュート" : "シュート"}<span class="cmd-key">3</span></button>
               <button class="cmd-row" data-action="battle" data-type="oneTwo" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ワンツー<span class="cmd-key">4</span></button>
               <button class="cmd-row" data-action="battle" data-type="team" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> 連携スペル<span class="cmd-key">5</span></button>
+              <div class="team-cmd-row">
+                <span class="team-cmd-label">チーム</span>
+                <button class="team-cmd-btn" data-action="teamCmd" data-cmd="advance" ${disableHomeTurn()} title="全員前へ">みんなあがれ</button>
+                <button class="team-cmd-btn" data-action="teamCmd" data-cmd="retreat" ${disableHomeTurn()} title="全員後ろへ">みんなもどれ</button>
+              </div>
               <div class="move-pad" title="自由8方向移動 (WASD/QEZC) — 敵が近いとエンカウント">
                 <button class="move-btn" data-action="step" data-dx="1" data-dy="-1" title="前左 (Q)">↖</button>
                 <button class="move-btn primary" data-action="step" data-dx="1" data-dy="0" title="前進 (W)">▲</button>
@@ -4070,6 +4092,7 @@ function bindEvents() {
       if (action === "openCommandMenu") openCommandMenu();
       if (action === "cmdSelect") selectCommand(button.dataset.dir);
       if (action === "cmdClose") closeCommandMenu();
+      if (action === "teamCmd") teamCommand(button.dataset.cmd);
       if (action === "advancePlay") advancePlay();
       if (action === "toggleAuto") {
         state.progress.autoAdvance = !state.progress.autoAdvance;
