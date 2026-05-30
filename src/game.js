@@ -1915,15 +1915,30 @@ function actionTitle(type) {
   }[type] || "コマンド";
 }
 
-// 時間制の表示。 ロスタイムは残量を伏せ「ロスタイム」と出す(=いつ終わるか不明の緊張感)。
-function clockLabel(m) {
-  const half = m.half === 1 ? "前半" : "後半";
+// 実機CT3 タイマー: 局面ラベル「1ST/2ND」。
+function halfLabel(m) {
+  return m.half === 1 ? "1ST" : "2ND";
+}
+
+// 黄7セグ表示用の MM:00。 ロスタイムは base+X (いつ終わるか不明の緊張感)。
+function clockTime(m) {
   if (m.clock > 45) {
     const base = m.half === 1 ? 45 : 90;
-    return `${half} ${base}+${m.clock - 45} ロスタイム`;
+    return `${base}+${m.clock - 45}`;
   }
   const mins = (m.half === 1 ? 0 : 45) + m.clock;
-  return `${half} ${mins}分`;
+  return `${String(mins).padStart(2, "0")}:00`;
+}
+
+// 互換: ログ/ハーフタイム等の文中表示用 (例: "1ST 22:00 ロスタイム")。
+function clockLabel(m) {
+  const stop = m.clock > 45 ? " ロスタイム" : "";
+  return `${halfLabel(m)} ${clockTime(m)}${stop}`;
+}
+
+// 実機CT3 のチーム識別色 (レーダーのドットと統一: home=紅 / away=青)。
+function teamColor(side) {
+  return side === "home" ? "#e25a5a" : "#5a8ae0";
 }
 
 function setActionScene(type, attacker, defender, message, detail = "", outcome = "", phase = "result") {
@@ -2200,11 +2215,17 @@ function renderVsScreen() {
 // CT3 風 左上レーダー (全体マップ): 全選手とボールを点で表示。
 function renderRadar(carrier) {
   const dot = (p) => `<circle cx="${p.x}" cy="${p.y}" r="3.4" fill="${p.side === "home" ? "#e25a5a" : "#5a8ae0"}" stroke="rgba(0,0,0,0.5)" stroke-width="0.6" />`;
+  // 実機CT3 レーダー: 暗緑地 + 白細線でフィールド枠・センターサークル・両ペナルティエリア。
+  const line = `stroke="rgba(255,255,255,0.6)" stroke-width="1.1" fill="none"`;
   return `
     <div class="radar">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none">
         <rect x="0" y="0" width="100" height="100" fill="rgba(22,60,38,0.92)" />
-        <line x1="50" y1="0" x2="50" y2="100" stroke="rgba(255,255,255,0.45)" stroke-width="1.4" />
+        <rect x="2" y="3" width="96" height="94" ${line} />
+        <line x1="50" y1="3" x2="50" y2="97" ${line} />
+        <circle cx="50" cy="50" r="11" ${line} />
+        <rect x="2" y="28" width="15" height="44" ${line} />
+        <rect x="83" y="28" width="15" height="44" ${line} />
         ${allPlayers().map(dot).join("")}
         ${carrier ? `<circle cx="${carrier.x}" cy="${carrier.y}" r="5.5" fill="#fff" stroke="#000" stroke-width="1.6" />` : ""}
       </svg>
@@ -3464,13 +3485,16 @@ function renderMatch() {
         <div class="ct3-panel">
           <div class="ct3-col ct3-left">
             <div class="ct3-box ct3-timer">
-              <span class="ct3-label">${match.possession === "home" ? "みかた OF" : "あいて OF"}</span>
-              <span class="ct3-clock ${match.clock > 45 ? "stoppage" : ""}">${clockLabel(match)}</span>
+              <span class="ct3-half">${halfLabel(match)}</span>
+              <span class="ct3-clock ${match.clock > 45 ? "stoppage" : ""}">${clockTime(match)}</span>
             </div>
-            <div class="ct3-box ct3-score">
-              <span class="ct3-team ${match.possession === "home" ? "on" : ""}">${match.home.name}</span>
-              <span class="ct3-scoreline"><b>${match.score.home}</b> - <b>${match.score.away}</b></span>
-              <span class="ct3-team ${match.possession === "away" ? "on" : ""}">${match.away.name}</span>
+            <div class="ct3-box ct3-score" title="${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}">
+              <div class="ct3-score-flags">
+                <span class="ct3-team-chip ${match.possession === "home" ? "on" : ""}" style="background:${teamColor("home")};color:${teamColor("home")}"></span>
+                <span class="ct3-vs">×</span>
+                <span class="ct3-team-chip ${match.possession === "away" ? "on" : ""}" style="background:${teamColor("away")};color:${teamColor("away")}"></span>
+              </div>
+              <div class="ct3-scoreline"><b>${match.score.home}</b><span class="ct3-hyphen">-</span><b>${match.score.away}</b></div>
             </div>
             <div class="ct3-box ct3-dist">${carrier.name} / ゴールまで <b>${Math.round(goalDistance(carrier))}</b>${match.ballAir ? `<span class="air-badge">⤴ 高い球! シュートで空中技</span>` : ""}</div>
             <div class="ct3-box ct3-map" title="フィールドマップ"><div class="ct3-map-title">MAP</div>${renderRadar(carrier)}</div>
@@ -3485,11 +3509,11 @@ function renderMatch() {
               ${renderCarrierStatBox(carrier)}
             ` : `
               <div class="command-title">コマンド <button class="cmd-menu-open" data-action="openCommandMenu" ${disableHomeTurn()} title="原作Bボタン式 方向コマンドメニュー">▤ メニュー(Space)</button></div>
-              <button class="cmd-row" data-action="step" data-dx="1" data-dy="0" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ドリブル前進<span class="cmd-key">1</span></button>
-              <button class="cmd-row" data-action="battle" data-type="pass" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> パス<span class="cmd-key">2</span></button>
-              <button class="cmd-row ${match.ballAir ? "aerial" : ""}" data-action="battle" data-type="shoot" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ${match.ballAir ? "空中シュート" : "シュート"}<span class="cmd-key">3</span></button>
-              <button class="cmd-row" data-action="battle" data-type="oneTwo" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ワンツー<span class="cmd-key">4</span></button>
-              <button class="cmd-row" data-action="battle" data-type="team" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> 連携スペル<span class="cmd-key">5</span></button>
+              <button class="cmd-row" data-action="step" data-dx="1" data-dy="0" ${disableHomeTurn()}><span class="cmd-cursor">▌</span> ドリブル前進<span class="cmd-key">1</span></button>
+              <button class="cmd-row" data-action="battle" data-type="pass" ${disableHomeTurn()}><span class="cmd-cursor">▌</span> パス<span class="cmd-key">2</span></button>
+              <button class="cmd-row ${match.ballAir ? "aerial" : ""}" data-action="battle" data-type="shoot" ${disableHomeTurn()}><span class="cmd-cursor">▌</span> ${match.ballAir ? "空中シュート" : "シュート"}<span class="cmd-key">3</span></button>
+              <button class="cmd-row" data-action="battle" data-type="oneTwo" ${disableHomeTurn()}><span class="cmd-cursor">▌</span> ワンツー<span class="cmd-key">4</span></button>
+              <button class="cmd-row" data-action="battle" data-type="team" ${disableHomeTurn()}><span class="cmd-cursor">▌</span> 連携スペル<span class="cmd-key">5</span></button>
               <div class="team-cmd-row">
                 <span class="team-cmd-label">チーム</span>
                 <button class="team-cmd-btn" data-action="teamCmd" data-cmd="advance" ${disableHomeTurn()} title="全員前へ">みんなあがれ</button>

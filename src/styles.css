@@ -17,6 +17,13 @@
   --touhou-purple: #6e3eb3;
   --touhou-blue: #2f5fb3;
   --touhou-cyan: #7ad8e6;
+  /* 実機CT3 配色 (色則: 数字=黄 / テキスト=白 / 選択中=赤ベタ反転 / 枠=白二重 / 地=黒)。 */
+  --ct3-yellow: #f8c000;
+  --ct3-white: #f8f8f8;
+  --ct3-inner: #c8c8d0;
+  --ct3-red: #e00000;
+  --ct3-blue-line: #1020e0;
+  --ct3-red-line: #c00000;
 }
 
 * {
@@ -88,46 +95,71 @@ button:disabled {
   gap: 8px;
   padding: 8px;
   background: #000;
-  border-top: 3px solid rgba(255, 255, 255, 0.92);
+  border-top: 2px solid var(--ct3-white);
   min-height: 184px;
+  image-rendering: pixelated;
 }
 
 .ct3-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .ct3-col.ct3-mid { min-height: 0; }
 
+/* 実機CT3 ボックス: 黒地・白二重線(外周白+内側1ドット明灰)・影なし・やや角丸。 */
 .ct3-box {
-  border: 2px solid #fff;
-  border-radius: 5px;
+  border: 2px solid var(--ct3-white);
+  box-shadow: inset 0 0 0 1px var(--ct3-inner);
+  border-radius: 3px;
   background: #000;
-  color: #fff;
+  color: var(--ct3-white);
   padding: 7px 10px;
   font-weight: 700;
   font-size: 13px;
 }
 
-.ct3-timer { display: flex; flex-direction: column; gap: 3px; }
-.ct3-timer .ct3-label { color: #f8d679; font-size: 12px; }
-.ct3-timer .ct3-clock b { color: #f8d679; font-size: 18px; }
+/* タイマー: 1行目=局面ラベル(1ST/2ND)白小, 2行目=黄7セグ MM:00。 */
+.ct3-timer { display: flex; flex-direction: column; gap: 2px; }
+.ct3-timer .ct3-half { color: var(--ct3-white); font-size: 11px; letter-spacing: 2px; font-weight: 900; }
+.ct3-timer .ct3-clock {
+  color: var(--ct3-yellow);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 1px 1px 0 #4a3a00;
+}
 
+/* スコア: チーム色チップ×チップ (上段) + 黄ハイフン数値 (下段)。実機の国旗×国旗の代替。 */
 .ct3-score {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  justify-content: center;
+  gap: 4px;
 }
-.ct3-score .ct3-team { font-size: 11px; opacity: 0.8; }
-.ct3-score .ct3-team.on { color: #f8d679; opacity: 1; }
-.ct3-score .ct3-scoreline b { color: #f8d679; font-size: 20px; }
+.ct3-score-flags { display: flex; align-items: center; gap: 8px; }
+.ct3-team-chip {
+  width: 16px; height: 16px; border-radius: 3px;
+  border: 1px solid var(--ct3-white);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.5);
+  flex: 0 0 auto;
+}
+.ct3-team-chip.on { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.5), 0 0 6px 1px currentColor; }
+.ct3-score .ct3-vs { color: var(--ct3-yellow); font-weight: 900; font-size: 13px; }
+.ct3-score .ct3-scoreline { display: flex; align-items: center; gap: 5px; }
+.ct3-score .ct3-scoreline b {
+  color: var(--ct3-yellow); font-size: 22px; font-weight: 900;
+  font-variant-numeric: tabular-nums; text-shadow: 1px 1px 0 #4a3a00;
+}
+.ct3-score .ct3-scoreline .ct3-hyphen { color: var(--ct3-yellow); font-weight: 900; }
 
-.ct3-dist { font-size: 12px; color: #cfe0d6; }
-.ct3-dist b { color: #f8d679; }
+.ct3-dist { font-size: 12px; color: var(--ct3-white); }
+.ct3-dist b { color: var(--ct3-yellow); font-variant-numeric: tabular-nums; }
 
 /* 中央メッセージ列: CGは上段へ移設。 ここは vn-box(実況メッセージ)専用。 */
 .ct3-mid .action-scene { height: 100%; display: block; }
 .ct3-mid .vn-box { height: 100%; }
 
 /* 右カラム: コマンドリスト / ステータス。 */
-.ct3-right .command-title { color: #f8d679; font-weight: 900; font-size: 12px; margin-bottom: 2px; }
+.ct3-right .command-title { color: var(--ct3-white); font-weight: 900; font-size: 12px; margin-bottom: 2px; letter-spacing: 1px; }
 .ct3-right .cmd-row { padding: 6px 10px; font-size: 14px; }
 .ct3-right .move-row { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 5px; margin-top: 3px; }
 .ct3-right .move-row .move-btn { padding: 6px 4px; font-size: 13px; }
@@ -135,7 +167,7 @@ button:disabled {
 /* 自由8方向移動パッド (3x3、 中央=ラベル)。 */
 .move-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 4px; }
 .move-pad .move-btn { padding: 5px 2px; font-size: 13px; line-height: 1; }
-.move-pad .move-center { display: grid; place-items: center; font-size: 10px; font-weight: 900; color: #f8d679; }
+.move-pad .move-center { display: grid; place-items: center; font-size: 10px; font-weight: 900; color: var(--ct3-white); }
 
 /* 原作Bボタン式 方向コマンドメニュー (上ドリブル/左パス/右シュート/下ワンツー)。 */
 .command-menu-overlay {
@@ -173,7 +205,7 @@ button:disabled {
 
 /* チームコマンド (みんなあがれ/みんなもどれ) 行。 */
 .team-cmd-row { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
-.team-cmd-label { font-size: 10px; font-weight: 900; color: #f8d679; }
+.team-cmd-label { font-size: 10px; font-weight: 900; color: var(--ct3-white); }
 .team-cmd-btn { flex: 1; font-size: 11px; font-weight: 800; padding: 4px 2px; border: 1px solid rgba(255,255,255,0.5); background: #14233a; color: #fff; border-radius: 5px; cursor: pointer; }
 .team-cmd-btn:hover { background: #2e5a86; }
 .team-cmd-btn:disabled { opacity: 0.4; cursor: default; }
@@ -182,10 +214,10 @@ button:disabled {
 .ct3-clock.stoppage { color: #ff5a4d; animation: stoppageBlink 0.9s ease-in-out infinite; }
 @keyframes stoppageBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-.ct3-stat { border: 2px solid #fff; border-radius: 5px; background: #000; color: #fff; padding: 8px 10px; }
-.ct3-stat-name { color: #f8d679; font-weight: 900; margin-bottom: 4px; }
+.ct3-stat { border: 2px solid var(--ct3-white); box-shadow: inset 0 0 0 1px var(--ct3-inner); border-radius: 3px; background: #000; color: var(--ct3-white); padding: 8px 10px; }
+.ct3-stat-name { color: var(--ct3-white); font-weight: 900; margin-bottom: 4px; letter-spacing: 1px; }
 .ct3-stat-row { display: flex; justify-content: space-between; font-size: 13px; padding: 1px 0; }
-.ct3-stat-row b { color: #fff; }
+.ct3-stat-row b { color: var(--ct3-white); font-variant-numeric: tabular-nums; }
 
 .scorebar {
   display: grid;
@@ -655,7 +687,7 @@ button:disabled {
 
 /* 下段(データエリア)のフィールドマップ。 原作CT3同様、 ボトムに常時表示。 */
 .ct3-box.ct3-map { position: relative; padding: 5px 6px; }
-.ct3-map-title { font-size: 9px; font-weight: 900; color: #f8d679; letter-spacing: 1px; margin-bottom: 3px; }
+.ct3-map-title { font-size: 9px; font-weight: 900; color: var(--ct3-white); letter-spacing: 1px; margin-bottom: 3px; }
 .ct3-map .radar {
   position: relative;
   top: auto; left: auto;
@@ -1158,16 +1190,38 @@ button:disabled {
   text-align: left;
   padding: 8px 12px;
   font-size: 15px;
+  /* 実機CT3 コマンドリスト: 黒地・白文字・枠なし。選択中のみ横いっぱい赤反転。 */
+  background: #000;
+  border: 0;
+  border-radius: 2px;
+  color: var(--ct3-white);
+  font-weight: 700;
+}
+
+/* 選択中(hover/focus/selected) = 横いっぱいベタ赤バー + 白文字 (テクモ式)。 */
+.cmd-row:hover:not(:disabled),
+.cmd-row:focus-visible,
+.cmd-row.selected {
+  background: var(--ct3-red);
+  color: #fff;
+  border: 0;
+  outline: none;
 }
 
 .cmd-row .cmd-cursor {
-  color: var(--touhou-gold, #f0c85a);
+  color: #fff;
   opacity: 0;
   transition: opacity 80ms;
 }
 
 .cmd-row:hover:not(:disabled) .cmd-cursor,
-.cmd-row:focus-visible .cmd-cursor { opacity: 1; }
+.cmd-row:focus-visible .cmd-cursor,
+.cmd-row.selected .cmd-cursor { opacity: 1; }
+
+/* 赤反転中はキー番号バッジも白枠に。 */
+.cmd-row:hover:not(:disabled) .cmd-key,
+.cmd-row:focus-visible .cmd-key,
+.cmd-row.selected .cmd-key { background: rgba(255, 255, 255, 0.22); opacity: 1; }
 
 .cmd-row .cmd-key {
   margin-left: auto;
