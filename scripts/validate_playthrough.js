@@ -57,7 +57,7 @@ const URL = "http://127.0.0.1:8787/";
       try { await page.keyboard.press("Space"); } catch (e) { /* ignore */ }
     }
     await page.waitForTimeout(50);
-    const t = parseInt((st.turn.match(/TURN\s+(\d+)/) || [])[1] || "0", 10);
+    const t = parseInt((st.turn.match(/(\d+)/) || [])[1] || "0", 10);
     if (t === lastTurn) stuck++; else { stuck = 0; lastTurn = t; }
     if (steps % 30 === 0) console.log(`step ${steps} turn ${t} ${JSON.stringify({ cmd: st.hasCmd, gk: st.hasGk, int: st.hasInterrupt, adv: st.hasAdvance })}`);
     if (stuck > 120) {

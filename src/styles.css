@@ -178,6 +178,10 @@ button:disabled {
 .team-cmd-btn:hover { background: #2e5a86; }
 .team-cmd-btn:disabled { opacity: 0.4; cursor: default; }
 
+/* ロスタイム表示 (赤点滅で緊張感)。 */
+.ct3-clock.stoppage { color: #ff5a4d; animation: stoppageBlink 0.9s ease-in-out infinite; }
+@keyframes stoppageBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
 .ct3-stat { border: 2px solid #fff; border-radius: 5px; background: #000; color: #fff; padding: 8px 10px; }
 .ct3-stat-name { color: #f8d679; font-weight: 900; margin-bottom: 4px; }
 .ct3-stat-row { display: flex; justify-content: space-between; font-size: 13px; padding: 1px 0; }

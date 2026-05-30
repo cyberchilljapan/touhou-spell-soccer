@@ -18,7 +18,7 @@ test("campaign match starts and resolves a command battle", async ({ page }) => 
 
   await page.getByRole("button", { name: "異変開始" }).click();
   await expect(page.locator(".field")).toBeVisible();
-  await expect(page.locator(".ct3-timer")).toContainText("TURN 1");
+  await expect(page.locator(".ct3-timer")).toContainText("前半");
   await expect(page.locator(".ct3-panel")).toBeVisible();
 
   await page.evaluate(() => window.__touhouSpellFutsalDebug.startBattle("dribble"));

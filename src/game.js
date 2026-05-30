@@ -1502,13 +1502,15 @@ function goalCommentary(scorer) {
   const mine = m.score[scorer.side];
   const theirs = m.score[opponentSide(scorer.side)];
   const diff = mine - theirs;
-  const left = m.maxTurns - m.turn;
+  // 残り時間(分・概算)。 後半のロスタイム帯は「終了間際」。
+  const left = m.half === 2 ? Math.max(0, 45 - m.clock) : (45 - m.clock) + 45;
+  const inStoppage = m.clock > 45;
   const teamName = teamBySide(scorer.side).name;
-  if (left <= 3 && diff >= 1 && diff <= 1) return `📢 ロスタイム間際! ${scorer.name}の決勝点級ゴールが突き刺さった!`;
+  if ((inStoppage || (m.half === 2 && left <= 5)) && diff >= 0 && diff <= 1) return `📢 ${inStoppage ? "ロスタイム" : "終了間際"}! ${scorer.name}の決勝点級ゴールが突き刺さった!`;
   if (diff === 0) return `📢 ${scorer.name}が同点弾! ${teamName}が試合を振り出しに戻した!`;
   if (diff === 1 && theirs >= 1) return `📢 ${scorer.name}が勝ち越し! ${teamName}がリードを奪い返す!`;
   if (diff >= 3) return `📢 ${scorer.name}がダメ押し! ${teamName}が突き放す!`;
-  if (left <= 6) return `📢 終盤、${scorer.name}が均衡を破った!`;
+  if (m.half === 2 && left <= 12) return `📢 終盤、${scorer.name}が均衡を破った!`;
   return `📢 ${scorer.name}のゴール! ${teamName} ${mine}-${theirs} とする!`;
 }
 
@@ -1531,6 +1533,10 @@ function startMatchCore(options = {}) {
     away,
     turn: 1,
     maxTurns: 30,
+    // 原作CT3式の時間制: 前後半45分 + 隠しロスタイム (どれだけ延びるか不明=熱い)。
+    half: 1,
+    clock: 0,                                 // 当該ハーフの経過分 (0→45+ロスタイム)
+    stoppage: 1 + Math.floor(rng() * 3),      // 前半ロスタイム 1-3分 (プレイヤーには非表示)
     score: { home: 0, away: 0 },
     possession: "home",
     carrierId: carrier.id,
@@ -1907,6 +1913,17 @@ function actionTitle(type) {
     shoot: "シュート勝負",
     team: "連携スペル",
   }[type] || "コマンド";
+}
+
+// 時間制の表示。 ロスタイムは残量を伏せ「ロスタイム」と出す(=いつ終わるか不明の緊張感)。
+function clockLabel(m) {
+  const half = m.half === 1 ? "前半" : "後半";
+  if (m.clock > 45) {
+    const base = m.half === 1 ? 45 : 90;
+    return `${half} ${base}+${m.clock - 45} ロスタイム`;
+  }
+  const mins = (m.half === 1 ? 0 : 45) + m.clock;
+  return `${half} ${mins}分`;
 }
 
 function setActionScene(type, attacker, defender, message, detail = "", outcome = "", phase = "result") {
@@ -2734,8 +2751,14 @@ function endTurnBookkeeping() {
   recoverTeam("away", 2);
   match.turn += 1;
   moveAiPlayers();
-  // ハーフタイム (turn 16 開始時)
-  if (match.turn === 16 && !match.halftimeShown) {
+  // 時間を進める (1手=2〜4分。 局面でばらつき=ロスタイムの不確実性に寄与)。
+  const HALF = 45;
+  match.clock += 2 + Math.floor(rng() * 3);
+  // 前半終了(ロスタイム込み) → ハーフタイム → 後半へ
+  if (match.half === 1 && match.clock >= HALF + match.stoppage) {
+    match.half = 2;
+    match.clock = 0;
+    match.stoppage = 1 + Math.floor(rng() * 4); // 後半ロスタイム 1-4分 (非表示)
     match.halftimeShown = true;
     recoverTeam("home", 20);
     recoverTeam("away", 20);
@@ -2748,11 +2771,13 @@ function endTurnBookkeeping() {
     }, animMs(3200));
     log(`ハーフタイム。両軍が霊力 +20 を回復。スコア ${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}。`);
   }
-  // BGM 切替 (intense for endgame)
-  if (match.turn >= 24 && audio.currentBgm !== "intense") audio.playBgm("intense");
-  else if (match.turn < 24 && match.possession === "away" && audio.currentBgm !== "defense") audio.playBgm("defense");
-  else if (match.turn < 24 && match.possession === "home" && audio.currentBgm !== "normal") audio.playBgm("normal");
-  if (match.turn > match.maxTurns) {
+  // BGM 切替 (後半終盤=intense)
+  const late = match.half === 2 && match.clock >= 30;
+  if (late && audio.currentBgm !== "intense") audio.playBgm("intense");
+  else if (!late && match.possession === "away" && audio.currentBgm !== "defense") audio.playBgm("defense");
+  else if (!late && match.possession === "home" && audio.currentBgm !== "normal") audio.playBgm("normal");
+  // 後半終了(ロスタイム込み) → 試合終了 (タイムアップの瞬間は誰にも分からない=熱い)
+  if (match.half === 2 && match.clock >= HALF + match.stoppage) {
     audio.stopMusic();
     audio.play("result");
     audio.playBgm("result");
@@ -3305,7 +3330,7 @@ function renderSetup() {
         <div class="resume-banner">
           <div>
             <strong>途中の試合があります</strong>
-            <span>${findTeam(savedMatch.match.home.id).name} ${savedMatch.match.score.home} - ${savedMatch.match.score.away} ${findTeam(savedMatch.match.away.id).name} (TURN ${savedMatch.match.turn})</span>
+            <span>${findTeam(savedMatch.match.home.id).name} ${savedMatch.match.score.home} - ${savedMatch.match.score.away} ${findTeam(savedMatch.match.away.id).name} (${savedMatch.match.half === 2 ? "後半" : "前半"})</span>
           </div>
           <div class="resume-actions">
             <button class="primary" data-action="resumeMatch">試合を再開する</button>
@@ -3438,7 +3463,7 @@ function renderMatch() {
           <div class="ct3-col ct3-left">
             <div class="ct3-box ct3-timer">
               <span class="ct3-label">${match.possession === "home" ? "みかた OF" : "あいて OF"}</span>
-              <span class="ct3-clock">TURN <b>${Math.min(match.turn, match.maxTurns)}</b>/${match.maxTurns}</span>
+              <span class="ct3-clock ${match.clock > 45 ? "stoppage" : ""}">${clockLabel(match)}</span>
             </div>
             <div class="ct3-box ct3-score">
               <span class="ct3-team ${match.possession === "home" ? "on" : ""}">${match.home.name}</span>
@@ -4407,7 +4432,8 @@ window.__touhouSpellFutsalDebug = {
     state.interrupt = null;
     state.vnScene = null;
     state.match.score.home = state.match.score.away + 3;
-    state.match.turn = state.match.maxTurns + 1;
+    state.match.half = 2;
+    state.match.clock = 99; // タイムアップ (ロスタイム超過)
     state.match.possession = "home";
     endTurn();
     render();
@@ -4448,7 +4474,8 @@ window.__touhouSpellFutsalDebug = {
     };
     const awayTeamId = state.campaign.opponents[state.campaign.index];
     startMatch({ homeTeamId: state.homeTeamId, awayTeamId });
-    state.match.turn = state.match.maxTurns;
+    state.match.half = 2;
+    state.match.clock = 99;
     state.match.score.home = Math.max(state.match.score.home, state.match.score.away + 1);
     endTurn();
     render();
