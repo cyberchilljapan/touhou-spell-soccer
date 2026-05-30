@@ -18,12 +18,15 @@
   --touhou-blue: #2f5fb3;
   --touhou-cyan: #7ad8e6;
   /* 実機CT3 配色 (色則: 数字=黄 / テキスト=白 / 選択中=赤ベタ反転 / 枠=白二重 / 地=黒)。 */
-  --ct3-yellow: #f8c000;
+  /* 数字の黄は実機=明るいレモンイエロー(#EAED12系)。 オレンジ寄りにしない。 */
+  --ct3-yellow: #ecd91c;
   --ct3-white: #f8f8f8;
   --ct3-inner: #c8c8d0;
   --ct3-red: #e00000;
   --ct3-blue-line: #1020e0;
   --ct3-red-line: #c00000;
+  /* 実機CT3 の8×8ドット等幅フォント感 (DotGothic16=日本語ビットマップ調、 fallbackはmonospace)。 */
+  --ct3-font: "DotGothic16", "Courier New", "MS Gothic", monospace;
 }
 
 * {
@@ -167,6 +170,11 @@ button:disabled {
   border-top: 2px solid var(--ct3-white);
   min-height: 184px;
   image-rendering: pixelated;
+  font-family: var(--ct3-font);
+}
+/* 実機CT3 ドットフォントを試合UI全域へ (下段パネル/ツールバー/カットイン/ゴール/メッセージ)。 */
+.match-toolbar, .cutin, .goal-banner, .vn-box, .command-menu-overlay, .ct3-matchup, .crash-scene {
+  font-family: var(--ct3-font);
 }
 
 .ct3-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
@@ -212,7 +220,7 @@ button:disabled {
   flex: 0 0 auto;
 }
 .ct3-team-chip.on { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.5), 0 0 6px 1px currentColor; }
-.ct3-score .ct3-vs { color: var(--ct3-yellow); font-weight: 900; font-size: 13px; }
+.ct3-score .ct3-vs { color: var(--ct3-white); font-weight: 900; font-size: 13px; }
 .ct3-score .ct3-scoreline { display: flex; align-items: center; gap: 5px; }
 .ct3-score .ct3-scoreline b {
   color: var(--ct3-yellow); font-size: 22px; font-weight: 900;
@@ -224,8 +232,23 @@ button:disabled {
 .ct3-dist b { color: var(--ct3-yellow); font-variant-numeric: tabular-nums; }
 
 /* 中央メッセージ列: CGは上段へ移設。 ここは vn-box(実況メッセージ)専用。 */
-.ct3-mid .action-scene { height: 100%; display: block; }
+.ct3-mid { gap: 5px; }
+.ct3-mid .action-scene { display: block; flex: 1; min-height: 0; }
 .ct3-mid .vn-box { height: 100%; }
+
+/* 実機CT3 中央カラム: 局面ラベル(みかたOF/てきDF)+関係者名ボックス。 */
+.ct3-matchup { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex: 0 0 auto; }
+.ct3-matchup.single { grid-template-columns: 1fr; }
+.ct3-mu-col { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ct3-mu-label { color: var(--ct3-white); font-size: 11px; font-weight: 900; letter-spacing: 1px; padding-left: 2px; }
+.ct3-mu-box { padding: 5px 8px; font-size: 13px; text-align: center; color: var(--ct3-white); min-height: 28px; display: flex; align-items: center; justify-content: center; }
+
+/* メッセージ窓: 話者の丸顔アイコン(左) + 吹き出し。 */
+.vn-msg-wrap { display: flex; align-items: flex-end; gap: 6px; height: 100%; }
+.msg-face { flex: 0 0 auto; width: 52px; height: 52px; border: 2px solid var(--ct3-white); border-radius: 4px; background: #000; overflow: hidden; box-shadow: inset 0 0 0 1px var(--ct3-inner); }
+.msg-face .portrait { width: 100%; height: 100%; border-radius: 0; }
+.msg-face .portrait img { width: 100%; height: 100%; object-fit: cover; }
+.vn-msg-wrap .vn-box { flex: 1; min-width: 0; }
 
 /* 右カラム: コマンドリスト / ステータス。 */
 .ct3-right .command-title { color: var(--ct3-white); font-weight: 900; font-size: 12px; margin-bottom: 2px; letter-spacing: 1px; }
@@ -1230,10 +1253,18 @@ button:disabled {
   margin-bottom: 7px;
   padding: 3px 8px;
   border-radius: 4px;
-  background: rgba(240, 200, 90, 0.2);
-  color: #f8d679;
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--ct3-white);
   font-weight: 900;
   font-size: 13px;
+}
+
+/* 実機CT3 実況/掛け声の吹き出し: 角張った白二重枠 (ノコギリ歯感)。 */
+.vn-box.jagged {
+  border-radius: 2px;
+  border: 2px solid var(--ct3-white);
+  box-shadow: inset 0 0 0 1px var(--ct3-inner), inset 0 0 0 3px #000;
+  outline: 0;
 }
 
 .vn-box p {

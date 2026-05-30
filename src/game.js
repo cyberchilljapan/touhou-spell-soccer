@@ -1844,13 +1844,48 @@ function renderActionScene() {
   const scene = state.actionScene;
   if (!scene) return "";
   const phaseLabel = scene.phase === "choice" ? "COMMAND" : scene.phase === "flow" ? "PLAY" : scene.phase === "move" ? "DRIBBLE" : "RESULT";
+  // 実機CT3 メッセージ窓: 左に話者の丸顔ドットアイコン + ギザギザ吹き出し(白二重枠)。
+  const speaker = scene.focus === "defender" ? scene.defender : scene.attacker;
   return `
     <div class="action-scene ${scene.type} ${scene.outcome || ""}">
-      <div class="vn-box">
-        <div class="vn-name">${phaseLabel} / ${scene.title}</div>
-        <p>${scene.message}</p>
-        ${scene.detail ? `<div class="vn-detail">${scene.detail}</div>` : ""}
-        ${state.advance ? `<div class="vn-advance-hint">▼ クリック / Space で次へ</div>` : ""}
+      <div class="vn-msg-wrap">
+        ${speaker ? `<div class="msg-face">${renderPortrait(speaker, "msg-face-portrait")}</div>` : ""}
+        <div class="vn-box jagged">
+          <div class="vn-name">${phaseLabel} / ${scene.title}</div>
+          <p>${scene.message}</p>
+          ${scene.detail ? `<div class="vn-detail">${scene.detail}</div>` : ""}
+          ${state.advance ? `<div class="vn-advance-hint">▼ クリック / Space で次へ</div>` : ""}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// 実機CT3 中央カラム: 局面ラベル(みかたOF/てきDF) + 関係者名の小ボックス。
+// エンカウント/対決中は てきDF[守備者] + みかたOF[アクション]、 通常は保持者の局面。
+function renderCt3MatchupBox(scene, carrier, defender) {
+  const m = state.match;
+  const onoff = (side, off) => `${side === "home" ? "みかた" : (off ? "あいて" : "てき")} ${off ? "OF" : "DF"}`;
+  const inDuel = scene && (scene.phase === "flow" || scene.phase === "result") && scene.defender && scene.attacker;
+  if (inDuel) {
+    return `
+      <div class="ct3-matchup">
+        <div class="ct3-mu-col">
+          <div class="ct3-mu-label">${onoff(scene.defender.side, false)}</div>
+          <div class="ct3-box ct3-mu-box">${scene.defender.name}</div>
+        </div>
+        <div class="ct3-mu-col">
+          <div class="ct3-mu-label">${onoff(scene.attacker.side, true)}</div>
+          <div class="ct3-box ct3-mu-box">${scene.title || scene.attacker.name}</div>
+        </div>
+      </div>
+    `;
+  }
+  return `
+    <div class="ct3-matchup single">
+      <div class="ct3-mu-col">
+        <div class="ct3-mu-label">${onoff(m.possession, true)}</div>
+        <div class="ct3-box ct3-mu-box">${carrier ? carrier.name : ""}</div>
       </div>
     </div>
   `;
@@ -3528,6 +3563,7 @@ function renderMatch() {
             <div class="ct3-box ct3-map" title="フィールドマップ"><div class="ct3-map-title">MAP</div>${renderRadar(carrier)}</div>
           </div>
           <div class="ct3-col ct3-mid">
+            ${renderCt3MatchupBox(scene, carrier, defender)}
             ${scene && scene.type === "kickoff" && match.preMatchDialogue ? renderEventDialogue(match.preMatchDialogue) : ""}
             ${renderActionScene()}
           </div>
