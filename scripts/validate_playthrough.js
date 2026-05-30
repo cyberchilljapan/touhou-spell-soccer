@@ -34,10 +34,18 @@ const URL = "http://127.0.0.1:8787/";
     } else if (st.hasInterrupt) {
       await click('[data-action="interrupt"][data-option="tackle"]');
     } else if (st.hasCmd) {
-      const c = ["dribble", "pass", "shoot", "dribble"][steps % 4];
+      const c = ["dribble", "pass", "shoot", "team", "dribble", "shoot"][steps % 6];
       await click(`.cmd-row[data-type="${c}"]`);
       await page.waitForTimeout(40);
-      await click('[data-action="resolve"][data-option="normal"]');
+      // 受け手選択(pass)
+      const badge = page.locator('.pass-target-badge');
+      if (await badge.count()) await click('.pass-target-badge');
+      // tier を巡回 (normal/spell/ultimate) で全 beat 経路を踏む
+      const tier = ["normal", "normal", "spell", "ultimate"][steps % 4];
+      await page.waitForTimeout(30);
+      let r = page.locator(`[data-action="resolve"][data-option="${tier}"]`);
+      if (!(await r.count())) r = page.locator('[data-action="resolve"][data-option="normal"]');
+      await click(`[data-action="resolve"][data-option="${(await r.count()) ? tier : "normal"}"]`);
     } else if (st.hasAdvance) {
       await click(".advance-btn");
     } else {

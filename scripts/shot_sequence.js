@@ -4,7 +4,7 @@ const { chromium } = require("@playwright/test");
 const path = require("path");
 const fs = require("fs");
 const URL = "http://127.0.0.1:8787/";
-const OUT = path.resolve(__dirname, "../_shots/seq");
+const OUT = path.resolve(__dirname, "../_shots/seq_" + (process.argv[2] || "shoot") + (process.argv[3] && process.argv[3] !== "normal" ? "_" + process.argv[3] : ""));
 if (!fs.existsSync(OUT)) fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {
@@ -16,10 +16,16 @@ if (!fs.existsSync(OUT)) fs.mkdirSync(OUT, { recursive: true });
   await page.getByRole("button", { name: "試合開始" }).click();
   await page.waitForTimeout(300);
 
-  // シュートコマンド(移動せず即) → バトルカード normal → away GK 相手に全beat結合。
-  await page.locator('.cmd-row[data-type="shoot"]').click();
+  // 行動コマンド(移動せず即) → バトルカード → 全beat結合。 action は引数。
+  let action = process.argv[2] || "shoot";
+  const tier = process.argv[3] || "normal";
+  if (action === "aerial") { await page.evaluate(() => window.__touhouSpellFutsalDebug.setHighBall(true)); action = "shoot"; await page.waitForTimeout(120); }
+  await page.locator(`.cmd-row[data-type="${action}"]`).click();
   await page.waitForTimeout(150);
-  await page.locator('[data-action="resolve"][data-option="normal"]').click();
+  // パスは受け手選択(passPicker)が挟まる場合がある。
+  const badge = page.locator('.pass-target-badge');
+  if (await badge.count()) { await badge.first().click(); await page.waitForTimeout(150); }
+  await page.locator(`[data-action="resolve"][data-option="${tier}"]`).click();
   await page.waitForTimeout(300);
 
   // 各 beat を ▶次へ で送りながら撮影 (最大8枚)。
