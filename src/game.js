@@ -204,6 +204,7 @@ const state = {
   actionSceneTimer: null,
   previousScreen: "setup",
   progress: loadProgress(),
+  advanceGateId: 0,
   logs: [],
   judge: null,
   judgeTimer: null,
@@ -1237,6 +1238,15 @@ function animMs(ms) {
   return Math.max(60, Math.round(ms * animScale()));
 }
 
+function scheduleAdvance(ms) {
+  window.clearTimeout(state.advanceTimer);
+  const gateId = ++state.advanceGateId;
+  state.advanceTimer = window.setTimeout(() => {
+    if (state.advanceGateId !== gateId) return;
+    advancePlay();
+  }, ms);
+}
+
 // インパクト保持/ヒットストップ専用。 下限を 120ms に引き上げ、 fast/instant でも「当たり」を潰さない。
 function impactMs(ms) {
   return Math.max(120, Math.round(ms * animScale()));
@@ -1250,7 +1260,7 @@ function gate() {
   window.clearTimeout(state.advanceTimer);
   if (state.progress && state.progress.autoAdvance) {
     // auto トグル ON のときだけ、 読める速度で自動送り。
-    state.advanceTimer = window.setTimeout(() => advancePlay(), animMs(1100));
+    scheduleAdvance(animMs(1100));
   }
 }
 
@@ -1260,12 +1270,14 @@ function advancePlay() {
   // 多段演出シーケンス中は beat を1つ進める (送りボタン/Space/クリック 共通)。
   if (state.playSeq) {
     window.clearTimeout(state.advanceTimer);
+    state.advanceGateId += 1;
     state.advance = null;
     advancePlaySeq();
     return;
   }
   if (!state.advance) return;
   window.clearTimeout(state.advanceTimer);
+  state.advanceGateId += 1;
   state.advance = null;
   if (!state.match || state.match.finished) { render(); return; }
   if (state.match.possession === "away") {
@@ -1331,6 +1343,9 @@ function showBeat(beat) {
 // シーケンス開始。
 function runPlay(beats, applyFn, token) {
   cancelTransientOverlays();
+  window.clearTimeout(state.advanceTimer);
+  state.advanceGateId += 1;
+  state.advance = null;
   state.battle = null;
   state.playSeq = { token, beats, i: -1, apply: applyFn || null, applied: false };
   advancePlaySeq();
@@ -1370,7 +1385,7 @@ function gateBeat(beat) {
   state.advanceTimer = null;
   render();
   if (beat.auto !== false && state.progress && state.progress.autoAdvance) {
-    state.advanceTimer = window.setTimeout(() => advancePlay(), animMs(beat.ms || 1100));
+    scheduleAdvance(animMs(beat.ms || 1100));
   }
 }
 
@@ -3614,12 +3629,12 @@ function renderMatch() {
               <div class="ct3-scoreline"><b>${match.score.home}</b><span class="ct3-hyphen">-</span><b>${match.score.away}</b></div>
             </div>
             <div class="ct3-box ct3-dist">${carrier.name} / ゴールまで <b>${Math.round(goalDistance(carrier))}</b>${match.ballAir ? `<span class="air-badge">⤴ 高い球! シュートで空中技</span>` : ""}</div>
-            <div class="ct3-box ct3-map" title="フィールドマップ"><div class="ct3-map-title">MAP</div>${renderRadar(carrier)}</div>
           </div>
           <div class="ct3-col ct3-mid">
             ${renderCt3MatchupBox(scene, carrier, defender)}
             ${scene && scene.type === "kickoff" && match.preMatchDialogue ? renderEventDialogue(match.preMatchDialogue) : ""}
             ${renderActionScene()}
+            <div class="ct3-box ct3-map" title="フィールドマップ"><div class="ct3-map-title">MAP</div>${renderRadar(carrier)}</div>
           </div>
           <div class="ct3-col ct3-right">
             ${state.advance ? `
@@ -4270,8 +4285,7 @@ function bindEvents() {
         render();
         // 待機中に ON にしたら自動送りを開始する。
         if (state.progress.autoAdvance && state.advance) {
-          window.clearTimeout(state.advanceTimer);
-          state.advanceTimer = window.setTimeout(() => advancePlay(), animMs(700));
+          scheduleAdvance(animMs(700));
         }
       }
       if (action === "reset") {
@@ -4337,7 +4351,7 @@ function bindEvents() {
 
   // メッセージ送り待ち中は、 実況メッセージ / フィールドのクリックでも次へ進める。
   if (state.advance) {
-    document.querySelectorAll(".match-stage, .field, .field-cg, .vn-box, .play-banner").forEach((el) => {
+    document.querySelectorAll(".match-stage, .vn-box, .play-banner").forEach((el) => {
       el.addEventListener("click", (ev) => {
         if (ev.target.closest("[data-action], [data-select], [data-index]")) return;
         advancePlay();
