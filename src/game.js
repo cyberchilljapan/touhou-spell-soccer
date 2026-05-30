@@ -2539,8 +2539,12 @@ function renderGkChoice() {
       <div class="dialog-card gk-card">
         <div class="dialog-banner gk-banner">${gc.useSpell ? "必殺シュート迫る!!" : "GK SAVE!"}</div>
         <p>${carrier.name} の${gc.useSpell ? (gc.tier === "ultimate" ? characterUltimateName(carrier, "shoot") : characterSpellName(carrier, "shoot")) : "シュート"}が ${gk.name} に迫る!</p>
-        <div class="dialog-actions gk-actions">
-          ${opts.map((o) => `<button data-action="gk-choice" data-option="${o.key}" class="${o.key === "spellsave" ? "gk-spellsave" : ""}" ${gk.guts < o.cost ? "disabled" : ""}>${o.label}<br><span class="gk-desc">${o.desc}</span></button>`).join("")}
+        <div class="dialog-actions gk-actions cross-actions">
+          <button class="dir-up" data-action="gk-choice" data-option="punch" ${gk.guts < 10 ? "disabled" : ""}>▲ パンチング<span class="gk-desc">弾く守備 (霊力10)</span></button>
+          <button class="dir-left" data-action="gk-choice" data-option="catch" ${gk.guts < 6 ? "disabled" : ""}>◀ ジャンプキャッチ<span class="gk-desc">確実 (霊力6)</span></button>
+          <button class="dir-right" data-action="gk-choice" data-option="rush" ${gk.guts < 14 ? "disabled" : ""}>飛び出し ▶<span class="gk-desc">間合い詰め (霊力14)</span></button>
+          ${gc.useSpell ? `<button class="dir-down gk-spellsave" data-action="gk-choice" data-option="spellsave" ${gk.guts < 20 ? "disabled" : ""}>▼ スペルセーブ<span class="gk-desc">${gk.spell} (霊力20)</span></button>` : `<div class="dir-down cross-empty">—</div>`}
+          <div class="cross-center">GK</div>
         </div>
       </div>
     </div>
@@ -3050,12 +3054,13 @@ function renderInterruptPrompt() {
     <div class="dialog-overlay interrupt-overlay">
       <div class="dialog-card interrupt-card">
         <div class="dialog-banner">DEFENSE!!</div>
-        <p>${ip.attacker.name} が仕掛けてくる! ${ip.defender.name} はどう守る? <span class="defense-hint">(ドリブルかパスか読め)</span></p>
-        <div class="dialog-actions">
-          <button data-action="interrupt" data-option="tackle">タックル<br><span class="gk-desc">ドリブルに強い (霊力10)</span></button>
-          <button data-action="interrupt" data-option="intercept">パスカット<br><span class="gk-desc">パスに強い (霊力8)</span></button>
-          <button data-action="interrupt" data-option="block">ブロック<br><span class="gk-desc">シュートに強い (霊力12)</span></button>
-          <button data-action="interrupt" data-option="wait">うごかない<br><span class="gk-desc">読み合いを避ける</span></button>
+        <p>${ip.attacker.name} が仕掛けてくる! ${ip.defender.name} はどう守る? <span class="defense-hint">(方向キーで選択)</span></p>
+        <div class="dialog-actions cross-actions">
+          <button class="dir-up" data-action="interrupt" data-option="tackle">▲ タックル<span class="gk-desc">ドリブルに強い (霊力10)</span></button>
+          <button class="dir-left" data-action="interrupt" data-option="intercept">◀ パスカット<span class="gk-desc">パスに強い (霊力8)</span></button>
+          <button class="dir-right" data-action="interrupt" data-option="block">ブロック ▶<span class="gk-desc">シュートに強い (霊力12)</span></button>
+          <button class="dir-down" data-action="interrupt" data-option="wait">▼ うごかない<span class="gk-desc">読み合いを避ける</span></button>
+          <div class="cross-center">守備</div>
         </div>
       </div>
     </div>
@@ -4382,17 +4387,18 @@ function bindKeyboardEvents() {
       }
     }
     if (state.interrupt) {
-      // 原作DF4コマンド: 1=タックル / 2=パスカット / 3=ブロック / 4=うごかない。
-      if (k === "1") { resolveInterrupt("tackle"); e.preventDefault(); return; }
-      if (k === "2") { resolveInterrupt("intercept"); e.preventDefault(); return; }
-      if (k === "3") { resolveInterrupt("block"); e.preventDefault(); return; }
-      if (k === "4" || k === "Escape") { resolveInterrupt("wait"); e.preventDefault(); return; }
+      // 原作DF: 十字方向 ↑タックル/←パスカット/→ブロック/↓うごかない (数字キーも併存)。
+      if (k === "ArrowUp" || k === "w" || k === "W" || k === "1") { resolveInterrupt("tackle"); e.preventDefault(); return; }
+      if (k === "ArrowLeft" || k === "a" || k === "A" || k === "2") { resolveInterrupt("intercept"); e.preventDefault(); return; }
+      if (k === "ArrowRight" || k === "d" || k === "D" || k === "3") { resolveInterrupt("block"); e.preventDefault(); return; }
+      if (k === "ArrowDown" || k === "s" || k === "S" || k === "4" || k === "Escape") { resolveInterrupt("wait"); e.preventDefault(); return; }
     }
     if (state.gkChoice) {
-      if (k === "1") { resolveGkChoice("catch"); e.preventDefault(); return; }
-      if (k === "2") { resolveGkChoice("punch"); e.preventDefault(); return; }
-      if (k === "3") { resolveGkChoice("rush"); e.preventDefault(); return; }
-      if (k === "4" && state.gkChoice.useSpell) { resolveGkChoice("spellsave"); e.preventDefault(); return; }
+      // 原作GK: 十字方向 ↑パンチング/←キャッチ/→飛び出し/↓スペルセーブ (数字キーも併存)。
+      if (k === "ArrowLeft" || k === "a" || k === "A" || k === "1") { resolveGkChoice("catch"); e.preventDefault(); return; }
+      if (k === "ArrowUp" || k === "w" || k === "W" || k === "2") { resolveGkChoice("punch"); e.preventDefault(); return; }
+      if (k === "ArrowRight" || k === "d" || k === "D" || k === "3") { resolveGkChoice("rush"); e.preventDefault(); return; }
+      if ((k === "ArrowDown" || k === "s" || k === "S" || k === "4") && state.gkChoice.useSpell) { resolveGkChoice("spellsave"); e.preventDefault(); return; }
     }
     if (state.battle) {
       if (k === "1" || k === " " || k === "Enter") { resolveBattle("normal"); e.preventDefault(); return; }

@@ -302,6 +302,27 @@ button:disabled {
 .team-cmd-btn:hover { background: #2e5a86; }
 .team-cmd-btn:disabled { opacity: 0.4; cursor: default; }
 
+/* 実機CT3 の十字方向コマンド (守備プロンプト/GKセーブ): ↑↓←→ に4択を配置。 */
+.dialog-actions.cross-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 8px;
+  margin-top: 6px;
+}
+.cross-actions > button { margin: 0; text-align: center; line-height: 1.25; }
+.cross-actions .dir-up { grid-area: 1 / 2 / 2 / 3; }
+.cross-actions .dir-left { grid-area: 2 / 1 / 3 / 2; }
+.cross-actions .dir-right { grid-area: 2 / 3 / 3 / 4; }
+.cross-actions .dir-down { grid-area: 3 / 2 / 4 / 3; }
+.cross-actions .cross-center {
+  grid-area: 2 / 2 / 3 / 3; display: grid; place-items: center;
+  color: var(--ct3-white); font-weight: 900; font-size: 13px; opacity: 0.55; letter-spacing: 2px;
+}
+.cross-actions .gk-desc { display: block; font-size: 10px; opacity: 0.72; margin-top: 2px; font-weight: 600; }
+.cross-actions .cross-empty { grid-area: 3 / 2 / 4 / 3; display: grid; place-items: center; opacity: 0.3; border: 1px dashed rgba(255,255,255,0.25); border-radius: 6px; }
+.cross-actions .gk-spellsave { border-color: rgba(248, 214, 121, 0.8); }
+
 /* ロスタイム表示 (赤点滅で緊張感)。 */
 .ct3-clock.stoppage { color: #ff5a4d; animation: stoppageBlink 0.9s ease-in-out infinite; }
 @keyframes stoppageBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
