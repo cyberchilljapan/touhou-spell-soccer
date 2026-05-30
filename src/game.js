@@ -219,6 +219,7 @@ const state = {
   halftimeReportTimer: null,
   playSeq: null,      // 多段演出シーケンサ (発動→過程→相手対応→合否)
   ballMotion: null,   // ⚽スプライト挙動 { mode, from, to }
+  commandMenu: null,  // 原作Bボタン式の方向コマンドメニュー (上ドリブル/左パス/右シュート/下ワンツー)
 };
 
 const SAVE_KEY = "touhouSpellFutsalSaveV1";
@@ -2608,6 +2609,45 @@ function stepCarrier(dirX, dirY = 0) {
   render();
 }
 
+// 原作CT3のBボタン式コマンドメニュー: 移動を止めて方向でコマンド選択。
+// 上=ドリブル(前進移動) / 左=パス / 右=シュート / 下=ワンツー。 既存パネル/数字キーと併存。
+function openCommandMenu() {
+  if (!carrierCanMove()) return;
+  state.commandMenu = true;
+  audio.play("select");
+  render();
+}
+function closeCommandMenu() {
+  state.commandMenu = null;
+  render();
+}
+function selectCommand(dir) {
+  if (!state.commandMenu) return;
+  state.commandMenu = null;
+  if (dir === "up") stepCarrier(1, 0);        // ドリブル(前進。 敵が近ければエンカウント)
+  else if (dir === "left") openBattle("pass");
+  else if (dir === "right") openBattle("shoot");
+  else if (dir === "down") openBattle("oneTwo");
+}
+
+function renderCommandMenu() {
+  if (!state.commandMenu) return "";
+  const c = getCarrier();
+  const air = state.match && state.match.ballAir;
+  return `
+    <div class="command-menu-overlay" data-action="cmdClose">
+      <div class="cmd-cross" data-stop="1">
+        <div class="cmd-cross-title">${c ? c.name : ""} — コマンド</div>
+        <button class="cc-btn cc-up" data-action="cmdSelect" data-dir="up">▲ ドリブル<span>移動/突破</span></button>
+        <button class="cc-btn cc-left" data-action="cmdSelect" data-dir="left">◀ パス</button>
+        <button class="cc-btn cc-right" data-action="cmdSelect" data-dir="right">${air ? "空中シュート" : "シュート"} ▶</button>
+        <button class="cc-btn cc-down" data-action="cmdSelect" data-dir="down">▼ ワンツー</button>
+        <div class="cmd-cross-hint">方向キー/WASD で選択 ・ Esc で閉じる</div>
+      </div>
+    </div>
+  `;
+}
+
 function knockbackBall(carrier, defender, strength) {
   // ball を defender 側に少し動かす (失敗 carrier から離れる)
   const dir = defender.side === "home" ? 1 : -1;
@@ -3399,7 +3439,7 @@ function renderMatch() {
             ` : disableHomeTurn() ? `
               ${renderCarrierStatBox(carrier)}
             ` : `
-              <div class="command-title">コマンド</div>
+              <div class="command-title">コマンド <button class="cmd-menu-open" data-action="openCommandMenu" ${disableHomeTurn()} title="原作Bボタン式 方向コマンドメニュー">▤ メニュー(Space)</button></div>
               <button class="cmd-row" data-action="step" data-dx="1" data-dy="0" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ドリブル前進<span class="cmd-key">1</span></button>
               <button class="cmd-row" data-action="battle" data-type="pass" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> パス<span class="cmd-key">2</span></button>
               <button class="cmd-row ${match.ballAir ? "aerial" : ""}" data-action="battle" data-type="shoot" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ${match.ballAir ? "空中シュート" : "シュート"}<span class="cmd-key">3</span></button>
@@ -3454,6 +3494,7 @@ function renderMatch() {
     ${state.vsScreen ? renderVsScreen() : ""}
     ${state.interrupt ? renderInterruptPrompt() : ""}
     ${state.gkChoice ? renderGkChoice() : ""}
+    ${state.commandMenu ? renderCommandMenu() : ""}
     ${state.crashScene ? renderCrashScene() : ""}
     ${state.screenFlash ? `<div class="screen-flash"></div>` : ""}
     ${state.judge ? renderJudge() : ""}
@@ -4026,6 +4067,9 @@ function bindEvents() {
         }
       }
       if (action === "step") stepCarrier(parseFloat(button.dataset.dx) || 0, parseFloat(button.dataset.dy) || 0);
+      if (action === "openCommandMenu") openCommandMenu();
+      if (action === "cmdSelect") selectCommand(button.dataset.dir);
+      if (action === "cmdClose") closeCommandMenu();
       if (action === "advancePlay") advancePlay();
       if (action === "toggleAuto") {
         state.progress.autoAdvance = !state.progress.autoAdvance;
@@ -4186,6 +4230,17 @@ function bindKeyboardEvents() {
       if (k === "Escape") { state.battle = null; state.vsScreen = null; render(); e.preventDefault(); return; }
     }
     if (state.screen === "match" && state.match && !state.match.finished && state.match.possession === "home" && !state.battle && !state.passPicker && !state.gkChoice && !state.interrupt) {
+      // 原作Bボタン式コマンドメニューが開いていれば、 方向キーで選択。
+      if (state.commandMenu) {
+        if (k === "ArrowUp" || k === "w" || k === "W") { selectCommand("up"); e.preventDefault(); return; }
+        if (k === "ArrowLeft" || k === "a" || k === "A") { selectCommand("left"); e.preventDefault(); return; }
+        if (k === "ArrowRight" || k === "d" || k === "D") { selectCommand("right"); e.preventDefault(); return; }
+        if (k === "ArrowDown" || k === "s" || k === "S") { selectCommand("down"); e.preventDefault(); return; }
+        if (k === "Escape" || k === " ") { closeCommandMenu(); e.preventDefault(); return; }
+        return;
+      }
+      // Space/Enter = 原作Bボタン (停止してコマンドメニューを開く)。
+      if (k === " " || k === "Enter") { openCommandMenu(); e.preventDefault(); return; }
       // WASD = 盤面ドリブル移動 (保持者を歩かせる)。 矢印/数字は従来コマンドのまま。
       // 原作CT3: 自由8方向移動。 W=前進/S=後退/A=左/D=右、 斜めは QEZC。 敵が近いとエンカウント。
       if (k === "w" || k === "W") { stepCarrier(1, 0); e.preventDefault(); return; }
