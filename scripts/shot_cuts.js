@@ -17,6 +17,11 @@ if (!fs.existsSync(OUT)) fs.mkdirSync(OUT, { recursive: true });
   await p.waitForTimeout(500);
   await p.screenshot({ path: path.join(OUT, "cut_goal.png") });
 
+  // 歓喜カット (赤フラッシュ直後の歓喜+実況)
+  await p.evaluate(() => window.__touhouSpellFutsalDebug.showAction("shoot", "celebrate"));
+  await p.waitForTimeout(500);
+  await p.screenshot({ path: path.join(OUT, "cut_celebrate.png") });
+
   // 必殺技カットイン (青スピード線背景)
   await p.evaluate(() => window.__touhouSpellFutsalDebug.startBattle("dribble"));
   await p.waitForTimeout(200);

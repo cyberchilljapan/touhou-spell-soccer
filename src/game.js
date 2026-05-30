@@ -1921,6 +1921,29 @@ function renderGoalBanner(scene) {
   `;
 }
 
+// 実機CT3 の歓喜カット (赤フラッシュの直後): スタジアム帯で得点者+味方がガッツポーズ + ★ + 看板色帯。
+function renderCelebrateBanner(scene) {
+  const m = state.match;
+  const scorer = scene.attacker;
+  const face = `./assets/cutins/${scorer.id}.png`;
+  const fb = `./assets/portraits/${scorer.id}.png`;
+  // 同チームの味方を2名ほど歓喜の脇役に。
+  const mates = (scorer.side === "home" ? m.home.players : m.away.players).filter((p) => p.id !== scorer.id).slice(0, 2);
+  const mateImgs = mates.map((p) => `<img class="celebrate-mate" src="./assets/portraits/${p.id}.png" alt="" onerror="this.style.display='none'" />`).join("");
+  return `
+    <div class="celebrate-banner">
+      <div class="celebrate-band">
+        <div class="celebrate-crowd"></div>
+        <div class="celebrate-ad">★ TECMO ★</div>
+        <div class="celebrate-figs">
+          ${mateImgs}
+          <img class="celebrate-hero" src="${face}" alt="${scorer.name}" onerror="this.onerror=null;this.src='${fb}'" />
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 // CT3 右カラムの保持者ステータス (相手ターン中など、 コマンドを出さないときに表示)。
 function renderCarrierStatBox(p) {
   if (!p) return "";
@@ -1974,19 +1997,19 @@ function halfLabel(m) {
   return m.half === 1 ? "1ST" : "2ND";
 }
 
-// 黄7セグ表示用の MM:00。 ロスタイムは base+X (いつ終わるか不明の緊張感)。
+// 実機CT3 = 前後半30分。 各ハーフをこの分数からカウントダウン表示。
+const HALF_MIN = 30;
+
+// 黄7セグ表示用の MM:00 (実機CT3=カウントダウン)。 ロスタイム中は 0:00 を点滅(残量は伏せる=いつ終わるか不明)。
 function clockTime(m) {
-  if (m.clock > 45) {
-    const base = m.half === 1 ? 45 : 90;
-    return `${base}+${m.clock - 45}`;
-  }
-  const mins = (m.half === 1 ? 0 : 45) + m.clock;
-  return `${String(mins).padStart(2, "0")}:00`;
+  const remain = HALF_MIN - m.clock;
+  if (remain <= 0) return "0:00";
+  return `${String(remain).padStart(2, "0")}:00`;
 }
 
 // 互換: ログ/ハーフタイム等の文中表示用 (例: "1ST 22:00 ロスタイム")。
 function clockLabel(m) {
-  const stop = m.clock > 45 ? " ロスタイム" : "";
+  const stop = m.clock >= HALF_MIN ? " ロスタイム" : "";
   return `${halfLabel(m)} ${clockTime(m)}${stop}`;
 }
 
@@ -2597,6 +2620,13 @@ function buildShootTailBeats(carrier, gk, baseAtk, gkOption, useSpell, attackTie
       scene: { type: "shoot", attacker: carrier, defender: gk, message: msg, detail: `${detail} (${gkOption})`, outcome: "goal", phase: "result", focus: "attacker", forceAction: shotKind, shotKind },
       goal: true, judge: "goal", flash: true, hitstop: (useSpell || margin >= 18) ? 220 : 150, se: ["goal", "goal-stamp", "crowd-rumble", "ovation"], ms: 1700,
     });
+    // 実機CT3 の歓喜カット+実況メッセージ窓 (赤フラッシュの直後に続く)。
+    const oppTeam = carrier.side === "home" ? state.match.away.name : state.match.home.name;
+    const shotName = AERIAL_LABEL[shotKind] || (useSpell ? (characterSpellName(carrier, "shoot") || "シュート") : "シュート");
+    beats.push({
+      scene: { type: "shoot", attacker: carrier, defender: gk, message: `${carrier.name}の${shotName}！ ${oppTeam}のゴールに つきささりました！！`, detail: "", outcome: "celebrate", phase: "result", focus: "attacker" },
+      celebrate: true, se: ["ovation"], ms: 2000,
+    });
   } else if (goal && accident === "post") {
     // GKは破ったがポスト/枠外。
     beats.push({
@@ -2824,7 +2854,7 @@ function endTurnBookkeeping() {
   match.turn += 1;
   moveAiPlayers();
   // 時間を進める (1手=2〜4分。 局面でばらつき=ロスタイムの不確実性に寄与)。
-  const HALF = 45;
+  const HALF = HALF_MIN;
   match.clock += 2 + Math.floor(rng() * 3);
   // 前半終了(ロスタイム込み) → ハーフタイム → 後半へ
   if (match.half === 1 && match.clock >= HALF + match.stoppage) {
@@ -2844,7 +2874,7 @@ function endTurnBookkeeping() {
     log(`ハーフタイム。両軍が霊力 +20 を回復。スコア ${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}。`);
   }
   // BGM 切替 (後半終盤=intense)
-  const late = match.half === 2 && match.clock >= 30;
+  const late = match.half === 2 && match.clock >= HALF_MIN - 8;
   if (late && audio.currentBgm !== "intense") audio.playBgm("intense");
   else if (!late && match.possession === "away" && audio.currentBgm !== "defense") audio.playBgm("defense");
   else if (!late && match.possession === "home" && audio.currentBgm !== "normal") audio.playBgm("normal");
@@ -3517,6 +3547,7 @@ function renderMatch() {
   }
   const showCG = !!(state.battle || state.gkChoice || state.advance || state.cutin || state.playSeq || stageScene);
   const isGoal = !!(scene && scene.outcome === "goal");
+  const isCelebrate = !!(scene && scene.outcome === "celebrate");
   return `
     <div class="app-shell in-match">
       <section class="match-area ct3">
@@ -3539,9 +3570,10 @@ function renderMatch() {
             ${renderThreatOverlay(carrier, defender)}
             ${state.passPicker ? renderPassPicker() : ""}
           </div>
-          ${showCG ? `<div class="field-cg ${stageScene ? stageScene.type : ""} ${stageScene && stageScene.type === "dribble" ? "grass-scroll" : ""} ${isGoal ? "is-goal" : ""}">
-            ${stageScene ? actionHeroHtml(stageScene) : ""}
+          ${showCG ? `<div class="field-cg ${stageScene ? stageScene.type : ""} ${stageScene && stageScene.type === "dribble" ? "grass-scroll" : ""} ${isGoal ? "is-goal" : ""} ${isCelebrate ? "is-celebrate" : ""}">
+            ${stageScene && !isCelebrate ? actionHeroHtml(stageScene) : ""}
             ${isGoal ? renderGoalBanner(scene) : ""}
+            ${isCelebrate ? renderCelebrateBanner(scene) : ""}
           </div>` : ""}
           ${state.cutin ? renderCutin() : ""}
         </div>
@@ -3549,7 +3581,7 @@ function renderMatch() {
           <div class="ct3-col ct3-left">
             <div class="ct3-box ct3-timer">
               <span class="ct3-half">${halfLabel(match)}</span>
-              <span class="ct3-clock ${match.clock > 45 ? "stoppage" : ""}">${clockTime(match)}</span>
+              <span class="ct3-clock ${match.clock >= HALF_MIN ? "stoppage" : ""}">${clockTime(match)}</span>
             </div>
             <div class="ct3-box ct3-score" title="${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}">
               <div class="ct3-score-flags">
