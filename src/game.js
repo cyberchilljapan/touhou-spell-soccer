@@ -812,7 +812,7 @@ const STORY_OPENING = [
   { speaker: "reimu",   text: "また異変ね。「幻想郷フットボール協会」だって？聞いたこともない団体が、賞金付きの大会を勝手に開いてる。胡散臭いったらない。", cast: ["reimu", "marisa"] },
   { speaker: "marisa",  text: "胡散臭いから面白いんじゃないか。賞金は祠の修繕費、私のキノコ採取資金、お賽銭箱の補強……山分けでいいよな霊夢？", cast: ["reimu", "marisa"] },
   { speaker: "reimu",   text: "山分けじゃなくて全部神社の金庫よ。ともかく、相手は紅魔館、永遠亭、命蓮寺、神霊廟……どれも一筋縄じゃいかない連中ばかり。", cast: ["reimu", "marisa", "sanae"] },
-  { speaker: "sanae",   text: "外の世界では11対11、90分。私たちは霊力で30ターン制にアレンジしました。守矢一同、必勝の祝詞を上げてきます！", cast: ["sanae", "kanako", "suwako"] },
+  { speaker: "sanae",   text: "外の世界と同じ11対11、前後半90分。ロスタイムがどれだけ延びるかは神のみぞ知る。守矢一同、必勝の祝詞を上げてきます！", cast: ["sanae", "kanako", "suwako"] },
   { speaker: "youmu",   text: "幽々子様より「優勝旗は美味しそうだから持ち帰ってきて」とのご命令を承りました。半霊と二人分、ご期待に応えます。", cast: ["youmu", "reimu"] },
   { speaker: "suika",   text: "DFラインは鬼の私に任せろ。萃集無能力で相手を集めて、ぜんぶまとめて吹き飛ばすからな。お酒も忘れずに……。", cast: ["suika", "youmu", "reimu"] },
   { speaker: "reimu",   text: "幻想郷トーナメント、博麗神社一同で挑む。覚悟しなさい、相手チームたち。", cast: ["reimu", "marisa", "sanae", "youmu", "suika"] },
@@ -825,7 +825,7 @@ const STORY_PRE = {
     { speaker: "patchouli", text: "魔理沙……無断借用された蔵書全72冊、そろそろ返すか、シュート1本ごとに利息を払いなさい。", cast: ["patchouli", "marisa"] },
     { speaker: "marisa",    text: "図書館の本？まあ……研究中だぜ。利息は試合で払ってやる。マスタースパーク、避けるなよ？", cast: ["marisa", "patchouli"] },
     { speaker: "flandre",   text: "お姉さま、観客席の壊し方は知ってる？4枚の羽根、ピッチの上で全開にしていい？", cast: ["flandre", "remilia"] },
-    { speaker: "reimu",     text: "1回戦から紅魔館とはツイてない。でも吸血鬼相手なら、ただ太陽が出るまで耐えればいい。30ターン押し切る。", cast: ["reimu", "marisa", "suika"] },
+    { speaker: "reimu",     text: "1回戦から紅魔館とはツイてない。でも吸血鬼相手なら、ただ太陽が出るまで耐えればいい。90分、押し切る。", cast: ["reimu", "marisa", "suika"] },
   ],
   youkai_mountain: [
     { speaker: "aya",     text: "文々。新聞 号外！『博麗チーム、紅魔館撃破！次なる獲物は妖怪山か』──見出しはこれで決まりですね。", cast: ["aya", "momiji", "nitori"] },
@@ -3341,7 +3341,7 @@ function renderSetup() {
       <div class="hero">
         <div class="hero-copy">
           <h1>東方スペルサッカー</h1>
-          <p class="setup-copy">11vs11、30ターン制。接触はコマンドバトル、シュートはGK戦。8チーム88キャラ入り、キャプテン翼風スペルバトル。</p>
+          <p class="setup-copy">11vs11、前後半の時間制(ロスタイムあり)。接触はコマンドバトル、シュートはGK戦。8チーム88キャラ入り、キャプテン翼風スペルバトル。</p>
         </div>
         <div class="versus-preview">
           <img src="${teamCg(home)}" alt="${home.name}" />
@@ -3723,11 +3723,11 @@ function renderHelp() {
       <div class="help-grid">
         <article>
           <h2>試合の流れ</h2>
-          <p>11vs11、30ターン制。終了時点で得点が多いチームの勝利。ボール保持者を中心に行動し、敵と接触するとコマンドバトル (VS 画面) に突入。</p>
+          <p>11vs11、前後半の時間制。タイムアップ時点で得点が多いチームの勝利。ロスタイムは長さ非表示(原作CT3の緊張感)。ボール保持者を中心に行動し、敵と接触するとコマンドバトル (VS 画面) に突入。</p>
         </article>
         <article>
           <h2>盤面ドリブル (WASD / 前進ボタン)</h2>
-          <p>保持者を W=前進 / A・D=斜めにかわして進めます (ボタンは ▲前進 / ↖↗かわす)。守備者に接触するとドリブル勝負 (コマンドバトル) に。前進だけではターンは進まず、接触・パス・シュートの結果でターンが進みます。</p>
+          <p>保持者を WASD で自由8方向に動かせます (▲移動パッド / Spaceで方向コマンドメニュー)。守備者が近いとドリブル勝負 (コマンドバトル) に。移動だけでは時間は進まず、接触・パス・シュートなどプレーの結果で時間が進みます。</p>
         </article>
         <article>
           <h2>コマンド (4方向)</h2>
