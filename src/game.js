@@ -2488,36 +2488,35 @@ function carrierCanMove() {
     && !state.passPicker && !state.gkChoice && !state.interrupt && !state.vnScene;
 }
 
-// 原作CT3: ドリブル = 移動。 ただし敵が近ければエンカウント(1対1のドリブル突破バトル)。
-// 移動前に敵接近を判定し、 近ければバトルへ(=勝手に相手へ突っ込まない)。 離れていれば1マス前進。
+// 原作CT3: ドリブル = 自由移動(8方向)。 ただし敵が近ければエンカウント(1対1のドリブル突破)。
+// dirX: +1=前進(攻撃方向) / -1=後退、 dirY: -1=左 / +1=右。 前進・横移動で敵が間合いなら
+// 移動せずエンカウント(=勝手に突っ込まない)。 後退は逃げる(エンカウントしない)。
 const ENCOUNTER_RANGE = 16;
-function stepCarrier(yBias) {
+const STEP_X = 7, STEP_Y = 9;
+function stepCarrier(dirX, dirY = 0) {
   if (!carrierCanMove()) return;
   const carrier = getCarrier();
   if (!carrier || carrier.role === "GK") return;
-  // 敵が近い → エンカウント (移動せず、 ドリブル突破の1対1へ)。
+  const adir = carrier.side === "home" ? 1 : -1; // 攻撃方向
   const near = nearestOpponent(carrier);
-  if (near && distance(carrier, near) < ENCOUNTER_RANGE) {
-    openBattle("dribble");
+  if (near && distance(carrier, near) < ENCOUNTER_RANGE && dirX >= 0) {
+    openBattle("dribble"); // 敵が間合い & 前進/横 → エンカウント
     return;
   }
-  // 離れている → 1マス前進 (ボールは足元、 他プレイヤーも1ターン移動)。
   if (state.match) state.match.ballAir = false;
-  const dir = carrier.side === "home" ? 1 : -1;
-  carrier.x = clamp(carrier.x + 7 * dir, 8, 92);
-  if (yBias) carrier.y = clamp(carrier.y + yBias, 16, 84);
+  carrier.x = clamp(carrier.x + dirX * adir * STEP_X, 8, 92);
+  carrier.y = clamp(carrier.y + dirY * STEP_Y, 16, 84);
   moveAiPlayers();
   audio.play("kick");
   const after = nearestOpponent(carrier);
-  // 前進後に敵が間合いに入っていれば、 そのままエンカウント。
-  if (after && distance(carrier, after) < ENCOUNTER_RANGE) {
+  if (after && distance(carrier, after) < ENCOUNTER_RANGE && dirX >= 0) {
     openBattle("dribble");
     return;
   }
   if (goalDistance(carrier) < 16) {
-    setActionScene("dribble", carrier, after, `${carrier.name}、ゴール前へ斬り込む! シュートだ!`, "→ シュート / ドリブル前進(1)でさらに前へ", "success", "choice");
+    setActionScene("dribble", carrier, after, `${carrier.name}、ゴール前へ！ シュートだ!`, "→ シュート / WASD移動 / 敵が近いとエンカウント", "success", "choice");
   } else {
-    setActionScene("dribble", carrier, after, `${carrier.name}、ボールを持って前進!`, "ドリブル前進=移動 / 敵が近いとエンカウント / パスは2", "", "choice");
+    setActionScene("dribble", carrier, after, `${carrier.name}、ボールを持って移動。`, "WASD=8方向移動 / 敵が近いとエンカウント / パスは2", "", "choice");
   }
   render();
 }
@@ -2665,8 +2664,8 @@ function enemyTurn() {
   if (!carrier) return;
   const action = aiPickAction(carrier);
   const tier = aiPickTier(carrier, action);
-  // 守備じゃんけん: 相手の dribble/pass には、 近接 home DF がいれば防御選択を出す。
-  if ((action === "dribble" || action === "pass") && offerDefense(carrier, action, tier)) {
+  // 守備じゃんけん(原作CT3 DF4コマンド): 敵の dribble/pass/shoot に、 近接 home DF がいれば守備選択を出す。
+  if ((action === "dribble" || action === "pass" || action === "shoot") && offerDefense(carrier, action, tier)) {
     render();
     return;
   }
@@ -2784,7 +2783,8 @@ function renderInterruptPrompt() {
         <div class="dialog-actions">
           <button data-action="interrupt" data-option="tackle">タックル<br><span class="gk-desc">ドリブルに強い (霊力10)</span></button>
           <button data-action="interrupt" data-option="intercept">パスカット<br><span class="gk-desc">パスに強い (霊力8)</span></button>
-          <button data-action="interrupt" data-option="wait">様子見<br><span class="gk-desc">読み合いを避ける</span></button>
+          <button data-action="interrupt" data-option="block">ブロック<br><span class="gk-desc">シュートに強い (霊力12)</span></button>
+          <button data-action="interrupt" data-option="wait">うごかない<br><span class="gk-desc">読み合いを避ける</span></button>
         </div>
       </div>
     </div>
@@ -2798,39 +2798,50 @@ function resolveInterrupt(option) {
   const token = state.match.matchToken;
   state.interrupt = null;
   const { attacker, defender, aiAction, aiTier } = ip;
-  const aiLabel = aiAction === "dribble" ? "ドリブル" : "パス";
+  const aiLabel = aiAction === "dribble" ? "ドリブル" : aiAction === "shoot" ? "シュート" : "パス";
   if (option === "wait") {
-    log(`${defender.name}は様子見。 ${attacker.name}の${aiLabel}を見送る。`);
+    log(`${defender.name}はうごかない。 ${attacker.name}の${aiLabel}を見送る。`);
     runAiAction(attacker, aiAction, aiTier, token);
     return;
   }
-  const cost = option === "tackle" ? 10 : 8;
+  const cost = { tackle: 10, intercept: 8, block: 12 }[option] || 10;
   if (defender.guts < cost) {
     log(`${defender.name}の霊力不足。 守りきれない。`);
     runAiAction(attacker, aiAction, aiTier, token);
     return;
   }
   spend(defender, cost);
-  const optLabel = option === "tackle" ? "タックル" : "パスカット";
-  // じゃんけん: タックル⇔ドリブル / パスカット⇔パス が刺さる (読み的中で大ボーナス、 外すと不利)。
-  const matched = (option === "tackle" && aiAction === "dribble") || (option === "intercept" && aiAction === "pass");
+  const optLabel = { tackle: "タックル", intercept: "パスカット", block: "ブロック" }[option] || option;
+  // 原作DFじゃんけん: タックル⇔ドリブル / パスカット⇔パス / ブロック⇔シュート が刺さる。
+  const matched = (option === "tackle" && aiAction === "dribble") || (option === "intercept" && aiAction === "pass") || (option === "block" && aiAction === "shoot");
   const matchBonus = matched ? 26 : -24;
-  const atkStat = aiAction === "dribble" ? attacker.stats.dribble : attacker.stats.pass;
+  const atkStat = aiAction === "dribble" ? attacker.stats.dribble : aiAction === "shoot" ? attacker.stats.shoot : attacker.stats.pass;
   const atk = roll(atkStat + difficultyModifier(attacker.side));
-  const defStat = option === "tackle" ? defender.stats.tackle : defender.stats.block;
+  const defStat = option === "tackle" ? defender.stats.tackle : option === "block" ? defender.stats.block : defender.stats.block;
   const def = roll(defStat + defender.stats.speed * 0.3 + matchBonus);
   const defWin = def >= atk;
-  const defForce = option === "tackle" ? "tackle" : "intercept";
+  // シュート守備で防ぎ切れなければ、 シュートはGKへ continue (こぼさず原作通りGK勝負)。
+  if (aiAction === "shoot" && !defWin) {
+    log(`${defender.name}の${optLabel}及ばず。 ${attacker.name}のシュートはGKへ。`);
+    runAiAction(attacker, "shoot", aiTier, token);
+    return;
+  }
+  const defForce = option === "tackle" ? "tackle" : option === "block" ? "block" : "intercept";
   const detail = `守備値 ${Math.round(def)} / 攻撃値 ${Math.round(atk)}${matched ? " / 読み的中" : " / 読み外し"}`;
+  const flowType = aiAction === "dribble" ? "contest" : aiAction === "shoot" ? "shoot" : "pass";
   // 多段: 敵の仕掛け+こちらの守備発動 → 読み合いの合否。
   const beats = [
-    { scene: { type: aiAction === "dribble" ? "contest" : "pass", attacker, defender, message: `${attacker.name}の${aiLabel}！ ${defender.name}が${optLabel}で読む！`, detail: matched ? "読み的中！" : "読み合い…", outcome: "", phase: "flow", focus: "defender", forceAction: defForce }, se: [defForce], ms: 900 },
+    { scene: { type: flowType, attacker, defender, message: `${attacker.name}の${aiLabel}！ ${defender.name}が${optLabel}で読む！`, detail: matched ? "読み的中！" : "読み合い…", outcome: "", phase: "flow", focus: "defender", forceAction: defForce }, se: [defForce], ms: 900 },
   ];
   if (defWin) {
-    // 奪取: タックルは競り合いアリーナ(敵=loser)、 パスカットは単体インターセプト。
-    beats.push(option === "tackle"
-      ? { scene: { type: "contest", attacker, defender, message: `${defender.name}の${optLabel}が刺さった！${matched ? "読み的中、" : ""}ボール奪取！`, detail, outcome: "fail", phase: "result" }, judge: "tackle", se: ["save"], hitstop: 66 }
-      : { scene: { type: "pass", attacker, defender, message: `${defender.name}が${optLabel}！${matched ? "読み的中、" : ""}ボール奪取！`, detail, outcome: "fail", phase: "result", focus: "defender", forceAction: "intercept" }, judge: "intercept", se: ["save"], hitstop: 66 });
+    // 阻止: タックル=競り合いアリーナ / パスカット=インターセプト / ブロック=シュート阻止。
+    if (option === "tackle") {
+      beats.push({ scene: { type: "contest", attacker, defender, message: `${defender.name}の${optLabel}が刺さった！${matched ? "読み的中、" : ""}ボール奪取！`, detail, outcome: "fail", phase: "result" }, judge: "tackle", se: ["save"], hitstop: 66 });
+    } else if (option === "block") {
+      beats.push({ scene: { type: "shoot", attacker, defender, message: `${defender.name}が体を投げ出してブロック！${matched ? "読み的中、" : ""}シュートを止めた！`, detail, outcome: "fail", phase: "result", focus: "defender", forceAction: "block" }, judge: "save", se: ["save"], hitstop: 80 });
+    } else {
+      beats.push({ scene: { type: "pass", attacker, defender, message: `${defender.name}が${optLabel}！${matched ? "読み的中、" : ""}ボール奪取！`, detail, outcome: "fail", phase: "result", focus: "defender", forceAction: "intercept" }, judge: "intercept", se: ["save"], hitstop: 66 });
+    }
   } else {
     beats.push(aiAction === "dribble"
       ? { scene: { type: "contest", attacker, defender, message: `${attacker.name}が${defender.name}の${optLabel}をかわして突破！`, detail, outcome: "success", phase: "result" }, judge: "break", se: ["dribble-break"] }
@@ -2838,10 +2849,10 @@ function resolveInterrupt(option) {
   }
   const apply = () => {
     if (defWin) {
-      bumpStat(defender.side, option === "tackle" ? "tackles" : "intercepts");
-      bumpPlayerStat(defender, option === "tackle" ? "tackles" : "intercepts");
+      const stat = option === "tackle" ? "tackles" : option === "block" ? "saves" : "intercepts";
+      bumpStat(defender.side, stat); bumpPlayerStat(defender, stat);
       knockbackBall(attacker, defender, 9);
-      turnover(defender, `${defender.name}が${attacker.name}から${optLabel}で奪取。`);
+      turnover(defender, `${defender.name}が${attacker.name}の${aiLabel}を${optLabel}で止めた。`);
     } else if (aiAction === "dribble") {
       advanceCarrier(attacker, 14);
     } else {
@@ -3302,14 +3313,20 @@ function renderMatch() {
               ${renderCarrierStatBox(carrier)}
             ` : `
               <div class="command-title">コマンド</div>
-              <button class="cmd-row" data-action="step" data-ybias="0" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ドリブル前進<span class="cmd-key">1</span></button>
+              <button class="cmd-row" data-action="step" data-dx="1" data-dy="0" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ドリブル前進<span class="cmd-key">1</span></button>
               <button class="cmd-row" data-action="battle" data-type="pass" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> パス<span class="cmd-key">2</span></button>
               <button class="cmd-row ${match.ballAir ? "aerial" : ""}" data-action="battle" data-type="shoot" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> ${match.ballAir ? "空中シュート" : "シュート"}<span class="cmd-key">3</span></button>
               <button class="cmd-row" data-action="battle" data-type="team" ${disableHomeTurn()}><span class="cmd-cursor">▶</span> 連携スペル<span class="cmd-key">4</span></button>
-              <div class="move-row">
-                <button class="move-btn" data-action="step" data-ybias="-10" title="左へかわす (A)">↖</button>
-                <button class="move-btn primary" data-action="step" data-ybias="0" title="前進 (W)">▲ 前進<span class="move-key">W</span></button>
-                <button class="move-btn" data-action="step" data-ybias="10" title="右へかわす (D)">↗</button>
+              <div class="move-pad" title="自由8方向移動 (WASD/QEZC) — 敵が近いとエンカウント">
+                <button class="move-btn" data-action="step" data-dx="1" data-dy="-1" title="前左 (Q)">↖</button>
+                <button class="move-btn primary" data-action="step" data-dx="1" data-dy="0" title="前進 (W)">▲</button>
+                <button class="move-btn" data-action="step" data-dx="1" data-dy="1" title="前右 (E)">↗</button>
+                <button class="move-btn" data-action="step" data-dx="0" data-dy="-1" title="左 (A)">◀</button>
+                <span class="move-center">移動</span>
+                <button class="move-btn" data-action="step" data-dx="0" data-dy="1" title="右 (D)">▶</button>
+                <button class="move-btn" data-action="step" data-dx="-1" data-dy="-1" title="後左 (Z)">↙</button>
+                <button class="move-btn" data-action="step" data-dx="-1" data-dy="0" title="後退 (S)">▼</button>
+                <button class="move-btn" data-action="step" data-dx="-1" data-dy="1" title="後右 (C)">↘</button>
               </div>
             `}
           </div>
@@ -3918,7 +3935,7 @@ function bindEvents() {
           render();
         }
       }
-      if (action === "step") stepCarrier(parseFloat(button.dataset.ybias) || 0);
+      if (action === "step") stepCarrier(parseFloat(button.dataset.dx) || 0, parseFloat(button.dataset.dy) || 0);
       if (action === "advancePlay") advancePlay();
       if (action === "toggleAuto") {
         state.progress.autoAdvance = !state.progress.autoAdvance;
@@ -4060,9 +4077,11 @@ function bindKeyboardEvents() {
       }
     }
     if (state.interrupt) {
+      // 原作DF4コマンド: 1=タックル / 2=パスカット / 3=ブロック / 4=うごかない。
       if (k === "1") { resolveInterrupt("tackle"); e.preventDefault(); return; }
       if (k === "2") { resolveInterrupt("intercept"); e.preventDefault(); return; }
-      if (k === "3" || k === "Escape") { resolveInterrupt("wait"); e.preventDefault(); return; }
+      if (k === "3") { resolveInterrupt("block"); e.preventDefault(); return; }
+      if (k === "4" || k === "Escape") { resolveInterrupt("wait"); e.preventDefault(); return; }
     }
     if (state.gkChoice) {
       if (k === "1") { resolveGkChoice("catch"); e.preventDefault(); return; }
@@ -4078,11 +4097,17 @@ function bindKeyboardEvents() {
     }
     if (state.screen === "match" && state.match && !state.match.finished && state.match.possession === "home" && !state.battle && !state.passPicker && !state.gkChoice && !state.interrupt) {
       // WASD = 盤面ドリブル移動 (保持者を歩かせる)。 矢印/数字は従来コマンドのまま。
-      if (k === "w" || k === "W") { stepCarrier(0); e.preventDefault(); return; }
-      if (k === "a" || k === "A") { stepCarrier(-10); e.preventDefault(); return; }
-      if (k === "d" || k === "D") { stepCarrier(10); e.preventDefault(); return; }
-      // 原作CT3: ドリブル=1マス前進 (守備と接触したときだけエンカウント)。 パス/シュートは直接行動。
-      if (k === "ArrowUp" || k === "1") { stepCarrier(0); e.preventDefault(); return; }
+      // 原作CT3: 自由8方向移動。 W=前進/S=後退/A=左/D=右、 斜めは QEZC。 敵が近いとエンカウント。
+      if (k === "w" || k === "W") { stepCarrier(1, 0); e.preventDefault(); return; }
+      if (k === "s" || k === "S") { stepCarrier(-1, 0); e.preventDefault(); return; }
+      if (k === "a" || k === "A") { stepCarrier(0, -1); e.preventDefault(); return; }
+      if (k === "d" || k === "D") { stepCarrier(0, 1); e.preventDefault(); return; }
+      if (k === "q" || k === "Q") { stepCarrier(1, -1); e.preventDefault(); return; }
+      if (k === "e" || k === "E") { stepCarrier(1, 1); e.preventDefault(); return; }
+      if (k === "z" || k === "Z") { stepCarrier(-1, -1); e.preventDefault(); return; }
+      if (k === "c" || k === "C") { stepCarrier(-1, 1); e.preventDefault(); return; }
+      // ドリブル前進=移動。 パス/シュートは直接行動。
+      if (k === "ArrowUp" || k === "1") { stepCarrier(1, 0); e.preventDefault(); return; }
       if (k === "ArrowLeft" || k === "2") { openBattle("pass"); e.preventDefault(); return; }
       if (k === "ArrowRight" || k === "3") { openBattle("shoot"); e.preventDefault(); return; }
       if (k === "ArrowDown" || k === "4") {

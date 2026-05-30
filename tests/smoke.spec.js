@@ -334,8 +334,8 @@ test("ball carrier dribbles across the pitch via W key and move bar", async ({ p
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
-  // 盤面ドリブル移動バー(前進/かわす)が出ている。
-  await expect(page.locator(".move-row")).toBeVisible();
+  // 盤面ドリブル移動パッド(自由8方向)が出ている。
+  await expect(page.locator(".move-pad")).toBeVisible();
   // W で保持者(ボール)が攻撃方向(home=右)へ前進する。
   const beforeX = await page.evaluate(() => parseFloat(document.querySelector(".ball").style.left));
   await page.keyboard.press("w");

@@ -132,6 +132,11 @@ button:disabled {
 .ct3-right .move-row { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 5px; margin-top: 3px; }
 .ct3-right .move-row .move-btn { padding: 6px 4px; font-size: 13px; }
 
+/* 自由8方向移動パッド (3x3、 中央=ラベル)。 */
+.move-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 4px; }
+.move-pad .move-btn { padding: 5px 2px; font-size: 13px; line-height: 1; }
+.move-pad .move-center { display: grid; place-items: center; font-size: 10px; font-weight: 900; color: #f8d679; }
+
 .ct3-stat { border: 2px solid #fff; border-radius: 5px; background: #000; color: #fff; padding: 8px 10px; }
 .ct3-stat-name { color: #f8d679; font-weight: 900; margin-bottom: 4px; }
 .ct3-stat-row { display: flex; justify-content: space-between; font-size: 13px; padding: 1px 0; }
