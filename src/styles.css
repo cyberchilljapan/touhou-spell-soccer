@@ -1306,12 +1306,33 @@ button:disabled {
   font-size: 13px;
 }
 
-/* 実機CT3 実況/掛け声の吹き出し: 角張った白二重枠 (ノコギリ歯感)。 */
+/* 実機CT3 実況/掛け声の吹き出し: 上下にノコギリ歯、左右は白枠 (img04/img09)。 */
 .vn-box.jagged {
-  border-radius: 2px;
-  border: 2px solid var(--ct3-white);
-  box-shadow: inset 0 0 0 1px var(--ct3-inner), inset 0 0 0 3px #000;
+  border-radius: 0;
+  border: 0;
+  border-left: 2px solid var(--ct3-white);
+  border-right: 2px solid var(--ct3-white);
   outline: 0;
+  box-shadow: none;
+  position: relative;
+  background: #000;
+  margin: 8px 0 9px;
+}
+.vn-box.jagged::before,
+.vn-box.jagged::after {
+  content: "";
+  position: absolute;
+  left: -2px; right: -2px;
+  height: 8px;
+  background: var(--ct3-white);
+}
+.vn-box.jagged::before {
+  top: -7px;
+  clip-path: polygon(0 100%, 5% 0, 10% 100%, 15% 0, 20% 100%, 25% 0, 30% 100%, 35% 0, 40% 100%, 45% 0, 50% 100%, 55% 0, 60% 100%, 65% 0, 70% 100%, 75% 0, 80% 100%, 85% 0, 90% 100%, 95% 0, 100% 100%);
+}
+.vn-box.jagged::after {
+  bottom: -7px;
+  clip-path: polygon(0 0, 5% 100%, 10% 0, 15% 100%, 20% 0, 25% 100%, 30% 0, 35% 100%, 40% 0, 45% 100%, 50% 0, 55% 100%, 60% 0, 65% 100%, 70% 0, 75% 100%, 80% 0, 85% 100%, 90% 0, 95% 100%, 100% 0);
 }
 
 .vn-box p {
