@@ -2466,6 +2466,17 @@ function buildShootTailBeats(carrier, gk, baseAtk, gkOption, useSpell, attackTie
   const clash = useSpell && (spellSave || Math.abs(margin) <= 12);
   const goal = margin >= 0;
   const spill = !goal && (gkOption === "punch" || (useSpell && margin >= -12));
+  // 原作CT3: GK突破後のアクシデント段階。 種別(威力帯)が高いほどポスト外れ確率↑。
+  // in=ねじ込みゴール / post=ポスト外れ / cover=カバー阻止 / force=威力でこじ開け救済。
+  let accident = "in";
+  if (goal) {
+    const shotType = isUlti ? 6 : useSpell ? 4 : 0;
+    const postP = { 0: 0.08, 4: 0.15, 6: 0.24 }[shotType] || 0.08;
+    const r = rng();
+    if (r < postP) accident = "post";
+    else if (r < postP + 0.12) accident = margin >= 18 ? "force" : "cover";
+  }
+  const scored = goal && (accident === "in" || accident === "force");
   const gkLabel = { catch: "ジャンプキャッチ", punch: "パンチング", rush: "飛び出し", spellsave: `スペルセーブ「${gk.spell}」` }[gkOption] || "セーブ";
   const detail = `攻撃値 ${Math.round(baseAtk)} / GK値 ${Math.round(def)}`;
   const beats = [];
@@ -2484,13 +2495,26 @@ function buildShootTailBeats(carrier, gk, baseAtk, gkOption, useSpell, attackTie
     });
   }
   // 合否 beat
-  if (goal) {
-    const msg = (clash && margin < 12) ? `火花を散らし、わずかにねじ込んだ！`
+  if (scored) {
+    const msg = accident === "force" ? `${gk.name}を破り、カバーもこじ開けてねじ込んだ！`
+      : (clash && margin < 12) ? `火花を散らし、わずかにねじ込んだ！`
       : (useSpell && margin >= 18) ? `${atkName}が${gk.name}のセーブを粉砕！`
       : `${carrier.name}のシュートが決まった！${gk.name}届かず。`;
     beats.push({
       scene: { type: "shoot", attacker: carrier, defender: gk, message: msg, detail: `${detail} (${gkOption})`, outcome: "goal", phase: "result", focus: "attacker", forceAction: shotKind, shotKind },
       goal: true, judge: "goal", flash: true, hitstop: (useSpell || margin >= 18) ? 220 : 150, se: ["goal", "goal-stamp", "crowd-rumble", "ovation"], ms: 1700,
+    });
+  } else if (goal && accident === "post") {
+    // GKは破ったがポスト/枠外。
+    beats.push({
+      scene: { type: "shoot", attacker: carrier, defender: gk, message: `${gk.name}は破った…が、ポスト！わずかに外れた！`, detail, outcome: "fail", phase: "result", focus: "attacker", forceAction: shotKind, shotKind },
+      judge: "save", se: ["whistle"], hitstop: 140,
+    });
+  } else if (goal && accident === "cover") {
+    // GKは破ったがカバーDFがゴール前で掻き出す。
+    beats.push({
+      scene: { type: "shoot", attacker: carrier, defender: gk, message: `${gk.name}を破った！しかしカバーが入った！ゴール前で掻き出した！`, detail, outcome: "fail", phase: "result", focus: "defender", forceAction: "block" },
+      judge: "save", se: ["save"], hitstop: 110,
     });
   } else if (spill) {
     const msg = (useSpell && gkOption !== "punch") ? `${gk.name}が${atkName}を弾いた！こぼれ球が転がる！` : `${gk.name}がパンチング！こぼれ球が転がる。`;
@@ -2509,11 +2533,15 @@ function buildShootTailBeats(carrier, gk, baseAtk, gkOption, useSpell, attackTie
   // 効果適用 (最終 result beat 直前に1回)。
   const apply = () => {
     if (!state.match) return;
-    if (goal) {
+    if (scored) {
       bumpStat(carrier.side, "goals"); bumpPlayerStat(carrier, "goals");
       match.score[carrier.side] += 1;
       pushCommentary(goalCommentary(carrier)); // 「○○のゴール! 1-0とする!」(これ1本に集約)
       kickoff(opponentSide(carrier.side));
+    } else if (goal && (accident === "post" || accident === "cover")) {
+      // 枠外/カバー阻止 → 得点なし、 守備側ボール (ポスト=GKからゴールキック相当)。
+      bumpStat(gk.side, "saves"); bumpPlayerStat(gk, "saves");
+      turnover(gk, accident === "post" ? `${carrier.name}のシュートは枠を外れた。` : `カバーが${carrier.name}のシュートを掻き出した。`);
     } else if (spill) {
       bumpStat(gk.side, "saves"); bumpPlayerStat(gk, "saves");
       const nearby = allPlayers().filter((p) => p.id !== gk.id && p.role !== "GK").map((p) => ({ p, d: distance(p, gk) })).sort((a, b) => a.d - b.d)[0];
