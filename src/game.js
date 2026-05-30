@@ -1948,12 +1948,11 @@ function renderCelebrateBanner(scene) {
 // 奥の主役は小さく見せて遠近を強調。 専用CG素材が無いので頭+肩のCSSシルエットで近似。
 function renderPovForeground() {
   // 手前に4人ぶんの背中シルエット (左右に見切れ、 中央2人が大きい)。
+  // 生成済みの背中ビューCG(assets/ui/pov_df_*)があれば暗転して使い、 無ければCSSシルエットにフォールバック。
+  const fig = (i) => `<div class="pov-fig f${i}"><img class="pov-fig-img" src="./assets/ui/pov_df_${i}.png" alt="" onload="this.parentElement.classList.add('img-ok')" onerror="this.style.display='none'" /></div>`;
   return `
     <div class="pov-foreground">
-      <div class="pov-fig f0"></div>
-      <div class="pov-fig f1"></div>
-      <div class="pov-fig f2"></div>
-      <div class="pov-fig f3"></div>
+      ${fig(0)}${fig(1)}${fig(2)}${fig(3)}
     </div>
   `;
 }

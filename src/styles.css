@@ -1225,6 +1225,10 @@ button:disabled {
 .pov-fig.f1 { left: 21%; width: 30%; z-index: 2; height: 84%; }
 .pov-fig.f2 { left: 50%; width: 30%; z-index: 2; height: 84%; }
 .pov-fig.f3 { left: 77%; width: 28%; }
+/* 生成済みの背中ビューCG: 暗転+軽ブラーで前景シルエット化、 下端で見切れ。 */
+.pov-fig-img { position: absolute; left: 50%; bottom: -8%; transform: translateX(-50%); height: 132%; width: auto; max-width: 220%; object-fit: contain; filter: brightness(0.42) contrast(1.08) saturate(0.9) blur(0.5px) drop-shadow(0 -2px 6px rgba(0,0,0,0.4)); }
+/* 実画像のロードに成功した figure はCSSブロブ(::before/::after)を隠す。 失敗時はブロブにフォールバック。 */
+.pov-fig.img-ok::before, .pov-fig.img-ok::after { display: none; }
 
 .vn-advance-hint {
   margin-top: 6px;
