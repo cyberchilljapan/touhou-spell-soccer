@@ -701,9 +701,35 @@ button:disabled {
   border: 3px solid rgba(255, 255, 255, 0.86);
   border-radius: 8px;
   overflow: hidden;
-  background: linear-gradient(180deg, #1f5a39 0%, #2e714a 55%, #3a8156 100%);
+  image-rendering: pixelated;
+  /* 実機CT3 スタジアム背景: 青空+雲 / 灰スタンド / カラフル群衆ディザ帯 / 緑芝 (実機attract demo接地)。 */
+  background:
+    radial-gradient(ellipse 58px 15px at 23% 22%, rgba(255,255,255,0.92), transparent 72%),
+    radial-gradient(ellipse 76px 17px at 67% 16%, rgba(255,255,255,0.85), transparent 72%),
+    radial-gradient(ellipse 48px 13px at 49% 28%, rgba(255,255,255,0.8), transparent 72%),
+    repeating-linear-gradient(90deg, #e04040 0 2px, #40c040 2px 4px, #4060e0 4px 6px, #f0d040 6px 8px),
+    linear-gradient(180deg, #4a6cc8 0%, #8aa8f8 31%, #5e5e68 31%, #70707a 38%, #34343e 38%, #34343e 50%, #1f6e1a 50%, #2f8a3a 100%);
+  background-repeat: no-repeat;
+  background-size: auto, auto, auto, 100% 12%, 100% 100%;
+  background-position: 0 0, 0 0, 0 0, 0 44%, 0 0;
   animation: cgStageIn 160ms ease-out;
 }
+/* ナイター照明塔 (市松): スタンド境界に2基。 */
+.field-cg::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 31%;
+  height: 9%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    repeating-conic-gradient(from 0deg at 50% 50%, #d8d8e0 0deg 90deg, #888892 90deg 180deg) ,
+    repeating-conic-gradient(from 0deg at 50% 50%, #d8d8e0 0deg 90deg, #888892 90deg 180deg);
+  background-repeat: no-repeat, no-repeat;
+  background-size: 34px 16px, 34px 16px;
+  background-position: 25% 30%, 72% 30%;
+}
+.stage-cg .field-cg::before { opacity: 0.9; }
 @keyframes cgStageIn { 0% { opacity: 0; transform: scale(1.015); } 100% { opacity: 1; transform: scale(1); } }
 
 @keyframes fieldShake {
