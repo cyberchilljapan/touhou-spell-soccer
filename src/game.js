@@ -1694,6 +1694,8 @@ function renderCutin() {
   return `
     <div class="cutin ${variant} ${cutin.frameIndex >= 1 ? "cutin-impact" : ""}">
       ${cutin.isSpell ? `
+        <div class="speed-bg"></div>
+        <div class="grass-slope"></div>
         <div class="spell-frame"></div>
         <div class="spell-burst"></div>
         <div class="spell-scanline"></div>
@@ -1853,16 +1855,32 @@ function renderActionScene() {
   `;
 }
 
-// ゴール時、上段 .field-cg に重ねる爽快感バナー (大きく・長く・送り待ちで視認可能に)。
+// 得点者の掛け声 (実機CT3 のゴール演出は GOAL ロゴでなく顔アップ叫び+掛け声)。
+// render毎の乱数flickerを避けるため得点合計で固定。
+const GOAL_SHOUTS = ["ゴオオオル!!", "ねじ込んだあああ!!", "決まったあああ!!", "ぶち抜いたあああ!!", "うわあああ 入った!!"];
+function goalShout(p) {
+  const m = state.match;
+  return `${p.name}、${GOAL_SHOUTS[(m.score.home + m.score.away) % GOAL_SHOUTS.length]}`;
+}
+
+// ゴール演出: 実機CT3=赤レターボックス帯 + 白水平スピード線 + 得点者の顔アップ叫び + 掛け声。
+// (GOAL ロゴは原作に無いので廃止。 赤い全面カット+絶叫で爽快感と視認性を両立。)
 function renderGoalBanner(scene) {
   const m = state.match;
   const scorer = scene.attacker;
+  const face = `./assets/cutins/${scorer.id}.png`;
+  const fallback = `./assets/portraits/${scorer.id}.png`;
   return `
     <div class="goal-banner">
-      <div class="goal-rays"></div>
-      <div class="goal-text">GOAL!!</div>
-      <div class="goal-line">${m.home.name} <b>${m.score.home}</b> - <b>${m.score.away}</b> ${m.away.name}</div>
-      <div class="goal-by">⚽ ${scorer.role} ${scorer.name}</div>
+      <div class="goal-speedlines"></div>
+      <div class="goal-band">
+        <img class="goal-face" src="${face}" alt="${scorer.name}" onerror="this.onerror=null;this.src='${fallback}'" />
+        <div class="goal-shout-wrap">
+          <div class="goal-shout">${goalShout(scorer)}</div>
+          <div class="goal-score"><b>${m.score.home}</b><span>-</span><b>${m.score.away}</b></div>
+          <div class="goal-by">${scorer.role} ${scorer.name}　${scorer.side === "home" ? m.home.name : m.away.name}</div>
+        </div>
+      </div>
     </div>
   `;
 }

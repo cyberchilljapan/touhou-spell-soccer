@@ -988,41 +988,65 @@ button:disabled {
 @keyframes airPulse { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(92, 200, 255, 0.6); } }
 .cmd-row.aerial { color: #5cc8ff; text-shadow: 0 0 8px rgba(92, 200, 255, 0.7); }
 
-/* ゴール爽快感バナー: 上段CGに重ねて大きく・長く (送り待ちで停止=視認可能)。 */
-.field-cg.is-goal { background: linear-gradient(180deg, #2a1006 0%, #5a2a08 55%, #7a3a0c 100%); }
+/* 実機CT3 ゴール演出: 赤レターボックス帯 + 白水平スピード線 + 得点者の顔アップ叫び + 掛け声。 */
+.field-cg.is-goal { background: #000; }
 .goal-banner {
   position: absolute;
   inset: 0;
   z-index: 6;
   display: grid;
   place-content: center;
-  justify-items: center;
-  gap: 6px;
   pointer-events: none;
-  text-align: center;
 }
-.goal-rays {
+/* 赤背景 + 白水平スピード線 (横に流れる)。 */
+.goal-speedlines {
   position: absolute;
-  inset: -20%;
-  background: repeating-conic-gradient(from 0deg, rgba(255, 220, 120, 0.22) 0deg 6deg, transparent 6deg 12deg);
-  animation: goalRays 5s linear infinite;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.0) 0px, rgba(255,255,255,0.0) 5px, rgba(255,255,255,0.55) 5px, rgba(255,255,255,0.55) 7px),
+    linear-gradient(180deg, #d40000 0%, #b00000 50%, #d40000 100%);
+  background-size: 100% 12px, 100% 100%;
+  animation: goalLineFlow 0.5s linear infinite;
 }
-@keyframes goalRays { to { transform: rotate(360deg); } }
-.goal-text {
+@keyframes goalLineFlow { from { background-position-x: 0, 0; } to { background-position-x: 80px, 0; } }
+/* 横長の赤レターボックス帯 (上下黒で挟む)。 */
+.goal-band {
   position: relative;
-  font-size: clamp(46px, 9vw, 96px);
-  font-weight: 900;
-  letter-spacing: 4px;
-  color: #fff;
-  -webkit-text-stroke: 3px #d8431f;
-  text-shadow: 0 0 18px rgba(255, 200, 90, 0.95), 0 6px 10px rgba(0, 0, 0, 0.7);
-  animation: goalPop 600ms cubic-bezier(0.2, 1.5, 0.3, 1) both, goalThrob 900ms 600ms ease-in-out infinite;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 3vw, 32px);
+  padding: clamp(10px, 3vh, 28px) 18px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0) 18% 82%, rgba(0,0,0,0.35));
+  animation: goalBandIn 360ms cubic-bezier(0.2, 1.4, 0.3, 1) both;
 }
-@keyframes goalPop { 0% { transform: scale(0.2) rotate(-8deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
-@keyframes goalThrob { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
-.goal-line { position: relative; font-size: clamp(16px, 2.4vw, 26px); font-weight: 900; color: #fff7df; text-shadow: 0 2px 4px #000; }
-.goal-line b { color: #ffe06a; font-size: 1.3em; }
-.goal-by { position: relative; font-size: clamp(13px, 1.8vw, 18px); font-weight: 800; color: #fff; text-shadow: 0 2px 3px #000; }
+@keyframes goalBandIn { 0% { transform: scale(0.7); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.goal-face {
+  height: clamp(120px, 34vh, 260px);
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,0.7)) contrast(1.08) saturate(1.1);
+  animation: goalFaceShake 220ms ease-in-out 3;
+}
+@keyframes goalFaceShake { 0%, 100% { transform: translateX(0) rotate(0); } 25% { transform: translateX(-3px) rotate(-1.5deg); } 75% { transform: translateX(3px) rotate(1.5deg); } }
+.goal-shout-wrap { display: grid; gap: 8px; justify-items: start; text-align: left; }
+.goal-shout {
+  font-size: clamp(26px, 5.2vw, 62px);
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #fff;
+  -webkit-text-stroke: 2px #7a0000;
+  text-shadow: 0 0 14px rgba(255, 240, 120, 0.9), 0 5px 8px rgba(0, 0, 0, 0.8);
+  animation: goalThrob 700ms ease-in-out infinite;
+  line-height: 1.05;
+}
+@keyframes goalThrob { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+.goal-score { display: flex; align-items: baseline; gap: 8px; font-weight: 900; }
+.goal-score b { font-size: clamp(28px, 5vw, 56px); color: var(--ct3-yellow); text-shadow: 2px 2px 0 #4a3a00, 0 0 12px rgba(248,192,0,0.6); font-variant-numeric: tabular-nums; }
+.goal-score span { font-size: clamp(20px, 3vw, 36px); color: var(--ct3-yellow); }
+.goal-by { font-size: clamp(13px, 1.8vw, 20px); font-weight: 800; color: #fff; text-shadow: 0 2px 3px #000; letter-spacing: 1px; }
 
 .vn-advance-hint {
   margin-top: 6px;
@@ -1871,6 +1895,28 @@ button:disabled {
   animation: spellFlash 1480ms ease both;
 }
 
+/* 実機CT3 必殺技カット: 濃青ベタ + 白水平スピード線 (背景差し替え) + 下1/3に斜め芝。 */
+.cutin .speed-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0) 0px, rgba(255,255,255,0) 6px, rgba(255,255,255,0.5) 6px, rgba(255,255,255,0.5) 8px),
+    linear-gradient(180deg, #5a78ff 0%, #1828d8 38%, #1020c0 100%);
+  background-size: 100% 14px, 100% 100%;
+  animation: speedFlow 0.42s linear infinite;
+}
+@keyframes speedFlow { from { background-position-x: 0, 0; } to { background-position-x: 96px, 0; } }
+.cutin .grass-slope {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 34%;
+  z-index: 0;
+  background: linear-gradient(180deg, #2f8a3a 0%, #207818 100%);
+  clip-path: polygon(0 36%, 100% 0, 100% 100%, 0 100%);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,0.4);
+}
+
 .spell-frame {
   position: absolute;
   inset: 10px;
@@ -2045,6 +2091,12 @@ button:disabled {
   background:
     linear-gradient(90deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.82) 62%),
     repeating-linear-gradient(-12deg, rgba(255, 255, 255, 0.08) 0 7px, transparent 7px 24px);
+}
+
+/* 必殺技は青スピード線背景を見せたいので影を薄く青寄りに (文字枠は自前の背景で可読性確保)。 */
+.spell-cutin .cutin-shade {
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0) 30%, rgba(8, 18, 120, 0.22) 100%);
 }
 
 .cutin-copy {
