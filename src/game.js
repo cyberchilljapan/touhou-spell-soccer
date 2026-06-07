@@ -3594,12 +3594,11 @@ function renderMatch() {
   // プレイヤーがボールを保持して自由に操作できる状態 (= ドリブルで盤面をナビゲートする局面)。
   const playerSteering = match.possession === "home" && !state.battle && !state.advance && !state.passPicker
     && !state.gkChoice && !state.interrupt && !state.playSeq && !state.cutin && carrier;
-  // CG ショーケースは アクション結果 / 多段演出(flow) / キックオフ導入 のときだけ出す。
+  // CG ショーケースは アクション結果 / 多段演出(flow) のときだけ。 それ以外は盤面。
   let stageScene = (scene && (scene.phase === "result" || scene.phase === "flow")) ? scene : null;
-  if (!stageScene && scene && scene.type === "kickoff") stageScene = scene;
-  // 自由ドリブル中は盤面(.field)を出して「好きな方向へドリブル」できるナビ可能性を確保する。
-  // 旧実装は free-move でも CG ショーケースを出し、 盤面が visibility:hidden で隠れて狙った方向へ動かせなかった (本不具合の根因)。
-  if (playerSteering && scene && scene.type !== "kickoff") stageScene = null;
+  // プレイヤーが操作できる間 (キックオフ/自由ドリブル/コマンド選択) は盤面(.field)を出してナビ可能にする。
+  // 旧実装は操作中も CG ショーケースを出し、 盤面が visibility:hidden で隠れて「好きな方向へドリブルできない」不具合だった。
+  if (playerSteering) stageScene = null;
   // パス先ピッカー中はピッチを表示する (badge は .field 内に座標配置=CG showcase で隠れると
   // クリック不能になるため)。 パスは「ピッチ上で味方位置を見て出す」ので原作的にも正しい。
   const showCG = !state.passPicker && !!(state.battle || state.gkChoice || state.advance || state.cutin || state.playSeq || stageScene);
@@ -3630,6 +3629,7 @@ function renderMatch() {
             ${state.passPicker ? renderPassPicker() : ""}
           </div>
           ${showCG ? `<div class="field-cg ${stageScene ? stageScene.type : ""} ${stageScene && stageScene.type === "dribble" ? "grass-scroll" : ""} ${isGoal ? "is-goal" : ""} ${isCelebrate ? "is-celebrate" : ""} ${isPovA ? "is-povA" : ""}">
+            ${!isGoal && !isCelebrate ? `<div class="cg-sky"></div><div class="cg-grass"></div>` : ""}
             ${stageScene && !isCelebrate ? actionHeroHtml(stageScene) : ""}
             ${isPovA ? renderPovForeground() : ""}
             ${isGoal ? renderGoalBanner(scene) : ""}

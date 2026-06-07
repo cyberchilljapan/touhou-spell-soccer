@@ -23,6 +23,7 @@ _ct3ref/
 
 # 検証スクショ出力
 _shots/
+_show/
 
 # Anima アクションCG (スクリプトで再生成可能・大容量~1.3GB・生成中)。確定後に別途バンドル。
 assets/actions/

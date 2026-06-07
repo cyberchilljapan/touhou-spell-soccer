@@ -17,7 +17,8 @@ test("campaign match starts and resolves a command battle", async ({ page }) => 
   await expect(page.locator('img[src="./assets/team_cg/hakurei.png"]').first()).toBeVisible();
 
   await page.getByRole("button", { name: "異変開始" }).click();
-  await expect(page.locator(".field-cg")).toBeVisible();
+  // キックオフ/操作中は盤面(ナビ可能)を表示 (CGショーケースはアクション時のみ)。
+  await expect(page.locator(".match-stage.stage-pitch")).toBeVisible();
   await expect(page.locator(".ct3-timer")).toContainText("1ST");
   await expect(page.locator(".ct3-panel")).toBeVisible();
 
@@ -454,7 +455,7 @@ test("progress reset keeps the game playable (no playerXp crash)", async ({ page
   await page.getByRole("button", { name: "進行リセット" }).click();
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.getByRole("button", { name: "試合開始" }).click();
-  await expect(page.locator(".field-cg")).toBeVisible();
+  await expect(page.locator(".match-stage.stage-pitch")).toBeVisible();
   await expect(page.locator(".player-token")).toHaveCount(22);
 });
 

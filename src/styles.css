@@ -753,15 +753,13 @@ button:disabled {
   overflow: hidden;
   image-rendering: pixelated;
   /* 実機CT3 スタジアム背景: 青空+雲 / 灰スタンド / カラフル群衆ディザ帯 / 緑芝 (実機attract demo接地)。 */
+  /* 雲は動く .cg-sky 層へ移譲。 ここは群衆ディザ帯 + 空/スタンド/芝 の静的ベースのみ。 */
   background:
-    radial-gradient(ellipse 58px 15px at 23% 22%, rgba(255,255,255,0.92), transparent 72%),
-    radial-gradient(ellipse 76px 17px at 67% 16%, rgba(255,255,255,0.85), transparent 72%),
-    radial-gradient(ellipse 48px 13px at 49% 28%, rgba(255,255,255,0.8), transparent 72%),
     repeating-linear-gradient(90deg, #e04040 0 2px, #40c040 2px 4px, #4060e0 4px 6px, #f0d040 6px 8px),
     linear-gradient(180deg, #4a6cc8 0%, #8aa8f8 31%, #5e5e68 31%, #70707a 38%, #34343e 38%, #34343e 50%, #1f6e1a 50%, #2f8a3a 100%);
   background-repeat: no-repeat;
-  background-size: auto, auto, auto, 100% 12%, 100% 100%;
-  background-position: 0 0, 0 0, 0 0, 0 44%, 0 0;
+  background-size: 100% 12%, 100% 100%;
+  background-position: 0 44%, 0 0;
   animation: cgStageIn 160ms ease-out;
 }
 /* ナイター照明塔 (市松): スタンド境界に2基。 */
@@ -781,6 +779,30 @@ button:disabled {
 }
 .stage-cg .field-cg::before { opacity: 0.9; }
 @keyframes cgStageIn { 0% { opacity: 0; transform: scale(1.015); } 100% { opacity: 1; transform: scale(1); } }
+
+/* 生きた背景 (容量制約下の原作CT3式トリック=工夫でスピード感): 空雲を横に流し、 芝の刈り筋を手前(縦)に流す。 */
+.cg-sky {
+  position: absolute; left: 0; right: 0; top: 0; height: 31%;
+  z-index: 0; pointer-events: none; overflow: hidden;
+  background-image:
+    radial-gradient(ellipse 50px 14px at 36px 20px, rgba(255,255,255,0.92), transparent 70%),
+    radial-gradient(ellipse 66px 17px at 152px 13px, rgba(255,255,255,0.82), transparent 70%),
+    radial-gradient(ellipse 44px 12px at 250px 27px, rgba(255,255,255,0.76), transparent 70%);
+  background-repeat: repeat-x;
+  background-size: 320px 100%;
+  animation: cloudDrift 34s linear infinite;
+}
+@keyframes cloudDrift { from { background-position-x: 0; } to { background-position-x: -320px; } }
+.cg-grass {
+  position: absolute; left: 0; right: 0; bottom: 0; top: 50%;
+  z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(0deg, #1d6a18 0 26px, #2c8233 26px 52px);
+  background-size: 100% 52px;
+  animation: grassFlow 1.1s linear infinite;
+}
+@keyframes grassFlow { from { background-position-y: 0; } to { background-position-y: 52px; } }
+/* 仕掛け/シュート/競り合いなど勢いのある局面は芝を速く流して疾走感を強める。 */
+.field-cg.dribble .cg-grass, .field-cg.shoot .cg-grass, .field-cg.contest .cg-grass { animation-duration: 0.5s; }
 
 @keyframes fieldShake {
   0%, 100% { transform: translate(0, 0); }
