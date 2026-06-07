@@ -4625,6 +4625,29 @@ window.__touhouSpellFutsalDebug = {
     }
     render();
   },
+  // 進行スナップショット (検証ハーネス用: DOM由来でない実進行シグナル)。
+  // validate_playthrough.js は .ct3-clock(残り時間カウントダウン)を turn と誤読していたので、ここから実 turn/得点/シュート数を読む。
+  matchSnapshot() {
+    const m = state.match;
+    if (!m) return null;
+    return {
+      turn: m.turn,
+      half: m.half,
+      clock: m.clock,
+      score: { home: m.score.home, away: m.score.away },
+      scoreTotal: m.score.home + m.score.away,
+      shots: m.stats.home.shots + m.stats.away.shots,
+      shotsHome: m.stats.home.shots,
+      shotsAway: m.stats.away.shots,
+      goals: m.stats.home.goals + m.stats.away.goals,
+      possession: m.possession,
+      finished: m.finished,
+    };
+  },
+  // state 本体を露出 (テスト/検証用)。 const state はモジュールスコープで window 非公開なため。
+  getState() {
+    return state;
+  },
   forceCampaignClear(difficulty = "normal") {
     if (!["easy", "normal", "hard"].includes(difficulty)) return;
     setDifficulty(difficulty);

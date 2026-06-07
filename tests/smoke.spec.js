@@ -483,3 +483,46 @@ test("dribbling grounds a high ball (no stale aerial state)", async ({ page }) =
   await page.keyboard.press("w");
   await expect(page.locator(".air-badge")).toHaveCount(0);
 });
+
+// 検証ハーネス土台: DOM由来でない実進行スナップショット (validate_playthrough が turn を時計と誤読していた件の根治)。
+test("debug.matchSnapshot exposes real progress signals", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  const s = await page.evaluate(() => window.__touhouSpellFutsalDebug.matchSnapshot());
+  expect(typeof s.turn).toBe("number");
+  expect(typeof s.scoreTotal).toBe("number");
+  expect(typeof s.shots).toBe("number");
+  expect(["home", "away"]).toContain(s.possession);
+});
+
+// 回帰防止(最重要): 実シュートが apply() 経路 (match.score[side] += 1, goal beat) を通って得点が入ること。
+// forceJudge はスタンプ描画のみでスコア加算経路をバイパスするため、本物の得点フロー死を検出できなかった。
+test("a real shoot resolves through apply() and increments the score", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  // ゴール至近 + 圧倒的攻撃 + セーブほぼ不能の GK を仕込み、 決定的シードで必ずゴールにする。
+  const before = await page.evaluate(() => {
+    const D = window.__touhouSpellFutsalDebug;
+    const m = D.getState().match;
+    const all = [...m.home.players, ...m.away.players];
+    const c = all.find((p) => p.id === m.carrierId) || m.home.players[1];
+    m.possession = "home"; m.carrierId = c.id;
+    c.x = 90; c.stats.shoot = 220; c.guts = 220;
+    const gk = m.away.players.find((p) => p.role === "GK");
+    gk.stats.keep = 1; gk.stats.block = 1; gk.guts = 5;
+    D.getState().battle = null;
+    D.seedRng(20260607);
+    D.startBattle("shoot");
+    return D.matchSnapshot().scoreTotal;
+  });
+  await page.locator('[data-action="resolve"][data-option="normal"]').click();
+  await page.evaluate(() => window.__touhouSpellFutsalDrainSeq({ untilResult: true }));
+  const after = await page.evaluate(() => {
+    const s = window.__touhouSpellFutsalDebug.matchSnapshot();
+    window.__touhouSpellFutsalDebug.clearRng();
+    return s.scoreTotal;
+  });
+  expect(after).toBe(before + 1);
+});
