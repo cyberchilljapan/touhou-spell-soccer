@@ -561,3 +561,32 @@ test("command menu direction click selects through the nested-click guard", asyn
   await page.locator('.cc-btn[data-dir="left"]').click(); // 左=パス
   await expect(page.locator(".command-menu-overlay")).toHaveCount(0);
 });
+
+// 回帰防止: 試合で稼いだ playerXp(成長)が、 設定を一切触らなくても試合終了で永続化されること。
+// 旧バグ: gainXp/bumpPlayerStat に saveProgress が無く、 設定を触らず閉じると育成が巻き戻っていた。
+test("player XP earned in a match is persisted at match end", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.autoWinMatch());
+  const xpTotal = await page.evaluate(() => {
+    const raw = localStorage.getItem("touhouSpellFutsalSaveV1");
+    const px = (raw && JSON.parse(raw).playerXp) || {};
+    return Object.values(px).reduce((s, x) => s + ((x && x.xp) || 0), 0);
+  });
+  expect(xpTotal).toBeGreaterThan(0);
+});
+
+// 回帰防止: 制覇カウントが同一最終戦の再勝利(retry相当)で水増しされないこと(対戦indexごと一度きり)。
+test("campaign clear count is idempotent across a repeated final win", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "異変開始" }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.forceCampaignClear("normal"));
+  const before = await page.evaluate(() => window.__touhouSpellFutsalDebug.getState().progress.campaignClears);
+  const after = await page.evaluate(() => {
+    window.__touhouSpellFutsalDebug.autoWinMatch(); // 同一campaign/最終戦を再び勝利確定 (retry相当)
+    return window.__touhouSpellFutsalDebug.getState().progress.campaignClears;
+  });
+  expect(before).toBeGreaterThan(0);
+  expect(after).toBe(before);
+});

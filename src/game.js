@@ -2922,24 +2922,35 @@ function endTurnBookkeeping() {
     // 勝利 XP (死に設定だった XP_TABLE.win を解消)。 home roster のみ成長。
     if (match.winner === "home") match.home.players.forEach((p) => gainXp(p, "win"));
     if (state.mode === "campaign" && match.winner === "home" && state.campaign) {
-      state.campaign.wins += 1;
+      // 再戦(retry)は campaign.index を据え置いたまま同じ試合を再生成するため、 wins/campaignClears が
+      // 無制限に水増しされていた。 対戦index ごとに一度だけ加算する冪等ガードで防ぐ。
+      state.campaign.wonIndices = state.campaign.wonIndices || [];
+      const firstWin = !state.campaign.wonIndices.includes(state.campaign.index);
+      if (firstWin) {
+        state.campaign.wonIndices.push(state.campaign.index);
+        state.campaign.wins += 1;
+      }
       if (unlockTeam(match.away.id)) {
         match.unlockedTeamId = match.away.id;
         log(`${match.away.name}がフリー対戦で使用可能になった。`);
       }
       if (state.campaign.index >= state.campaign.opponents.length - 1) {
-        state.progress.campaignClears += 1;
-        const difficulty = state.progress.difficulty;
-        if (!state.progress.difficultyClears[difficulty]) {
-          state.progress.difficultyClears[difficulty] = true;
-          match.rewardMessage = DIFFICULTY_REWARDS[difficulty].message;
-          log(match.rewardMessage);
+        if (firstWin) {
+          state.progress.campaignClears += 1;
+          const difficulty = state.progress.difficulty;
+          if (!state.progress.difficultyClears[difficulty]) {
+            state.progress.difficultyClears[difficulty] = true;
+            match.rewardMessage = DIFFICULTY_REWARDS[difficulty].message;
+            log(match.rewardMessage);
+          }
         }
         saveProgress();
       }
     }
     const result = match.winner === "draw" ? "引き分け" : match.winner === "home" ? `${match.home.name}の勝利` : `${match.away.name}の勝利`;
     log(`試合終了。${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}。${result}。`);
+    // 試合で稼いだ playerXp(成長)を確実に永続化。 旧版は設定を触らない限り flush されず次回起動で巻き戻っていた。
+    saveProgress();
   } else {
     saveMatch();
   }
