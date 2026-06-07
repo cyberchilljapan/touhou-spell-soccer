@@ -98,7 +98,7 @@ const MATCHES = Number(process.env.MATCHES || 3);
 
     const fin = await page.evaluate(() => { const D = window.__touhouSpellFutsalDebug; return (D && D.matchSnapshot && D.matchSnapshot()) || null; });
     if (fin) { totals.shots += fin.shots; totals.goals += fin.goals; }
-    console.log(`M${m} steps=${steps} errors=${errors.length} ${fin ? `shots=${fin.shots} goals=${fin.goals}` : "no-snapshot"}`);
+    console.log(`M${m} steps=${steps} errors=${errors.length} ${fin ? `score ${fin.score.home}-${fin.score.away} shots=${fin.shots}(away ${fin.shotsAway}) goals=${fin.goals}` : "no-snapshot"}`);
     errors.slice(0, 6).forEach((e) => console.log("ERR:", e.slice(0, 200)));
     if (errors.length) fail = true;
     await page.close();

@@ -3023,18 +3023,23 @@ function aiPickAction(carrier) {
 
 function scoreShoot(p) {
   const dist = goalDistance(p);
-  return (p.stats.shoot / 100) * Math.max(0.1, 1 - dist / 40) * (p.guts > 30 ? 1.2 : 0.5);
+  // 射程をやや広げ(40→50)、 ゴール前でドリブルに勝つ勾配を作る。 シュート解決式(distancePenalty)は不変。
+  return (p.stats.shoot / 100) * Math.max(0.12, 1 - dist / 50) * (p.guts > 30 ? 1.2 : 0.5);
 }
 
 function scoreDribble(p) {
-  return (p.stats.dribble / 100) * Math.min(1, goalDistance(p) / 50) * (p.guts > 22 ? 1.0 : 0.5);
+  // 自陣で延々ドリブルし続け前進しない問題(AIが永遠にシュートに届かない)の核心:
+  // 深い位置の価値を 0.6 で頭打ちにし、 自陣ではパス(前方展開)、 ゴール前ではシュートへ主役を譲る。
+  return (p.stats.dribble / 100) * Math.min(0.6, goalDistance(p) / 45) * (p.guts > 22 ? 1.0 : 0.5);
 }
 
 function scorePass(p) {
   const ahead = nearestMateAhead(p);
   if (!ahead) return 0;
   const forward = Math.max(0, (ahead.x - p.x) * (p.side === "home" ? 1 : -1));
-  return (p.stats.pass / 100) * Math.min(1, forward / 50) * (p.guts > 18 ? 1.0 : 0.6);
+  // 自陣(ゴールまで遠い)ほど前線への展開を優先し、 ボールを前へ運ぶ。 close 32 ではドリブル/シュートへ。
+  const deepBoost = goalDistance(p) > 30 ? 1.7 : 1.0;
+  return (p.stats.pass / 100) * Math.min(1, forward / 35) * (p.guts > 18 ? 1.0 : 0.6) * deepBoost;
 }
 
 function scoreTeam(p) {
