@@ -3216,7 +3216,9 @@ button:disabled {
 }
 
 @keyframes vsScreenOut {
-  to { opacity: 0; transform: scale(1.08); }
+  /* 退場フェード中は pointer-events を切る。 見た目消えた後も全画面クリックを飲んで下層 tier を空振りさせる窓を無くす。 */
+  0% { opacity: 1; pointer-events: none; }
+  to { opacity: 0; transform: scale(1.08); pointer-events: none; }
 }
 
 .judge-overlay {

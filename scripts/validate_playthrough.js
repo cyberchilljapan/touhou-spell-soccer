@@ -10,7 +10,7 @@ const MATCHES = Number(process.env.MATCHES || 3);
 (async () => {
   const browser = await chromium.launch({ channel: process.env.PW_CHANNEL || "msedge" });
   let fail = false;
-  const totals = { shots: 0, goals: 0 };
+  const totals = { shots: 0, goals: 0, shotsAway: 0 };
   for (let m = 0; m < MATCHES; m++) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
     const errors = [];
@@ -97,17 +97,19 @@ const MATCHES = Number(process.env.MATCHES || 3);
     }
 
     const fin = await page.evaluate(() => { const D = window.__touhouSpellFutsalDebug; return (D && D.matchSnapshot && D.matchSnapshot()) || null; });
-    if (fin) { totals.shots += fin.shots; totals.goals += fin.goals; }
+    if (fin) { totals.shots += fin.shots; totals.goals += fin.goals; totals.shotsAway += fin.shotsAway; }
     console.log(`M${m} steps=${steps} errors=${errors.length} ${fin ? `score ${fin.score.home}-${fin.score.away} shots=${fin.shots}(away ${fin.shotsAway}) goals=${fin.goals}` : "no-snapshot"}`);
     errors.slice(0, 6).forEach((e) => console.log("ERR:", e.slice(0, 200)));
     if (errors.length) fail = true;
     await page.close();
   }
 
-  console.log(`\nTOTALS over ${MATCHES} matches: shots=${totals.shots} goals=${totals.goals}`);
+  console.log(`\nTOTALS over ${MATCHES} matches: shots=${totals.shots} (away ${totals.shotsAway}) goals=${totals.goals}`);
   // 得点フローの死活: 全試合通算でシュート0 or 得点0 は退行 (偽greenの根絶)。
   if (totals.shots === 0) { console.log("FAIL: 総シュート0 — 攻撃が一度も成立していない (得点フロー死)"); fail = true; }
   if (totals.goals === 0) { console.log("FAIL: 総得点0 — シュートが一度も決まっていない (得点フロー退行)"); fail = true; }
+  // C2 が触ったのは AWAY(AI) の攻撃。 home駆動の合算では away の死を隠せるので away を別ゲート化。
+  if (totals.shotsAway === 0) { console.log("FAIL: away総シュート0 — AIが一度も攻めていない (C2 AI前進フローの退行)"); fail = true; }
   await browser.close();
   process.exit(fail ? 1 : 0);
 })();

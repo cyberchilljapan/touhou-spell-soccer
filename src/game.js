@@ -3050,7 +3050,9 @@ function scorePass(p) {
   const forward = Math.max(0, (ahead.x - p.x) * (p.side === "home" ? 1 : -1));
   // 自陣(ゴールまで遠い)ほど前線への展開を優先し、 ボールを前へ運ぶ。 close 32 ではドリブル/シュートへ。
   const deepBoost = goalDistance(p) > 30 ? 1.7 : 1.0;
-  return (p.stats.pass / 100) * Math.min(1, forward / 35) * (p.guts > 18 ? 1.0 : 0.6) * deepBoost;
+  // ゴール前(射程内)では撃つべき。 疲弊した攻撃者が正面で横/後ろパスに逃げる退行を防ぐ(パスを大きく減点)。
+  const nearGoalDamp = goalDistance(p) < 22 ? 0.35 : 1.0;
+  return (p.stats.pass / 100) * Math.min(1, forward / 35) * (p.guts > 18 ? 1.0 : 0.6) * deepBoost * nearGoalDamp;
 }
 
 function scoreTeam(p) {
