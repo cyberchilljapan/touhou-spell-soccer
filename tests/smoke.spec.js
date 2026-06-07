@@ -526,3 +526,38 @@ test("a real shoot resolves through apply() and increments the score", async ({ 
   });
   expect(after).toBe(before + 1);
 });
+
+// 回帰防止: VS演出をクリックでスキップでき、 下層の決着ボタン(tier)へ誤爆しないこと。
+// 旧バグ: .vs-screen が pointer-events:none で、 スキップのつもりのクリックが下層 tier ボタンを誤爆=「勝手に決まる」。
+test("clicking the VS overlay skips it without prematurely resolving the tier", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "異変開始" }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.startBattle("dribble"));
+  await expect(page.locator(".vs-screen")).toBeVisible();
+  await page.locator(".vs-screen").click({ force: true, position: { x: 640, y: 410 } });
+  await expect(page.locator(".vs-screen")).toHaveCount(0);
+  // tier は勝手に確定しない = バトルカードが残る (pointer-events:none 退行なら下層 tier を誤爆し resolve される)
+  await expect(page.locator(".battle-card")).toBeVisible();
+});
+
+// 回帰防止: モーダル(パスピッカー等)中に g/h/m グローバルキーで画面離脱しないこと。
+test("global hotkeys do not fire during a modal (pass picker)", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "異変開始" }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.openPassPicker());
+  await expect(page.locator(".pass-target-badge").first()).toBeVisible();
+  await page.keyboard.press("g");
+  await expect(page.locator(".pass-target-badge").first()).toBeVisible();
+  const screen = await page.evaluate(() => window.__touhouSpellFutsalDebug.getState().screen);
+  expect(screen).toBe("match");
+});
+
+// 回帰防止: コマンドメニューの方向クリックが入れ子二重発火ガードを通っても正しく選択され閉じること。
+test("command menu direction click selects through the nested-click guard", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "異変開始" }).click();
+  await page.keyboard.press(" "); // Bボタン = コマンドメニューを開く
+  await expect(page.locator(".command-menu-overlay")).toBeVisible();
+  await page.locator('.cc-btn[data-dir="left"]').click(); // 左=パス
+  await expect(page.locator(".command-menu-overlay")).toHaveCount(0);
+});

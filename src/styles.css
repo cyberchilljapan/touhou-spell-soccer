@@ -3103,7 +3103,8 @@ button:disabled {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: stretch;
-  pointer-events: none;
+  /* auto = クリックを受け止める。 none だと下層のバトル決着ボタン(z10)へ透過してtierが勝手に確定する誤爆になっていた。 */
+  pointer-events: auto;
   animation: vsScreenOut 220ms ease 520ms forwards;
   background: rgba(0, 0, 0, 0.55);
 }

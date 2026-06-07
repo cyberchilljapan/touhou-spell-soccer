@@ -4206,7 +4206,10 @@ function bindEvents() {
   });
 
   document.querySelectorAll("[data-action]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (ev) => {
+      // 入れ子の data-action(コマンドメニューの cc-btn 等)クリックが親 overlay(cmdClose)へバブリングし
+      // 二重発火(render二重 + select音の二度鳴り)するのを防ぐ。 最内の data-action だけが処理する。
+      if (ev.currentTarget !== ev.target.closest("[data-action]")) return;
       const action = button.dataset.action;
       if (!["resolve", "battle", "pass-target", "interrupt", "gk-choice"].includes(action)) audio.play("select");
       if (action === "start") startMatch();
@@ -4366,8 +4369,9 @@ function bindEvents() {
     });
   }
 
-  // カットイン / VS 画面をクリックで即スキップ (テンポ改善)。
-  document.querySelectorAll(".cutin, .vs-screen").forEach((el) => {
+  // VS 画面をクリックで即スキップ (テンポ改善 + 下層ボタンへの誤爆防止)。
+  // .cutin は z5 で pointer-events:none のまま透過させ、 送り待ち中は match-stage 経由で「クリックで次へ」が効く方が良いので対象外。
+  document.querySelectorAll(".vs-screen").forEach((el) => {
     el.addEventListener("click", (ev) => {
       ev.stopPropagation();
       let changed = false;
@@ -4423,6 +4427,7 @@ function bindKeyboardEvents() {
         e.preventDefault();
         return;
       }
+      return; // モーダル中は g/h/m 等のグローバルキーへ流さない (放置で画面離脱する誤爆を防ぐ)
     }
     if (state.interrupt) {
       // 原作DF: 十字方向 ↑タックル/←パスカット/→ブロック/↓うごかない (数字キーも併存)。
@@ -4430,6 +4435,7 @@ function bindKeyboardEvents() {
       if (k === "ArrowLeft" || k === "a" || k === "A" || k === "2") { resolveInterrupt("intercept"); e.preventDefault(); return; }
       if (k === "ArrowRight" || k === "d" || k === "D" || k === "3") { resolveInterrupt("block"); e.preventDefault(); return; }
       if (k === "ArrowDown" || k === "s" || k === "S" || k === "4" || k === "Escape") { resolveInterrupt("wait"); e.preventDefault(); return; }
+      return; // 守備じゃんけん中は g/h/m 等へ流さない
     }
     if (state.gkChoice) {
       // 原作GK: 十字方向 ↑パンチング/←キャッチ/→飛び出し/↓スペルセーブ (数字キーも併存)。
@@ -4437,12 +4443,14 @@ function bindKeyboardEvents() {
       if (k === "ArrowUp" || k === "w" || k === "W" || k === "2") { resolveGkChoice("punch"); e.preventDefault(); return; }
       if (k === "ArrowRight" || k === "d" || k === "D" || k === "3") { resolveGkChoice("rush"); e.preventDefault(); return; }
       if ((k === "ArrowDown" || k === "s" || k === "S" || k === "4") && state.gkChoice.useSpell) { resolveGkChoice("spellsave"); e.preventDefault(); return; }
+      return; // GK選択中は g/h/m 等へ流さない
     }
     if (state.battle) {
       if (k === "1" || k === " " || k === "Enter") { resolveBattle("normal"); e.preventDefault(); return; }
       if (k === "2" || k === "s" || k === "S") { resolveBattle("spell"); e.preventDefault(); return; }
       if (k === "3" || k === "u" || k === "U") { resolveBattle("ultimate"); e.preventDefault(); return; }
       if (k === "Escape") { state.battle = null; state.vsScreen = null; render(); e.preventDefault(); return; }
+      return; // バトル決着中は g/h/m 等へ流さない
     }
     if (state.screen === "match" && state.match && !state.match.finished && state.match.possession === "home" && !state.battle && !state.passPicker && !state.gkChoice && !state.interrupt) {
       // 原作Bボタン式コマンドメニューが開いていれば、 方向キーで選択。
