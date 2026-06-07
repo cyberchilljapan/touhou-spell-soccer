@@ -3591,12 +3591,15 @@ function renderMatch() {
   // 自由移動・コマンド選択中はピッチ。 (.field は DOM 常駐=ボール座標/トークン/cutin/テスト互換)
   const scene = state.actionScene;
   // 上段は常にアニメ主役。 自由移動中は保持者のドリブルスプライト、 エンカウント/結果は action CG。
-  const freeMove = match.possession === "home" && !state.battle && !state.advance && !state.passPicker
-    && !state.gkChoice && !state.interrupt && !state.playSeq && carrier;
-  let stageScene = (scene && (scene.phase === "result" || scene.phase === "flow" || scene.phase === "move")) ? scene : null;
-  if (!stageScene && freeMove) {
-    stageScene = { type: "dribble", attacker: carrier, defender, message: "", detail: "", outcome: "", phase: "move", focus: "attacker", forceAction: "dribble" };
-  }
+  // プレイヤーがボールを保持して自由に操作できる状態 (= ドリブルで盤面をナビゲートする局面)。
+  const playerSteering = match.possession === "home" && !state.battle && !state.advance && !state.passPicker
+    && !state.gkChoice && !state.interrupt && !state.playSeq && !state.cutin && carrier;
+  // CG ショーケースは アクション結果 / 多段演出(flow) / キックオフ導入 のときだけ出す。
+  let stageScene = (scene && (scene.phase === "result" || scene.phase === "flow")) ? scene : null;
+  if (!stageScene && scene && scene.type === "kickoff") stageScene = scene;
+  // 自由ドリブル中は盤面(.field)を出して「好きな方向へドリブル」できるナビ可能性を確保する。
+  // 旧実装は free-move でも CG ショーケースを出し、 盤面が visibility:hidden で隠れて狙った方向へ動かせなかった (本不具合の根因)。
+  if (playerSteering && scene && scene.type !== "kickoff") stageScene = null;
   // パス先ピッカー中はピッチを表示する (badge は .field 内に座標配置=CG showcase で隠れると
   // クリック不能になるため)。 パスは「ピッチ上で味方位置を見て出す」ので原作的にも正しい。
   const showCG = !state.passPicker && !!(state.battle || state.gkChoice || state.advance || state.cutin || state.playSeq || stageScene);
