@@ -164,12 +164,13 @@ test("spell move name matches the action (shoot stays a shoot move)", async ({ p
   await expect(page.locator('[data-action="resolve"][data-option="normal"]')).toContainText("通常シュート");
 });
 
-test("result panel shows character dialogue", async ({ page }) => {
+test("result panel shows winner and loser dialogues", async ({ page }) => {
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "異変開始" }).click();
   await page.evaluate(() => window.__touhouSpellFutsalDebug.forceResult("home"));
-  await expect(page.locator(".result-dialogue")).toBeVisible();
-  await expect(page.locator(".result-dialogue")).toContainText("よし、異変解決に一歩前進ね");
+  // 勝者の win と敗者の lose を併記 (lose 8本が到達不能だった旧分岐の回帰防止)
+  await expect(page.locator('.result-dialogue[data-result="win"]')).toContainText("よし、異変解決に一歩前進ね");
+  await expect(page.locator('.result-dialogue[data-result="lose"]')).toContainText("紅魔館を本気にさせたわね");
   await expect(page.locator('.result-dialogue img[src="./assets/portraits/reimu.png"]')).toBeVisible();
 });
 
@@ -590,4 +591,103 @@ test("campaign clear count is idempotent across a repeated final win", async ({ 
   });
   expect(before).toBeGreaterThan(0);
   expect(after).toBe(before);
+});
+
+// 主要ゲームループの完走保証: 開幕→7連勝→エンディング→setup復帰 を通しで踏み、
+// 進行不能・クラッシュ・campaign 進捗の取りこぼしが無いこと (個別画面テストでは拾えない遷移バグの面検知)。
+test("campaign full loop: seven straight wins reach the ending and return to setup", async ({ page }) => {
+  const pageErrors = [];
+  page.on("pageerror", (e) => pageErrors.push(String(e)));
+  await page.goto(HTTP_URL);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole("button", { name: "異変開始" }).click();
+  for (let i = 0; i < 7; i += 1) {
+    await expect(page.locator(".match-stage")).toBeVisible();
+    await page.evaluate(() => window.__touhouSpellFutsalDebug.autoWinMatch());
+    await expect(page.locator(".result-panel h2")).toContainText("WIN");
+    if (i < 6) {
+      await page.locator('[data-action="nextCampaign"]').click();
+    } else {
+      await expect(page.locator(".ending-cta-text")).toContainText("制覇");
+      await page.locator('[data-action="viewEnding"]').click();
+    }
+  }
+  // skipStory フラグで ED VN は即時完了 → setup へ戻る
+  await expect(page.locator(".setup")).toBeVisible();
+  const prog = await page.evaluate(() => {
+    const s = window.__touhouSpellFutsalDebug.getState();
+    return { clears: s.progress.campaignClears, wins: s.campaign ? s.campaign.wins : -1, unlocked: s.progress.unlockedTeams.length };
+  });
+  expect(prog.clears).toBeGreaterThanOrEqual(1);
+  expect(prog.wins).toBe(7);
+  expect(prog.unlocked).toBeGreaterThanOrEqual(7); // 7 敗北チームすべて解放
+  expect(pageErrors).toEqual([]);
+});
+
+// 回帰防止: 勝利後 VN がリザルトパネル(z65)に覆われてクリックで進めなくなる詰みの再発防止。
+// キーボード無しのプレイヤーは VN を一切送れなくなる (キー処理は VN 優先でも表示が最前面でないと無意味)。
+test("victory VN stays clickable above the result overlay", async ({ page }) => {
+  await page.addInitScript(() => { window.__touhouSpellFutsalSkipStory = false; });
+  await page.goto(HTTP_URL);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.evaluate(() => { window.__touhouSpellFutsalSkipStory = true; });
+  await page.getByRole("button", { name: "異変開始" }).click();
+  await expect(page.locator(".match-stage")).toBeVisible();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.autoWinMatch());
+  // 勝利後 VN は skip せず実表示させる
+  await page.evaluate(() => { window.__touhouSpellFutsalSkipStory = false; });
+  await page.locator('[data-action="nextCampaign"]').click();
+  await expect(page.locator(".vn-modal")).toBeVisible();
+  const before = await page.evaluate(() => window.__touhouSpellFutsalDebug.getState().vnScene.index);
+  await page.locator(".vn-box-large").click({ timeout: 2000 }); // 覆われていると actionability で落ちる
+  const after = await page.evaluate(() => window.__touhouSpellFutsalDebug.getState().vnScene.index);
+  expect(after).toBe(before + 1);
+});
+
+// 回帰防止: 因縁VNのキー未ソートで 16/32 ペアが永久に発火しなかった問題。
+// 正規化後はどちらの語順でも引けること + 会話データに未知ID参照が無いこと。
+test("rivalry dialogues resolve regardless of id order and VN data is consistent", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  const probe = await page.evaluate(() => ({
+    // 旧バグで死んでいた代表ペア (データ上 "marisa|flandre" と逆順で書かれていた決勝級の因縁)
+    deadPair: window.__touhouSpellFutsalDebug.rivalryFor("flandre", "marisa"),
+    reversed: window.__touhouSpellFutsalDebug.rivalryFor("marisa", "flandre"),
+    audit: window.__touhouSpellFutsalDebug.vnDataAudit(),
+  }));
+  expect(probe.deadPair).toBe(true);
+  expect(probe.reversed).toBe(true);
+  expect(probe.audit).toEqual([]);
+});
+
+// 回帰防止: ワンツーのバトルモーダルが title/tierLabel/SPELL_MOVE_WORD の oneTwo 欠落で「undefined」表示だった問題。
+test("one-two battle modal has no undefined labels", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.startBattle("oneTwo"));
+  await expect(page.locator(".battle-card .versus")).toContainText("ワンツー勝負");
+  const text = await page.locator(".battle-card").innerText();
+  expect(text).not.toContain("undefined");
+});
+
+// 敗北ルートの導線: campaign で負けても進行を保持したまま「再戦する」で同じ相手に再挑戦できること。
+test("campaign defeat offers a retry that keeps campaign progress", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "異変開始" }).click();
+  await expect(page.locator(".match-stage")).toBeVisible();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.forceResult("away"));
+  await expect(page.locator(".result-panel h2")).toContainText("WIN"); // 相手の WIN 表示
+  // 敗北時は「次の対戦へ」は出ず、「再戦する」が出る
+  await expect(page.locator('[data-action="nextCampaign"]')).toHaveCount(0);
+  await page.locator('[data-action="retry"]').click();
+  await expect(page.locator(".match-stage")).toBeVisible();
+  const after = await page.evaluate(() => {
+    const s = window.__touhouSpellFutsalDebug.getState();
+    return { mode: s.mode, index: s.campaign ? s.campaign.index : -1, away: s.match.away.id };
+  });
+  expect(after.mode).toBe("campaign");
+  expect(after.index).toBe(0); // 進捗は据え置きで同じ相手に再挑戦
+  expect(after.away).toBe("kouma");
 });

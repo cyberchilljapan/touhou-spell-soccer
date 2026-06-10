@@ -2525,7 +2525,9 @@ button:disabled {
 .vn-modal {
   position: fixed;
   inset: 0;
-  z-index: 32;
+  /* キー処理と同じく VN は最優先レイヤ。 result-overlay(65)/コマンドメニュー(70) より上に置かないと
+     勝利後 VN がリザルトに覆われ、マウスだけのプレイヤーがクリックで進めず詰む。 */
+  z-index: 75;
   display: grid;
   grid-template-rows: auto 1fr auto;
   align-items: stretch;

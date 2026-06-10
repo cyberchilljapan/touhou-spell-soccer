@@ -201,7 +201,6 @@ const state = {
   screenFlash: false,
   screenFlashTimer: null,
   actionScene: null,
-  actionSceneTimer: null,
   previousScreen: "setup",
   progress: loadProgress(),
   advanceGateId: 0,
@@ -226,17 +225,23 @@ const state = {
 
 const SAVE_KEY = "touhouSpellFutsalSaveV1";
 const MATCH_SAVE_KEY = "touhouSpellSoccerMatchV1";
+// 途中セーブの構造バージョン。 match/TEAMS の構造を変えたら +1 する。
+// 旧版の途中セーブを丸ごと resume すると白画面/終わらない試合になるため、不一致は安全に破棄する。
+const MATCH_SAVE_SCHEMA = 2;
 
 function saveMatch() {
   if (!state.match || state.match.finished) return;
   try {
     window.localStorage.setItem(MATCH_SAVE_KEY, JSON.stringify({
+      schemaVersion: MATCH_SAVE_SCHEMA,
       match: state.match,
       mode: state.mode,
       campaign: state.campaign,
       timestamp: Date.now(),
     }));
   } catch (_error) {}
+  // 試合中に稼いだ playerXp も毎ターン flush (途中セーブ→閉じ→再開で成長が巻き戻る穴を塞ぐ)。
+  saveProgress();
 }
 
 function loadMatch() {
@@ -245,8 +250,24 @@ function loadMatch() {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed.match || parsed.match.finished) return null;
+    // 旧版/壊れた途中セーブの検疫。 renderSetup が findTeam(...).name 等を直接読むため、
+    // ここで弾かないとタイトル初回 render が TypeError=白画面になり復旧UIごと消える。
+    const validSide = (t) => t && findTeam(t.id) && Array.isArray(t.players) && t.players.length > 0
+      && t.players.every((p) => p && typeof p.x === "number" && typeof p.y === "number" && p.stats);
+    const m = parsed.match;
+    if (
+      parsed.schemaVersion !== MATCH_SAVE_SCHEMA
+      || !validSide(m.home) || !validSide(m.away)
+      || !m.score || typeof m.score.home !== "number" || typeof m.score.away !== "number"
+      || !["home", "away"].includes(m.possession)
+      || !m.stats || !m.stats.home || !m.stats.away
+    ) {
+      clearMatchSave();
+      return null;
+    }
     return parsed;
   } catch (_error) {
+    clearMatchSave();
     return null;
   }
 }
@@ -266,9 +287,27 @@ function resumeMatch(saved) {
   state.gkChoice = null;
   state.interrupt = null;
   state.passPicker = null;
+  state.commandMenu = null;
+  // 前試合の演出残骸を出さず、再開用の説明シーンを立てる。
+  const carrier = getCarrier() || state.match.home.players[0];
+  state.actionScene = {
+    type: "kickoff",
+    title: "試合再開",
+    attacker: carrier,
+    defender: nearestOpponent(carrier),
+    message: `${carrier.name}がボールを持って試合再開。`,
+    detail: `${state.match.half === 2 ? "後半" : "前半"} ${state.match.score.home} - ${state.match.score.away}`,
+    outcome: "",
+    phase: "choice",
+  };
   audio.ensure();
   audio.startMusic();
   render();
+  // 相手ボール保持のままセーブされた試合は、ここで敵ターンを起動しないと
+  // 誰も手番を進めず無操作のまま詰む (resume 経路の softlock)。
+  if (state.match.possession === "away" && !state.match.finished) {
+    enemyTurn();
+  }
 }
 const DIFFICULTY_REWARDS = {
   easy: { label: "EASY制覇", spiritBonus: 4, message: "EASY報酬: 次回以降、自チーム全員の初期霊力+4。" },
@@ -814,7 +853,7 @@ const STORY_OPENING = [
   { speaker: "reimu",   text: "また異変ね。「幻想郷フットボール協会」だって？聞いたこともない団体が、賞金付きの大会を勝手に開いてる。胡散臭いったらない。", cast: ["reimu", "marisa"] },
   { speaker: "marisa",  text: "胡散臭いから面白いんじゃないか。賞金は祠の修繕費、私のキノコ採取資金、お賽銭箱の補強……山分けでいいよな霊夢？", cast: ["reimu", "marisa"] },
   { speaker: "reimu",   text: "山分けじゃなくて全部神社の金庫よ。ともかく、相手は紅魔館、永遠亭、命蓮寺、神霊廟……どれも一筋縄じゃいかない連中ばかり。", cast: ["reimu", "marisa", "sanae"] },
-  { speaker: "sanae",   text: "外の世界と同じ11対11、前後半90分。ロスタイムがどれだけ延びるかは神のみぞ知る。守矢一同、必勝の祝詞を上げてきます！", cast: ["sanae", "kanako", "suwako"] },
+  { speaker: "sanae",   text: "外の世界と同じ11対11、前後半30分制。ロスタイムがどれだけ延びるかは神のみぞ知る。守矢一同、必勝の祝詞を上げてきます！", cast: ["sanae", "kanako", "suwako"] },
   { speaker: "youmu",   text: "幽々子様より「優勝旗は美味しそうだから持ち帰ってきて」とのご命令を承りました。半霊と二人分、ご期待に応えます。", cast: ["youmu", "reimu"] },
   { speaker: "suika",   text: "DFラインは鬼の私に任せろ。萃集無能力で相手を集めて、ぜんぶまとめて吹き飛ばすからな。お酒も忘れずに……。", cast: ["suika", "youmu", "reimu"] },
   { speaker: "reimu",   text: "幻想郷トーナメント、博麗神社一同で挑む。覚悟しなさい、相手チームたち。", cast: ["reimu", "marisa", "sanae", "youmu", "suika"] },
@@ -827,7 +866,7 @@ const STORY_PRE = {
     { speaker: "patchouli", text: "魔理沙……無断借用された蔵書全72冊、そろそろ返すか、シュート1本ごとに利息を払いなさい。", cast: ["patchouli", "marisa"] },
     { speaker: "marisa",    text: "図書館の本？まあ……研究中だぜ。利息は試合で払ってやる。マスタースパーク、避けるなよ？", cast: ["marisa", "patchouli"] },
     { speaker: "flandre",   text: "お姉さま、観客席の壊し方は知ってる？4枚の羽根、ピッチの上で全開にしていい？", cast: ["flandre", "remilia"] },
-    { speaker: "reimu",     text: "1回戦から紅魔館とはツイてない。でも吸血鬼相手なら、ただ太陽が出るまで耐えればいい。90分、押し切る。", cast: ["reimu", "marisa", "suika"] },
+    { speaker: "reimu",     text: "1回戦から紅魔館とはツイてない。でも吸血鬼相手なら、ただ太陽が出るまで耐えればいい。前後半60分、押し切る。", cast: ["reimu", "marisa", "suika"] },
   ],
   youkai_mountain: [
     { speaker: "aya",     text: "文々。新聞 号外！『博麗チーム、紅魔館撃破！次なる獲物は妖怪山か』──見出しはこれで決まりですね。", cast: ["aya", "momiji", "nitori"] },
@@ -859,7 +898,7 @@ const STORY_PRE = {
     { speaker: "shou",      text: "毘沙門天の眷属として、宝塔レーザーパスで聖さまの道を開きます。ナズーリン、ダウジングで的確に。", cast: ["shou", "nazrin", "byakuren"] },
     { speaker: "ichirin",   text: "雲山、信じてるよ。あなたの鉄拳ブロック、何本でも止めて。", cast: ["ichirin", "unzan"] },
     { speaker: "murasa",    text: "沈没アンカーで全シュートを海の底に沈める。妖夢、私は船幽霊、亡霊同士、礼儀正しく勝負しよう。", cast: ["murasa", "youmu"] },
-    { speaker: "marisa",    text: "聖はマジで強い。封印されてた千年妖怪だぜ。準決勝にふさわしい相手だな、霊夢！", cast: ["marisa", "reimu"] },
+    { speaker: "marisa",    text: "聖はマジで強い。封印されてた千年妖怪だぜ。トーナメントの山場にふさわしい相手だな、霊夢！", cast: ["marisa", "reimu"] },
   ],
   shinreibyo: [
     { speaker: "miko",      text: "聖徳道士、豊聡耳神子。十七条の条文ごとに、十七人分の声を聞き分ける耳で、貴女方の作戦も全て見抜く。", cast: ["miko", "futo", "tojiko", "seiga"] },
@@ -1032,9 +1071,9 @@ const RIVALRY_DIALOGUES = {
     { speaker: "kanako",  text: "諏訪子、御柱と土着神、守矢神社の二柱で 11 人を圧倒する。", cast: ["kanako", "suwako"] },
     { speaker: "suwako",  text: "ケロちゃん、ロングシュートとカエル跳び、コンビネーション決めようね。", cast: ["kanako", "suwako"] },
   ],
-  "ringo|reisen": [
-    { speaker: "ringo",  text: "鈴仙先輩！同じ月の兎として、私も負けません！", cast: ["ringo", "reisen"] },
-    { speaker: "reisen", text: "鈴瑚、月から地上へ降りて来てなお団子を持ってるの、貴女くらいよ。狂気で行くわ。", cast: ["ringo", "reisen"] },
+  "ringo2|reisen": [
+    { speaker: "ringo2", text: "鈴仙先輩！同じ月の兎として、私も負けません！", cast: ["ringo2", "reisen"] },
+    { speaker: "reisen", text: "鈴瑚、月から地上へ降りて来てなお団子を持ってるの、貴女くらいよ。狂気で行くわ。", cast: ["ringo2", "reisen"] },
   ],
   "seiran|reisen": [
     { speaker: "seiran", text: "鈴仙先輩、月の戦士として、地上のスペル抜きで本気のドリブル見せます！", cast: ["seiran", "reisen"] },
@@ -1060,6 +1099,16 @@ const RIVALRY_DIALOGUES = {
 
 function rivalryKey(a, b) {
   return [a.id, b.id].sort().join("|");
+}
+
+// データ側のキーは人間が「攻め|受け」の語順で書いており、 lookup の rivalryKey は sort 済み。
+// 正規化しないと 32 ペア中 16 ペア (決勝の因縁含む) が永久に発火しない。 ここで一度だけキーを揃える。
+for (const k of Object.keys(RIVALRY_DIALOGUES)) {
+  const sortedKey = k.split("|").sort().join("|");
+  if (sortedKey !== k) {
+    RIVALRY_DIALOGUES[sortedKey] = RIVALRY_DIALOGUES[k];
+    delete RIVALRY_DIALOGUES[k];
+  }
 }
 
 function findRivalryDialogue(a, b) {
@@ -1304,7 +1353,11 @@ function buildBeatCutin(name, player) {
   if (player && AVAILABLE_CUTINS.has(player.id)) frames = [cutinFramePath(player, 0), cutinFramePath(player, 1)];
   else if (player && AVAILABLE_PORTRAITS.has(player.id)) frames = [portraitPath(player)];
   const isUlti = typeof name === "string" && name.endsWith("真");
-  state.cutin = { text: name, flavor: "", playerName: player ? player.name : "", isSpell: Boolean(player), frames, frameIndex: 0, fallback: frames[0] || "" };
+  // 88キャラぶん書かれた固有フレーバー (spellText) をカットイン下部に出す。 技名はアクション準拠のまま、
+  // 個性はフレーバー行で立てる (死蔵データの活用 = 「全キャラ個別技」の訴求点)。
+  // player.spell (固有技名) は行動と食い違うことがある (パスなのにシュート技名等) ため出さない。
+  const flavor = (player && player.spellText) ? `――${player.spellText}` : "";
+  state.cutin = { text: name, flavor, playerName: player ? player.name : "", isSpell: Boolean(player), frames, frameIndex: 0, fallback: frames[0] || "" };
   if (player) audio.play(isUlti ? "ultimate-charge" : "spell-charge");
   window.clearTimeout(state.cutinFrameTimer);
   if (frames.length > 1) {
@@ -1445,7 +1498,6 @@ function matchAlive(token) {
 function cancelPendingTimers() {
   [
     state.vsScreenTimer,
-    state.actionSceneTimer,
     state.judgeTimer,
     state.halftimeReportTimer,
     state.fieldShakeTimer,
@@ -1457,7 +1509,6 @@ function cancelPendingTimers() {
     state.screenFlashTimer,
   ].forEach((t) => { if (t) window.clearTimeout(t); });
   state.vsScreenTimer = null;
-  state.actionSceneTimer = null;
   state.judgeTimer = null;
   state.halftimeReportTimer = null;
   state.fieldShakeTimer = null;
@@ -1490,7 +1541,7 @@ function showVsScreen(attacker, defender, label) {
 // 必殺技名は「キャラ名 + そのアクション」で必ず行動に一致させる
 // (固有スペル player.spell はパス/ドリブル/シュートのどれか1つにしか合わないため、
 //  技名はアクション準拠にし、 固有スペルはステータス/ギャラリーで見せる)。
-const SPELL_MOVE_WORD = { dribble: "幻惑突破", pass: "電光スルーパス", shoot: "烈火シュート", team: "連携スペル" };
+const SPELL_MOVE_WORD = { dribble: "幻惑突破", pass: "電光スルーパス", oneTwo: "残像ワンツー", shoot: "烈火シュート", team: "連携スペル" };
 
 function characterSpellName(player, type) {
   return `${player.name}・${SPELL_MOVE_WORD[type] || "スペル"}`;
@@ -1518,9 +1569,9 @@ function goalCommentary(scorer) {
   const mine = m.score[scorer.side];
   const theirs = m.score[opponentSide(scorer.side)];
   const diff = mine - theirs;
-  // 残り時間(分・概算)。 後半のロスタイム帯は「終了間際」。
-  const left = m.half === 2 ? Math.max(0, 45 - m.clock) : (45 - m.clock) + 45;
-  const inStoppage = m.clock > 45;
+  // 残り時間(分・概算)。 後半のロスタイム帯は「終了間際」。 (45分前提の旧計算は30分ハーフでは死に分岐だった)
+  const left = m.half === 2 ? Math.max(0, HALF_MIN - m.clock) : (HALF_MIN - m.clock) + HALF_MIN;
+  const inStoppage = m.clock >= HALF_MIN;
   const teamName = teamBySide(scorer.side).name;
   if ((inStoppage || (m.half === 2 && left <= 5)) && diff >= 0 && diff <= 1) return `📢 ${inStoppage ? "ロスタイム" : "終了間際"}! ${scorer.name}の決勝点級ゴールが突き刺さった!`;
   if (diff === 0) return `📢 ${scorer.name}が同点弾! ${teamName}が試合を振り出しに戻した!`;
@@ -2085,8 +2136,10 @@ function distance(a, b) {
 
 // 原作の「ゴールデンコンビ」翻案: 特定ペアのワンツーは威力ボーナス。
 const COMBO_PAIRS = [
+  // ワンツーは同チーム同士でしか起きないため、 ペアは必ず同チームで組む
+  // (旧: sanae|kanako, suika|yuugi はチーム跨ぎで永久に発火しない死にコンボだった)。
   ["reimu", "marisa"], ["lunasa", "merlin"], ["lunasa", "lyrica"], ["merlin", "lyrica"],
-  ["sakuya", "remilia"], ["sanae", "kanako"], ["youmu", "kasen"], ["suika", "yuugi"],
+  ["sakuya", "remilia"], ["reimu", "sanae"], ["youmu", "kasen"], ["cirno", "daiyousei"],
   ["nitori", "momiji"], ["satori", "orin"], ["byakuren", "ichirin"], ["miko", "futo"],
 ];
 function isComboPair(a, b) {
@@ -2366,10 +2419,15 @@ function resolveBattle(option) {
   const boost = match.boost || 0;
   match.boost = 0;
   // 旧 option (normal/spell) と新 option (normal/spell/ultimate) を統合
-  const tier = ["normal", "spell", "ultimate"].includes(option) ? option : "normal";
+  let tier = ["normal", "spell", "ultimate"].includes(option) ? option : "normal";
+  const t = state.battle.type;
+  // 霊力不足の段は通常へ降格 (disabledボタンをキーボードが素通りして霊力0でも究極が撃てた穴)。
+  if (tier !== "normal" && carrier.guts < tierCost(t, tier)) {
+    if (carrier.side === "home") log(`${carrier.name}は霊力不足。通常コマンドで仕掛ける。`);
+    tier = "normal";
+  }
   const isSpell = tier === "spell" || tier === "ultimate";
   const isUlti = tier === "ultimate";
-  const t = state.battle.type;
   const cost = tierCost(t, tier);
   const atkBonus = tierAtkBonus(t, tier);
   // 空中球(クロスで上がった高い球)。 シュート以外の行動を選ぶと地面に落ちる。
@@ -2569,7 +2627,8 @@ function renderGkChoice() {
         <p>${carrier.name} の${gc.useSpell ? (gc.tier === "ultimate" ? characterUltimateName(carrier, "shoot") : characterSpellName(carrier, "shoot")) : "シュート"}が ${gk.name} に迫る!</p>
         <div class="dialog-actions gk-actions cross-actions">
           <button class="dir-up" data-action="gk-choice" data-option="punch" ${gk.guts < 10 ? "disabled" : ""}>▲ パンチング<span class="gk-desc">弾く守備 (霊力10)</span></button>
-          <button class="dir-left" data-action="gk-choice" data-option="catch" ${gk.guts < 6 ? "disabled" : ""}>◀ ジャンプキャッチ<span class="gk-desc">確実 (霊力6)</span></button>
+          <!-- 最安の catch は霊力不足でも常に選べる (全ボタン disabled だとマウス操作だけのプレイヤーが詰む)。不足分は spend の0クランプに任せる。 -->
+          <button class="dir-left" data-action="gk-choice" data-option="catch">◀ ジャンプキャッチ<span class="gk-desc">確実 (霊力6)</span></button>
           <button class="dir-right" data-action="gk-choice" data-option="rush" ${gk.guts < 14 ? "disabled" : ""}>飛び出し ▶<span class="gk-desc">間合い詰め (霊力14)</span></button>
           ${gc.useSpell ? `<button class="dir-down gk-spellsave" data-action="gk-choice" data-option="spellsave" ${gk.guts < 20 ? "disabled" : ""}>▼ スペルセーブ<span class="gk-desc">${gk.spell} (霊力20)</span></button>` : `<div class="dir-down cross-empty">—</div>`}
           <div class="cross-center">GK</div>
@@ -2591,6 +2650,12 @@ function resolveGkChoice(option) {
   if (!gc) return;
   const carrier = allPlayers().find((p) => p.id === gc.carrierId);
   const gk = allPlayers().find((p) => p.id === gc.gkId);
+  // 霊力不足の択は最安の catch へ降格 (disabledボタンのキーボード素通りでタダで全力守備が出る穴を塞ぎ、UIと挙動を一致させる)。
+  const gkCost = { catch: 6, punch: 10, rush: 14, spellsave: 20 }[option] || 6;
+  if (option !== "catch" && gk && gk.guts < gkCost) {
+    log(`${gk.name}は霊力不足。ジャンプキャッチで凌ぐ。`);
+    option = "catch";
+  }
   state.gkChoice = null;
   const tail = buildShootTailBeats(carrier, gk, gc.baseAtk, option, gc.useSpell, gc.tier, gc.shotKind || "shoot");
   if (state.playSeq && gc.resumeSeq) {
@@ -3002,6 +3067,10 @@ function runAiAction(carrier, action, tier, token) {
     if (!matchAlive(token)) return;
     if (state.vnScene) setTimeout(tryResolve, animMs(240));
     else if (state.battle) setTimeout(() => { if (matchAlive(token) && state.battle) resolveBattle(tier); }, animMs(760));
+    else if (!state.playSeq && !state.gkChoice && !state.interrupt && state.match.possession === "away") {
+      // 自己修復: 敵の1手が何らかの理由で消えたら手番ごと取り直す (永久ポーリングで試合が止まる同型バグへの保険)。
+      enemyTurn();
+    }
     else setTimeout(tryResolve, animMs(240));
   };
   setTimeout(tryResolve, animMs(200));
@@ -3445,20 +3514,17 @@ function showActionCutin(type, label, flavor = "") {
   }, animMs(big ? 900 : 620));
 }
 
-function clearActionSceneLater() {
-  window.clearTimeout(state.actionSceneTimer);
-  state.actionSceneTimer = window.setTimeout(() => {
-    if (!state.match || state.battle || state.match.finished) return;
-    state.actionScene = null;
-    render();
-  }, animMs(2600));
-}
+// (clearActionSceneLater は多段演出シーケンサ移行で廃止。 actionScene の寿命は beat が握る。)
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
 function render() {
+  // 決着系モーダルが「新たに開いた」瞬間を検出して入力猶予を張る (連打誤爆防止)。
+  const modalKey = state.battle ? `b:${state.battle.carrierId}:${state.battle.type}` : state.gkChoice ? "gk" : state.interrupt ? "int" : "";
+  if (modalKey && modalKey !== state.lastModalKey) state.inputGuardUntil = Date.now() + animMs(230);
+  state.lastModalKey = modalKey;
   const app = document.getElementById("app");
   const screenHtml = state.screen === "setup"
     ? renderSetup()
@@ -3978,16 +4044,21 @@ function renderHelp() {
 }
 
 function resultDialogue(match) {
-  const side = match.winner === "away" ? "away" : "home";
-  const team = match[side];
-  const key = match.winner === "draw" ? "draw" : match.winner === side ? "win" : "lose";
-  const data = RESULT_DIALOGUES[team.id] || RESULT_DIALOGUES.hakurei;
-  const speaker = team.players.find((player) => player.id === data.speaker) || team.players[0];
-  return { speaker, message: data[key], resultKey: key };
+  // 勝者の win と敗者の lose を両方返す (旧実装は常に勝者の win だけで、書き済みの lose 8本が到達不能だった)。
+  const one = (side, key) => {
+    const team = match[side];
+    const data = RESULT_DIALOGUES[team.id] || RESULT_DIALOGUES.hakurei;
+    const speaker = team.players.find((player) => player.id === data.speaker) || team.players[0];
+    return { speaker, message: data[key], resultKey: key };
+  };
+  if (match.winner === "draw") return [one("home", "draw"), one("away", "draw")];
+  const winnerSide = match.winner === "away" ? "away" : "home";
+  const loserSide = winnerSide === "away" ? "home" : "away";
+  return [one(winnerSide, "win"), one(loserSide, "lose")];
 }
 
-function renderResultDialogue(dialogue) {
-  return `
+function renderResultDialogue(dialogues) {
+  return dialogues.map((dialogue) => `
     <div class="result-dialogue" data-result="${dialogue.resultKey}">
       ${renderPortrait(dialogue.speaker, "dialogue")}
       <div>
@@ -3995,7 +4066,7 @@ function renderResultDialogue(dialogue) {
         <p>${dialogue.message}</p>
       </div>
     </div>
-  `;
+  `).join("");
 }
 
 function renderEventDialogue(dialogue) {
@@ -4127,7 +4198,7 @@ function ultimateSpellName(carrier, type) {
 }
 
 function tierLabel(type, tier, carrier) {
-  if (tier === "normal") return { dribble: "通常ドリブル", pass: "通常パス", shoot: "通常シュート", team: "連携合図" }[type];
+  if (tier === "normal") return { dribble: "通常ドリブル", pass: "通常パス", oneTwo: "通常ワンツー", shoot: "通常シュート", team: "連携合図" }[type] || "通常コマンド";
   // 連携 (team) は個人技ではないのでチーム連携スペル名、 それ以外はキャラ固有スペル名。
   if (tier === "spell") return type === "team" ? actionSpellName(carrier, "team") : characterSpellName(carrier, type);
   if (tier === "ultimate") return type === "team" ? ultimateSpellName(carrier, "team") : characterUltimateName(carrier, type);
@@ -4140,9 +4211,10 @@ function renderBattle() {
   const title = {
     dribble: "ドリブル勝負",
     pass: "パス勝負",
+    oneTwo: "ワンツー勝負",
     shoot: "シュート対GK",
     team: "連携スペル",
-  }[state.battle.type];
+  }[state.battle.type] || "コマンド勝負";
   const t = state.battle.type;
   const normalCost = tierCost(t, "normal");
   const spellCostV = tierCost(t, "spell");
@@ -4152,6 +4224,9 @@ function renderBattle() {
   const ultiLabel = tierLabel(t, "ultimate", carrier);
   const spellDisabled = carrier.guts < spellCostV;
   const ultiDisabled = carrier.guts < ultiCost;
+  // 敵AIの手番のバトルは観戦のみ (まもなく自動解決)。 tier ボタンを出すと
+  // プレイヤーが敵の技段階を normal に乗っ取れてしまい、 Esc では敵の1手ごと消えて試合が止まる。
+  const isPlayersBattle = carrier.side === "home";
   return `
     <div class="battle-modal">
       <div class="battle-card">
@@ -4170,6 +4245,7 @@ function renderBattle() {
         </div>
         <div class="battle-body">
           <p class="battle-message">${battleText(state.battle.type, carrier, defender)}</p>
+          ${isPlayersBattle ? `
           <div class="battle-actions tier-actions">
             <button data-action="resolve" data-option="normal" class="tier-btn tier-normal">
               <span class="tier-name">${normalLabel}</span>
@@ -4186,7 +4262,8 @@ function renderBattle() {
               <span class="tier-cost">霊力 ${ultiCost}</span>
               <span class="tier-hint">[3] 究極</span>
             </button>
-          </div>
+          </div>` : `
+          <p class="battle-enemy-wait">${carrier.name}が仕掛けてくる…！</p>`}
         </div>
       </div>
     </div>
@@ -4257,7 +4334,7 @@ function bindEvents() {
         render();
       }
       if (action === "openGallery") {
-        state.previousScreen = state.screen;
+        if (state.screen !== "gallery" && state.screen !== "help") state.previousScreen = state.screen;
         state.screen = "gallery";
         render();
       }
@@ -4266,7 +4343,7 @@ function bindEvents() {
         render();
       }
       if (action === "openHelp") {
-        state.previousScreen = state.screen;
+        if (state.screen !== "gallery" && state.screen !== "help") state.previousScreen = state.screen;
         state.screen = "help";
         render();
       }
@@ -4323,6 +4400,9 @@ function bindEvents() {
         state.interrupt = null;
         state.gkChoice = null;
         state.vnScene = null;
+        // 前試合の演出/メニューの残留を消す (残すと次の試合開始時に stale なシーンが一瞬描画される)。
+        state.actionScene = null;
+        state.commandMenu = null;
         render();
       }
       if (action === "battle") {
@@ -4403,7 +4483,15 @@ function bindKeyboardEvents() {
   window.__touhouSpellSoccerKeyboardBound = true;
   window.addEventListener("keydown", (e) => {
     if (e.target.matches && e.target.matches("input, textarea, select")) return;
+    // 長押しリピートを殺す。 「3」長押しで シュート選択→即・究極(霊力48) が1操作で確定する誤爆の根治。
+    if (e.repeat) { e.preventDefault(); return; }
     const k = e.key;
+    // 決着系モーダル (バトル/GK/守備じゃんけん) が開いた直後の猶予中は決着キーを受けない
+    // (送り連打の流れ弾で熟考すべき選択が即決される誤爆防止。 C5 の VSクリック窓のキーボード版)。
+    if ((state.battle || state.gkChoice || state.interrupt) && Date.now() < (state.inputGuardUntil || 0)) {
+      e.preventDefault();
+      return;
+    }
     // VN scene は最最優先
     if (state.vnScene) {
       if (k === " " || k === "Enter" || k === "ArrowRight" || k === "z" || k === "Z") {
@@ -4462,6 +4550,10 @@ function bindKeyboardEvents() {
       return; // GK選択中は g/h/m 等へ流さない
     }
     if (state.battle) {
+      // 敵AIの手番のバトルは観戦のみ (まもなく自動解決)。 ここで入力を通すと
+      // Esc 1発で敵の1手が消滅して試合が止まり、 1/Space 連打で敵の技段階を乗っ取れてしまう。
+      const battleCarrier = allPlayers().find((p) => p.id === state.battle.carrierId);
+      if (!battleCarrier || battleCarrier.side !== "home") { e.preventDefault(); return; }
       if (k === "1" || k === " " || k === "Enter") { resolveBattle("normal"); e.preventDefault(); return; }
       if (k === "2" || k === "s" || k === "S") { resolveBattle("spell"); e.preventDefault(); return; }
       if (k === "3" || k === "u" || k === "U") { resolveBattle("ultimate"); e.preventDefault(); return; }
@@ -4507,12 +4599,13 @@ function bindKeyboardEvents() {
       }
     }
     if (k === "g" || k === "G") {
-      state.previousScreen = state.screen;
+      // gallery⇄help を渡り歩いても「元いた画面」(試合等) を失わない (上書きすると戻り先が setup に化ける)。
+      if (state.screen !== "gallery" && state.screen !== "help") state.previousScreen = state.screen;
       state.screen = "gallery";
       render();
     }
     if (k === "h" || k === "H") {
-      state.previousScreen = state.screen;
+      if (state.screen !== "gallery" && state.screen !== "help") state.previousScreen = state.screen;
       state.screen = "help";
       render();
     }
@@ -4653,6 +4746,29 @@ window.__touhouSpellFutsalDebug = {
       state.match.score.away = state.match.score.home;
     }
     render();
+  },
+  // 因縁VNが id ペアで引けるか (キー正規化の回帰テスト用)。
+  rivalryFor(idA, idB) {
+    return Boolean(findRivalryDialogue({ id: idA }, { id: idB }));
+  },
+  // 会話データの整合性監査 (テスト用): 未知ID参照・キー未ソートを列挙する。
+  vnDataAudit() {
+    const ids = new Set(allRosterPlayers().map((p) => p.id));
+    const problems = [];
+    for (const key of Object.keys(RIVALRY_DIALOGUES)) {
+      const pair = key.split("|");
+      if (key !== [...pair].sort().join("|")) problems.push(`unsorted:${key}`);
+      pair.forEach((id) => { if (!ids.has(id)) problems.push(`unknown-id:${key}`); });
+      RIVALRY_DIALOGUES[key].forEach((panel) => {
+        if (!ids.has(panel.speaker)) problems.push(`unknown-speaker:${key}:${panel.speaker}`);
+        (panel.cast || []).forEach((c) => { if (!ids.has(c)) problems.push(`unknown-cast:${key}:${c}`); });
+      });
+    }
+    [STORY_OPENING, STORY_ENDING, ...Object.values(STORY_PRE), ...Object.values(STORY_WIN)].flat().forEach((panel) => {
+      if (!ids.has(panel.speaker)) problems.push(`story-unknown-speaker:${panel.speaker}`);
+      (panel.cast || []).forEach((c) => { if (!ids.has(c)) problems.push(`story-unknown-cast:${c}`); });
+    });
+    return problems;
   },
   // 進行スナップショット (検証ハーネス用: DOM由来でない実進行シグナル)。
   // validate_playthrough.js は .ct3-clock(残り時間カウントダウン)を turn と誤読していたので、ここから実 turn/得点/シュート数を読む。
