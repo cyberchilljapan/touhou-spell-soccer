@@ -724,6 +724,145 @@ test("corrupted mid-match save does not white-screen the title", async ({ page }
   expect(cleaned).toBeNull();
 });
 
+// 助っ人1枠 (rank22 ライト混成): 解放チームから1名借り、同役割の自チーム選手と入れ替わる。
+test("helper slot swaps in a borrowed player while keeping 11 players", async ({ page }) => {
+  await unlockAllTeams(page);
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.setHelper("kouma", "sakuya"));
+  // 借り元 (紅魔館) 以外と対戦
+  await page.locator('[data-select="away"][data-team="eientei"]').click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  const r = await page.evaluate(() => {
+    const s = window.__touhouSpellFutsalDebug.getState();
+    return {
+      active: window.__touhouSpellFutsalDebug.activeHelper(),
+      homeCount: s.match.home.players.length,
+      gkCount: s.match.home.players.filter((p) => p.role === "GK").length,
+      awayCount: s.match.away.players.length,
+      log: s.logs.join(" / "),
+    };
+  });
+  expect(r.active && r.active.id).toBe("sakuya");
+  expect(r.active.originTeamId).toBe("kouma");
+  expect(r.homeCount).toBe(11);
+  expect(r.gkCount).toBe(1);
+  expect(r.awayCount).toBe(11);
+  expect(r.log).toContain("助っ人: 咲夜");
+});
+
+// 古巣戦ガード: 借り元との対戦では助っ人は自動ベンチ (同一キャラ両軍とVN矛盾の回避)。
+test("helper sits out the match against their origin team", async ({ page }) => {
+  await unlockAllTeams(page);
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.setHelper("kouma", "sakuya"));
+  await page.locator('[data-select="away"][data-team="kouma"]').click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  const r = await page.evaluate(() => ({
+    active: window.__touhouSpellFutsalDebug.activeHelper(),
+    awayHasSakuya: window.__touhouSpellFutsalDebug.getState().match.away.players.some((p) => p.id === "sakuya"),
+    log: window.__touhouSpellFutsalDebug.getState().logs.join(" / "),
+  }));
+  expect(r.active).toBeNull();
+  expect(r.awayHasSakuya).toBe(true); // 咲夜は紅魔館側にだけ居る
+  expect(r.log).toContain("古巣");
+});
+
+// 話者保護: リザルト代表 (霊夢等) は OUT 候補から除外され、敗北/勝利の代表セリフが別人にならない。
+test("helper cannot bench protected story speakers", async ({ page }) => {
+  await unlockAllTeams(page);
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  // 妖夢 (MF/保護対象) を OUT 指定しても拒否され、別の MF が自動選出される
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.setHelper("kouma", "sakuya", "youmu"));
+  await page.locator('[data-select="away"][data-team="eientei"]').click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  const r = await page.evaluate(() => {
+    const s = window.__touhouSpellFutsalDebug.getState();
+    return {
+      youmuStays: s.match.home.players.some((p) => p.id === "youmu"),
+      reimuStays: s.match.home.players.some((p) => p.id === "reimu"),
+    };
+  });
+  expect(r.youmuStays).toBe(true);
+  expect(r.reimuStays).toBe(true);
+});
+
+// 検疫: 壊れた helper 設定 (未知チーム/未知選手) はロード時に null 化され白画面にならない。
+test("corrupted helper config is sanitized on load", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.evaluate(() => {
+    localStorage.setItem("touhouSpellFutsalSaveV1", JSON.stringify({
+      unlockedTeams: ["hakurei", "kouma"],
+      helper: { teamId: "no_such_team", playerId: "nobody" },
+    }));
+  });
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "東方スペルサッカー" })).toBeVisible();
+  const helper = await page.evaluate(() => window.__touhouSpellFutsalDebug.getState().progress.helper);
+  expect(helper).toBeNull();
+});
+
+// 敗北専用VN: campaign で負けると相手の勝ち名乗り→悔しさ→再戦決意のVNが流れ、リザルトの再戦導線へ繋がる。
+test("campaign defeat shows the lose VN before the result", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "異変開始" }).click();
+  await expect(page.locator(".match-stage")).toBeVisible();
+  await page.evaluate(() => {
+    window.__touhouSpellFutsalSkipStory = false; // 敗北VNを実表示
+    window.__touhouSpellFutsalDebug.autoLoseMatch();
+  });
+  await expect(page.locator(".vn-modal")).toBeVisible();
+  await expect(page.locator(".vn-title-banner")).toContainText("敗北");
+  await expect(page.locator(".vn-text")).toContainText("運命"); // 紅魔館戦 = レミリアの勝ち名乗り
+  await page.keyboard.press("Escape"); // スキップ → リザルト
+  await expect(page.locator('[data-action="retry"]')).toBeVisible();
+});
+
+// 88キャラ接触一言: バトルモーダルに保持者の個別の啖呵が出る (無言キャラ45名の個性可視化)。
+test("battle modal shows the carrier's personality quip", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  await page.evaluate(() => window.__touhouSpellFutsalDebug.startBattle("dribble"));
+  await expect(page.locator(".battle-quip")).toContainText("早苗"); // キックオフ保持者
+  await expect(page.locator(".battle-quip")).toContainText("奇跡");
+});
+
+// 同チーム因縁ペア (文&椛 等10組) はワンツーの壁役経由で発火する (敵対経路では構造的に発火不能だった)。
+test("one-two with a combo partner can trigger the same-team rivalry VN", async ({ page }) => {
+  await unlockAllTeams(page);
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.locator('[data-select="home"][data-team="youkai_mountain"]').click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  const fired = await page.evaluate(() => {
+    const D = window.__touhouSpellFutsalDebug;
+    const s = D.getState();
+    window.__touhouSpellFutsalSkipStory = false; // VN を実表示させる
+    const aya = s.match.home.players.find((p) => p.id === "aya");
+    const momiji = s.match.home.players.find((p) => p.id === "momiji");
+    s.match.possession = "home";
+    s.match.carrierId = aya.id;
+    aya.x = 50; aya.y = 50;
+    momiji.x = 60; momiji.y = 50; // 最前方の壁役に
+    s.match.home.players.forEach((p) => { if (p !== aya && p !== momiji && p.role !== "GK") p.x = 20; });
+    for (let seed = 1; seed <= 12; seed += 1) {
+      D.seedRng(seed);
+      s.match.rivalryShown = {};
+      s.battle = null; s.vnScene = null;
+      D.startBattle("oneTwo"); // openBattle("oneTwo") 経由
+      if (s.vnScene) { D.clearRng(); return { vn: true, title: s.vnScene.title }; }
+      s.battle = null;
+    }
+    D.clearRng();
+    return { vn: false, title: "" };
+  });
+  expect(fired.vn).toBe(true);
+  expect(fired.title).toContain("コンビ");
+});
+
 // チーム解放の実ゲート: 未解放チームはフリー対戦の自チームに選べず、解放済みなら選べる。
 test("free play locks home teams until they are unlocked", async ({ page }) => {
   await page.goto(HTTP_URL);

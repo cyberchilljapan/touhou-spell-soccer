@@ -1084,24 +1084,24 @@ button:disabled {
   color: #fff7df;
   text-shadow: 0 2px 3px #000;
 }
-.contest-fighter.left { left: 0%; transform-origin: 60% 60%; animation: cfInLeft 0.4s ease-out both; }
-.contest-fighter.right { right: 0%; transform-origin: 40% 60%; animation: cfInRight 0.4s ease-out both; }
+.contest-fighter.left { left: 0%; transform-origin: 60% 60%; animation: cfInLeft calc(400ms * var(--anim-scale, 1)) ease-out both; }
+.contest-fighter.right { right: 0%; transform-origin: 40% 60%; animation: cfInRight calc(400ms * var(--anim-scale, 1)) ease-out both; }
 @keyframes cfInLeft { 0% { opacity: 0; transform: translateX(-45%) rotate(-28deg) scale(0.78); } 100% { opacity: 1; transform: translateX(0) rotate(0) scale(1); } }
 @keyframes cfInRight { 0% { opacity: 0; transform: translateX(45%) rotate(28deg) scale(0.78); } 100% { opacity: 1; transform: translateX(0) rotate(0) scale(1); } }
 /* 敗者: クラッシュ後に画面外へ吹っ飛ぶ。 */
-.contest-fighter.left.loser { animation: cfInLeft 0.4s ease-out both, cfKnockLeft 0.5s 0.44s ease-in forwards; }
-.contest-fighter.right.loser { animation: cfInRight 0.4s ease-out both, cfKnockRight 0.5s 0.44s ease-in forwards; }
+.contest-fighter.left.loser { animation: cfInLeft calc(400ms * var(--anim-scale, 1)) ease-out both, cfKnockLeft calc(500ms * var(--anim-scale, 1)) calc(440ms * var(--anim-scale, 1)) ease-in forwards; }
+.contest-fighter.right.loser { animation: cfInRight calc(400ms * var(--anim-scale, 1)) ease-out both, cfKnockRight calc(500ms * var(--anim-scale, 1)) calc(440ms * var(--anim-scale, 1)) ease-in forwards; }
 @keyframes cfKnockLeft { to { opacity: 0; transform: translateX(-135%) rotate(-72deg) scale(0.66); } }
 @keyframes cfKnockRight { to { opacity: 0; transform: translateX(135%) rotate(72deg) scale(0.66); } }
 /* 勝者: 一歩踏み込む。 */
-.contest-fighter.left.winner { animation: cfInLeft 0.4s ease-out both, cfPushRight 0.5s 0.44s ease-out forwards; }
-.contest-fighter.right.winner { animation: cfInRight 0.4s ease-out both, cfPushLeft 0.5s 0.44s ease-out forwards; }
+.contest-fighter.left.winner { animation: cfInLeft calc(400ms * var(--anim-scale, 1)) ease-out both, cfPushRight calc(500ms * var(--anim-scale, 1)) calc(440ms * var(--anim-scale, 1)) ease-out forwards; }
+.contest-fighter.right.winner { animation: cfInRight calc(400ms * var(--anim-scale, 1)) ease-out both, cfPushLeft calc(500ms * var(--anim-scale, 1)) calc(440ms * var(--anim-scale, 1)) ease-out forwards; }
 @keyframes cfPushRight { to { transform: translateX(10%) scale(1.06); } }
 @keyframes cfPushLeft { to { transform: translateX(-10%) scale(1.06); } }
 .clash-flash {
   position: absolute; inset: 0; z-index: 4; opacity: 0;
   background: radial-gradient(circle at center, rgba(255, 255, 255, 0.92), transparent 58%);
-  animation: clashFlash 0.34s 0.4s ease-out;
+  animation: clashFlash calc(340ms * var(--anim-scale, 1)) calc(400ms * var(--anim-scale, 1)) ease-out;
 }
 @keyframes clashFlash { 0% { opacity: 0; } 40% { opacity: 0.9; } 100% { opacity: 0; } }
 .contest-ball { z-index: 5; }
@@ -1120,7 +1120,7 @@ button:disabled {
   border-radius: 50%;
   filter: blur(2px);
   opacity: 0;
-  animation: slideTrail 0.5s 0.42s ease-out forwards;
+  animation: slideTrail calc(500ms * var(--anim-scale, 1)) calc(420ms * var(--anim-scale, 1)) ease-out forwards;
 }
 .contest-fighter.act-tackle::after {
   content: "";
@@ -1130,7 +1130,7 @@ button:disabled {
   border-radius: 50%;
   background: radial-gradient(circle, rgba(200, 230, 210, 0.9), transparent 70%);
   opacity: 0;
-  animation: slideDust 0.55s 0.46s ease-out forwards;
+  animation: slideDust calc(550ms * var(--anim-scale, 1)) calc(460ms * var(--anim-scale, 1)) ease-out forwards;
 }
 .contest-fighter.right.act-tackle::after { right: 14%; }
 .contest-fighter.left.act-tackle::after { left: 14%; }
@@ -1292,12 +1292,12 @@ button:disabled {
 
 .sprite-runner.attacker {
   left: 12px;
-  animation: attackerRush 880ms ease-in-out both;
+  animation: attackerRush calc(880ms * var(--anim-scale, 1)) ease-in-out both;
 }
 
 .sprite-runner.defender {
   right: 12px;
-  animation: defenderBrace 880ms ease-in-out both;
+  animation: defenderBrace calc(880ms * var(--anim-scale, 1)) ease-in-out both;
 }
 
 .portrait.sprite {
@@ -1319,7 +1319,7 @@ button:disabled {
     radial-gradient(circle at 35% 35%, #fff 0 18%, transparent 19%),
     radial-gradient(circle, #f7f7f7 0 48%, #222 49% 54%, #f7f7f7 55%);
   transform: translate(-50%, -50%);
-  animation: ballSnap 880ms ease-in-out both;
+  animation: ballSnap calc(880ms * var(--anim-scale, 1)) ease-in-out both;
 }
 
 .action-scene.fail .sprite-ball {
@@ -1747,6 +1747,49 @@ button:disabled {
   padding: 16px;
 }
 
+/* 助っ人1枠 (ライト混成) の編成UI。 */
+.helper-pick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 4px;
+}
+.helper-chip {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+.helper-chip-role {
+  margin-left: 4px;
+  opacity: 0.7;
+  font-size: 10px;
+}
+.helper-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 13px;
+}
+.helper-note { font-size: 12px; opacity: 0.85; }
+.helper-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--ct3-yellow);
+  color: var(--ct3-yellow);
+  font-size: 10px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+/* 保持者の接触一言 (88キャラ個別の啖呵)。 本文より一段引いた金で個性付け。 */
+.battle-quip {
+  margin: 0 0 8px;
+  font-family: var(--ct3-font);
+  color: var(--ct3-yellow);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .battle-message {
   margin: 0 0 14px;
   line-height: 1.6;
@@ -2127,13 +2170,13 @@ button:disabled {
   align-items: center;
   justify-content: flex-end;
   background: rgba(0, 0, 0, 0.28);
-  animation: flash 540ms ease both;
+  animation: flash calc(540ms * var(--anim-scale, 1)) ease both;
   z-index: 5;
   overflow: hidden;
 }
 
 .spell-cutin {
-  animation: spellFlash 1480ms ease both;
+  animation: spellFlash calc(1480ms * var(--anim-scale, 1)) ease both;
 }
 
 /* 実機CT3 必殺技カット: 濃青ベタ + 白水平スピード線 (背景差し替え) + 下1/3に斜め芝。 */
@@ -2166,7 +2209,7 @@ button:disabled {
   outline-offset: 6px;
   border-radius: 4px;
   z-index: 3;
-  animation: spellFrameIn 280ms ease-out both;
+  animation: spellFrameIn calc(280ms * var(--anim-scale, 1)) ease-out both;
   pointer-events: none;
 }
 
@@ -2193,7 +2236,7 @@ button:disabled {
   -webkit-mask: radial-gradient(circle at 32% 50%, black 0 60%, transparent 80%);
   mask: radial-gradient(circle at 32% 50%, black 0 60%, transparent 80%);
   z-index: 1;
-  animation: spellBurstRotate 1480ms linear both;
+  animation: spellBurstRotate calc(1480ms * var(--anim-scale, 1)) linear both;
   pointer-events: none;
 }
 

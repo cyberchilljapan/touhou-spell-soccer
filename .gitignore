@@ -33,3 +33,7 @@ anima_nodes.txt
 ck_clip.json
 ck_unet.json
 ck_vae.json
+
+# 一時作業ファイル
+_roster.json
+_content_draft.json

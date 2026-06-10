@@ -1,185 +1,4 @@
-const TEAMS = [
-  {
-    id: "hakurei",
-    name: "博麗神社",
-    style: "万能型",
-    formation: "4-4-2",
-    members: [
-      p("reimu", "霊夢", "GK", { shoot: 68, pass: 74, dribble: 76, tackle: 70, block: 75, keep: 82, speed: 72, guts: 135 }, "夢想封印セーブ", "結界で軌道をねじ伏せる守護技"),
-      p("suika", "萃香", "DF", { shoot: 74, pass: 58, dribble: 62, tackle: 86, block: 88, keep: 58, speed: 54, guts: 145 }, "鬼神チャージ", "守備とこぼれ球に強いパワーブロック"),
-      p("daiyousei", "大妖精", "DF", { shoot: 52, pass: 72, dribble: 64, tackle: 76, block: 80, keep: 42, speed: 70, guts: 122 }, "妖精ガード", "DFラインに安定をもたらす補助技"),
-      p("rumia", "ルーミア", "DF", { shoot: 64, pass: 52, dribble: 70, tackle: 78, block: 80, keep: 38, speed: 72, guts: 118 }, "宵闇マーキング", "相手の視界を奪う影の守備"),
-      p("wriggle", "リグル", "DF", { shoot: 62, pass: 64, dribble: 68, tackle: 82, block: 76, keep: 40, speed: 76, guts: 120 }, "蛍光フォーメーション", "蛍の群れで進路を塞ぐ"),
-      p("sanae", "早苗", "MF", { shoot: 70, pass: 84, dribble: 72, tackle: 58, block: 62, keep: 36, speed: 70, guts: 132 }, "奇跡のスルーパス", "次の味方行動に大きな補正を渡すパス"),
-      p("youmu", "妖夢", "MF", { shoot: 78, pass: 66, dribble: 86, tackle: 74, block: 64, keep: 26, speed: 84, guts: 124 }, "半霊ダブルタッチ", "接触戦を抜けやすい高速ドリブル"),
-      p("kasen", "茨木華扇", "MF", { shoot: 70, pass: 80, dribble: 76, tackle: 78, block: 70, keep: 42, speed: 72, guts: 138 }, "仙人の采配", "攻守万能の中盤司令塔技"),
-      p("cirno", "チルノ", "MF", { shoot: 72, pass: 60, dribble: 80, tackle: 70, block: 64, keep: 34, speed: 78, guts: 126 }, "アイシクルフォール", "敵フィールドを凍結させる⑨技"),
-      p("marisa", "魔理沙", "FW", { shoot: 90, pass: 68, dribble: 78, tackle: 52, block: 48, keep: 20, speed: 82, guts: 128 }, "マスタースパークシュート", "直線火力でGKを押し切る超威力シュート"),
-      p("lily", "リリーホワイト", "FW", { shoot: 78, pass: 60, dribble: 76, tackle: 50, block: 48, keep: 22, speed: 88, guts: 110 }, "春告げシュート", "シーズン到来とともに撃ち抜く快速ボレー"),
-    ],
-  },
-  {
-    id: "kouma",
-    name: "紅魔館",
-    style: "高火力型",
-    formation: "4-4-2",
-    members: [
-      p("patchouli", "パチュリー", "GK", { shoot: 80, pass: 78, dribble: 50, tackle: 48, block: 76, keep: 84, speed: 38, guts: 105 }, "五行ウォール", "属性壁でシュート威力を削るGK技"),
-      p("meiling", "美鈴", "DF", { shoot: 62, pass: 62, dribble: 72, tackle: 88, block: 82, keep: 48, speed: 76, guts: 140 }, "彩光タックル", "接触戦の守備値を大きく上げる"),
-      p("koakuma", "小悪魔", "DF", { shoot: 60, pass: 76, dribble: 66, tackle: 78, block: 82, keep: 44, speed: 64, guts: 118 }, "魔界補佐", "後方からスペル補助で味方守備を底上げ"),
-      p("lunasa", "ルナサ", "DF", { shoot: 64, pass: 78, dribble: 68, tackle: 76, block: 80, keep: 40, speed: 62, guts: 120 }, "メランコリック弦", "重低音で相手の意気を削るDF技"),
-      p("tokiko", "朱鷺子", "DF", { shoot: 56, pass: 70, dribble: 64, tackle: 84, block: 78, keep: 38, speed: 66, guts: 122 }, "本能の壁", "本に喰い込ませる予測ブロック"),
-      p("sakuya", "咲夜", "MF", { shoot: 72, pass: 88, dribble: 78, tackle: 78, block: 66, keep: 32, speed: 80, guts: 122 }, "時止めインターセプト", "パスカットとショートパスが強い司令塔技"),
-      p("merlin", "メルラン", "MF", { shoot: 76, pass: 78, dribble: 70, tackle: 64, block: 60, keep: 40, speed: 72, guts: 122 }, "ホーンアタック", "活発な高音ラッパで前線を駆ける"),
-      p("lyrica", "リリカ", "MF", { shoot: 72, pass: 80, dribble: 68, tackle: 62, block: 58, keep: 42, speed: 74, guts: 118 }, "鍵盤の旋律", "鍵盤で繋ぐ可変パス"),
-      p("hecatia", "ヘカーティア", "MF", { shoot: 84, pass: 74, dribble: 72, tackle: 70, block: 66, keep: 38, speed: 70, guts: 138 }, "三相の地獄", "地獄の女神らしい多段攻撃"),
-      p("remilia", "レミリア", "FW", { shoot: 88, pass: 70, dribble: 82, tackle: 62, block: 56, keep: 26, speed: 84, guts: 130 }, "運命の槍シュート", "低確率で防御補正を無視する決定力"),
-      p("flandre", "フラン", "FW", { shoot: 96, pass: 48, dribble: 72, tackle: 66, block: 54, keep: 18, speed: 72, guts: 110 }, "禁忌レーヴァテイン", "燃費は悪いが全技中トップ級の火力"),
-    ],
-  },
-  {
-    id: "youkai_mountain",
-    name: "妖怪山",
-    style: "高速連携型",
-    formation: "4-4-2",
-    members: [
-      p("suwako", "諏訪子", "GK", { shoot: 74, pass: 76, dribble: 82, tackle: 64, block: 70, keep: 86, speed: 74, guts: 128 }, "土着神キャッチ", "低弾道シュートに強い変則セーブ"),
-      p("momiji", "椛", "DF", { shoot: 58, pass: 68, dribble: 66, tackle: 86, block: 84, keep: 42, speed: 78, guts: 132 }, "千里眼カット", "相手パスの成功率を落とす守備技"),
-      p("hina", "雛", "DF", { shoot: 62, pass: 68, dribble: 64, tackle: 80, block: 84, keep: 40, speed: 70, guts: 128 }, "厄回しスピン", "回転で相手の流れを逸らす守備技"),
-      p("shizuha", "静葉", "DF", { shoot: 60, pass: 70, dribble: 62, tackle: 82, block: 80, keep: 38, speed: 68, guts: 124 }, "落葉ブロック", "秋葉で視界と進路を塞ぐ"),
-      p("medicine", "メディスン", "DF", { shoot: 64, pass: 60, dribble: 66, tackle: 78, block: 82, keep: 42, speed: 70, guts: 120 }, "毒霧フェンス", "近づく相手の判定を毒で削る"),
-      p("aya", "文", "MF", { shoot: 72, pass: 82, dribble: 88, tackle: 62, block: 52, keep: 22, speed: 96, guts: 126 }, "天狗風ドリブル", "距離を一気に詰める最速突破"),
-      p("nitori", "にとり", "MF", { shoot: 68, pass: 84, dribble: 74, tackle: 60, block: 64, keep: 30, speed: 70, guts: 118 }, "河童ギミックパス", "ランダム補正の振れ幅が大きいトリックパス"),
-      p("kogasa", "多々良小傘", "MF", { shoot: 70, pass: 72, dribble: 80, tackle: 64, block: 60, keep: 32, speed: 74, guts: 120 }, "オドロカシ突破", "驚かせで相手DFの判断を鈍らせる"),
-      p("yuuka", "風見幽香", "MF", { shoot: 82, pass: 74, dribble: 78, tackle: 76, block: 70, keep: 36, speed: 70, guts: 142 }, "マスタースパーク散布", "向日葵の畑で前線を制圧"),
-      p("kanako", "神奈子", "FW", { shoot: 86, pass: 70, dribble: 66, tackle: 82, block: 80, keep: 50, speed: 58, guts: 150 }, "御柱ロングシュート", "遠距離でも威力が落ちにくい"),
-      p("minoriko", "穣子", "FW", { shoot: 80, pass: 64, dribble: 74, tackle: 56, block: 50, keep: 24, speed: 76, guts: 118 }, "豊穣ボレー", "秋の実りで威力を膨らませる"),
-    ],
-  },
-  {
-    id: "eientei",
-    name: "永遠亭",
-    style: "妨害回復型",
-    formation: "4-4-2",
-    members: [
-      p("eirin", "永琳", "GK", { shoot: 64, pass: 88, dribble: 58, tackle: 62, block: 78, keep: 90, speed: 50, guts: 136 }, "月薬リカバー", "味方の霊力を戻す守護者"),
-      p("tei", "てゐ", "DF", { shoot: 58, pass: 72, dribble: 84, tackle: 76, block: 68, keep: 32, speed: 88, guts: 118 }, "幸運スティール", "低コストで番狂わせを起こす奪取"),
-      p("junko", "純狐", "DF", { shoot: 72, pass: 70, dribble: 68, tackle: 84, block: 80, keep: 38, speed: 66, guts: 132 }, "純化の盾", "怒りで研ぎ澄ます後方守備"),
-      p("ringo", "玉兎・烏丸", "DF", { shoot: 60, pass: 66, dribble: 72, tackle: 78, block: 76, keep: 36, speed: 78, guts: 120 }, "団子バリア", "兎の連携で穴を埋める"),
-      p("clownpiece", "クラウンピース", "DF", { shoot: 68, pass: 64, dribble: 78, tackle: 76, block: 72, keep: 34, speed: 80, guts: 122 }, "星条狂気", "守備中に相手の集中を奪う"),
-      p("kaguya", "輝夜", "MF", { shoot: 76, pass: 86, dribble: 70, tackle: 54, block: 66, keep: 36, speed: 52, guts: 138 }, "永夜の時間稼ぎ", "ターン消費を抑えつつ位置を整える"),
-      p("reisen", "鈴仙", "MF", { shoot: 78, pass: 76, dribble: 78, tackle: 70, block: 58, keep: 28, speed: 76, guts: 122 }, "狂気のフェイント", "相手守備を乱すドリブル技"),
-      p("ringo2", "鈴瑚", "MF", { shoot: 70, pass: 78, dribble: 72, tackle: 66, block: 60, keep: 32, speed: 74, guts: 120 }, "月の柏餅パス", "癒し系の安定したパス"),
-      p("seiran", "清蘭", "MF", { shoot: 74, pass: 72, dribble: 76, tackle: 68, block: 62, keep: 30, speed: 78, guts: 122 }, "うさみみショット", "兎の俊敏さで決定的なパスを通す"),
-      p("mokou", "妹紅", "FW", { shoot: 88, pass: 60, dribble: 76, tackle: 74, block: 66, keep: 24, speed: 76, guts: 150 }, "不死鳥ボレー", "失敗後もこぼれ球判定が強い"),
-      p("iku", "衣玖", "FW", { shoot: 84, pass: 68, dribble: 72, tackle: 60, block: 56, keep: 26, speed: 74, guts: 128 }, "雷雲シュート", "稲妻のような曲線弾"),
-    ],
-  },
-  {
-    id: "chireiden",
-    name: "地霊殿",
-    style: "読心火力型",
-    formation: "4-4-2",
-    members: [
-      p("yuugi", "勇儀", "GK", { shoot: 82, pass: 58, dribble: 60, tackle: 90, block: 92, keep: 84, speed: 52, guts: 155 }, "怪力パンチング", "弾くが失点しにくいパワーセーブ"),
-      p("parsee", "パルスィ", "DF", { shoot: 64, pass: 68, dribble: 70, tackle: 84, block: 80, keep: 38, speed: 68, guts: 128 }, "嫉妬の橋", "近づく相手の士気を削る守備技"),
-      p("yamame", "ヤマメ", "DF", { shoot: 62, pass: 66, dribble: 72, tackle: 82, block: 78, keep: 40, speed: 72, guts: 124 }, "土蜘蛛ネット", "蜘蛛糸で相手の足を絡める"),
-      p("kisume", "キスメ", "DF", { shoot: 58, pass: 60, dribble: 68, tackle: 80, block: 84, keep: 42, speed: 64, guts: 120 }, "釣瓶落とし", "上空からの圧で侵入を阻止"),
-      p("kuroni", "黒影の鬼", "DF", { shoot: 70, pass: 64, dribble: 70, tackle: 86, block: 82, keep: 38, speed: 70, guts: 134 }, "鬼影ブロック", "影の中から守る大型DF"),
-      p("satori", "さとり", "MF", { shoot: 68, pass: 88, dribble: 66, tackle: 74, block: 72, keep: 40, speed: 54, guts: 126 }, "読心パスカット", "相手の次手を読んで守備補正"),
-      p("orin", "お燐", "MF", { shoot: 72, pass: 76, dribble: 82, tackle: 68, block: 58, keep: 24, speed: 84, guts: 122 }, "火車スルーパス", "前線へ押し込む速攻パス"),
-      p("kasha", "火車隊員", "MF", { shoot: 70, pass: 72, dribble: 78, tackle: 70, block: 62, keep: 28, speed: 80, guts: 118 }, "業火ダッシュ", "横入りカウンターの先頭"),
-      p("jigoku", "地獄烏", "MF", { shoot: 78, pass: 70, dribble: 74, tackle: 64, block: 60, keep: 30, speed: 78, guts: 120 }, "業炎フィード", "高温のロングフィード"),
-      p("koishi", "こいし", "FW", { shoot: 82, pass: 62, dribble: 92, tackle: 58, block: 48, keep: 18, speed: 88, guts: 120 }, "無意識ドリブル", "マークをすり抜ける突破技"),
-      p("utsuho", "お空", "FW", { shoot: 98, pass: 44, dribble: 64, tackle: 70, block: 72, keep: 22, speed: 60, guts: 132 }, "核熱シュート", "最大火力だが霊力消費が重い"),
-    ],
-  },
-  {
-    id: "myouren",
-    name: "命蓮寺",
-    style: "支援守備型",
-    formation: "4-4-2",
-    members: [
-      p("murasa", "村紗", "GK", { shoot: 70, pass: 66, dribble: 64, tackle: 72, block: 80, keep: 88, speed: 62, guts: 128 }, "沈没アンカー", "相手シュートの速度を落とすGK技"),
-      p("ichirin", "一輪", "DF", { shoot: 68, pass: 60, dribble: 58, tackle: 86, block: 88, keep: 54, speed: 56, guts: 138 }, "雲山ブロック", "シュートブロックが強い壁役"),
-      p("unzan", "雲山", "DF", { shoot: 72, pass: 62, dribble: 60, tackle: 88, block: 90, keep: 50, speed: 52, guts: 142 }, "鉄拳の壁", "一輪と同期する重圧パンチング守備"),
-      p("mamizou", "マミゾウ", "DF", { shoot: 70, pass: 72, dribble: 74, tackle: 80, block: 78, keep: 42, speed: 70, guts: 134 }, "化け狸の影", "化身でDFラインを補強"),
-      p("myouon", "妙音", "DF", { shoot: 64, pass: 70, dribble: 66, tackle: 78, block: 80, keep: 40, speed: 66, guts: 122 }, "梵鐘ブロック", "鐘の響きで相手の集中を散らす"),
-      p("shou", "星", "MF", { shoot: 76, pass: 82, dribble: 70, tackle: 74, block: 76, keep: 38, speed: 68, guts: 134 }, "宝塔レーザーパス", "長距離パスの精度が高い"),
-      p("nazrin", "ナズーリン", "MF", { shoot: 58, pass: 80, dribble: 82, tackle: 72, block: 60, keep: 24, speed: 84, guts: 116 }, "ダウジングカット", "こぼれ球を拾いやすい"),
-      p("kyouko", "響子", "MF", { shoot: 74, pass: 74, dribble: 78, tackle: 68, block: 62, keep: 30, speed: 80, guts: 122 }, "山彦パス", "声で味方位置を補正するエコー技"),
-      p("nue", "封獣ぬえ", "MF", { shoot: 82, pass: 70, dribble: 82, tackle: 70, block: 64, keep: 32, speed: 78, guts: 128 }, "正体不明シュート", "弾道が読みにくいトリックシュート"),
-      p("byakuren", "聖", "FW", { shoot: 86, pass: 80, dribble: 74, tackle: 76, block: 74, keep: 44, speed: 72, guts: 145 }, "魔人経巻シュート", "万能型の高威力シュート"),
-      p("disciple", "寅丸星弟子", "FW", { shoot: 80, pass: 66, dribble: 76, tackle: 60, block: 54, keep: 22, speed: 78, guts: 120 }, "光輪シュート", "聖の指導で磨かれた弟子の決定力"),
-    ],
-  },
-  {
-    id: "shinreibyo",
-    name: "神霊廟",
-    style: "状態異常型",
-    formation: "4-4-2",
-    members: [
-      p("yoshika", "芳香", "GK", { shoot: 58, pass: 42, dribble: 48, tackle: 86, block: 90, keep: 82, speed: 36, guts: 160 }, "キョンシー壁", "低速だがしぶとい肉壁セーブ"),
-      p("seiga", "青娥", "DF", { shoot: 66, pass: 78, dribble: 80, tackle: 78, block: 70, keep: 36, speed: 72, guts: 118 }, "邪仙トラップ", "ドリブル相手を止めやすい"),
-      p("sogashadow", "蘇我影武者", "DF", { shoot: 64, pass: 68, dribble: 64, tackle: 84, block: 80, keep: 38, speed: 66, guts: 126 }, "影武者ブロック", "屠自古の影で防御を増強"),
-      p("mononobe", "物部従士", "DF", { shoot: 68, pass: 64, dribble: 66, tackle: 82, block: 80, keep: 40, speed: 68, guts: 128 }, "皿陣の構え", "布都の皿陣を継承する守備技"),
-      p("guardian", "神霊衛兵", "DF", { shoot: 70, pass: 62, dribble: 62, tackle: 86, block: 84, keep: 36, speed: 64, guts: 130 }, "廟堂ガード", "廟を守る古参の鉄壁"),
-      p("futo", "布都", "MF", { shoot: 74, pass: 78, dribble: 76, tackle: 72, block: 68, keep: 28, speed: 78, guts: 124 }, "皿回しパス", "守備方向をズラす曲線パス"),
-      p("tojiko", "屠自古", "MF", { shoot: 82, pass: 72, dribble: 70, tackle: 76, block: 66, keep: 30, speed: 70, guts: 120 }, "雷鳴ミドル", "中距離から強い感電シュート"),
-      p("futatsuiwa", "二岩荒神", "MF", { shoot: 76, pass: 74, dribble: 74, tackle: 70, block: 64, keep: 32, speed: 72, guts: 122 }, "二岩連携", "獣の感応で繋ぐ中盤パス"),
-      p("tsukuyomi", "月夜見使者", "MF", { shoot: 78, pass: 80, dribble: 72, tackle: 68, block: 62, keep: 34, speed: 70, guts: 120 }, "月読パス", "夜の精度で通すフィード"),
-      p("miko", "神子", "FW", { shoot: 88, pass: 82, dribble: 76, tackle: 68, block: 66, keep: 32, speed: 74, guts: 136 }, "十七条レーザー", "高精度のエースシュート"),
-      p("byoudou", "廟堂戦士", "FW", { shoot: 82, pass: 60, dribble: 74, tackle: 58, block: 54, keep: 22, speed: 76, guts: 122 }, "聖徳の槍", "神子直系の前線アタッカー"),
-    ],
-  },
-  {
-    id: "rebel_beast",
-    name: "反逆獣連合",
-    style: "変則奇襲型",
-    formation: "4-4-2",
-    members: [
-      p("mayumi", "磨弓", "GK", { shoot: 70, pass: 68, dribble: 62, tackle: 84, block: 88, keep: 86, speed: 62, guts: 140 }, "埴輪陣形セーブ", "組織守備で枠内シュートを止める"),
-      p("kagerou", "影狼", "DF", { shoot: 72, pass: 60, dribble: 78, tackle: 84, block: 76, keep: 40, speed: 82, guts: 130 }, "満月プレス", "近距離接触に強い守備"),
-      p("oniko", "鬼っ子", "DF", { shoot: 70, pass: 62, dribble: 68, tackle: 82, block: 80, keep: 38, speed: 72, guts: 132 }, "鬼火ガード", "鬼の血で覚醒する防壁"),
-      p("bakeneko", "化け猫頭目", "DF", { shoot: 68, pass: 66, dribble: 74, tackle: 80, block: 78, keep: 36, speed: 74, guts: 126 }, "猫又千鳥", "九尾の獣で多方向防御"),
-      p("kageyachie", "影八千慧", "DF", { shoot: 72, pass: 70, dribble: 70, tackle: 86, block: 82, keep: 40, speed: 68, guts: 138 }, "影武者の采配", "八千慧の影で守備を采配"),
-      p("seija", "正邪", "MF", { shoot: 72, pass: 76, dribble: 86, tackle: 72, block: 58, keep: 24, speed: 78, guts: 120 }, "リバースフェイント", "攻守補正を入れ替える変則技"),
-      p("yachie", "八千慧", "MF", { shoot: 80, pass: 84, dribble: 74, tackle: 76, block: 72, keep: 38, speed: 68, guts: 138 }, "組長の采配", "味方全体を底上げする指揮技"),
-      p("baketanuki", "化け狸", "MF", { shoot: 74, pass: 74, dribble: 78, tackle: 70, block: 64, keep: 30, speed: 76, guts: 124 }, "変身フェイク", "次の判定の予測を狂わせる"),
-      p("oniwaka", "鬼若", "MF", { shoot: 78, pass: 70, dribble: 72, tackle: 72, block: 66, keep: 32, speed: 74, guts: 130 }, "鬼若ラッシュ", "若鬼の俊敏なミドルレンジ攻撃"),
-      p("shinmyoumaru", "針妙丸", "FW", { shoot: 78, pass: 70, dribble: 88, tackle: 54, block: 46, keep: 18, speed: 86, guts: 112 }, "小槌トリックシュート", "サイズ差でGKのタイミングを外す"),
-      p("hangyakushi", "反逆獣戦士", "FW", { shoot: 86, pass: 60, dribble: 74, tackle: 58, block: 50, keep: 22, speed: 76, guts: 126 }, "反逆突撃", "獣連合最強の若手アタッカー"),
-    ],
-  },
-];
-
-const FORMATIONS = {
-  "4-4-2": {
-    GK: [{ x: 6, y: 50 }],
-    DF: [{ x: 18, y: 22 }, { x: 18, y: 42 }, { x: 18, y: 58 }, { x: 18, y: 78 }],
-    MF: [{ x: 36, y: 22 }, { x: 36, y: 42 }, { x: 36, y: 58 }, { x: 36, y: 78 }],
-    FW: [{ x: 54, y: 36 }, { x: 54, y: 64 }],
-  },
-  "4-3-3": {
-    GK: [{ x: 6, y: 50 }],
-    DF: [{ x: 18, y: 22 }, { x: 18, y: 42 }, { x: 18, y: 58 }, { x: 18, y: 78 }],
-    MF: [{ x: 36, y: 32 }, { x: 36, y: 50 }, { x: 36, y: 68 }],
-    FW: [{ x: 54, y: 26 }, { x: 54, y: 50 }, { x: 54, y: 74 }],
-  },
-  "3-5-2": {
-    GK: [{ x: 6, y: 50 }],
-    DF: [{ x: 18, y: 30 }, { x: 18, y: 50 }, { x: 18, y: 70 }],
-    MF: [{ x: 32, y: 18 }, { x: 32, y: 36 }, { x: 32, y: 54 }, { x: 32, y: 72 }, { x: 42, y: 50 }],
-    FW: [{ x: 54, y: 36 }, { x: 54, y: 64 }],
-  },
-};
-
-const TACTICS = {
-  normal:    { offset: 0,  label: "通常",       aiBias: { shoot: 1.0, pass: 1.0, dribble: 1.0, team: 1.0 } },
-  offensive: { offset: 7,  label: "攻撃的",     aiBias: { shoot: 1.35, pass: 1.0, dribble: 1.2, team: 0.7 } },
-  defensive: { offset: -7, label: "守備的",     aiBias: { shoot: 0.7, pass: 1.25, dribble: 0.8, team: 1.3 } },
-  counter:   { offset: -4, label: "カウンター", aiBias: { shoot: 1.4, pass: 0.95, dribble: 1.4, team: 0.5 } },
-};
+// game.js — ロジック/描画/エンジン。 データ定義 (TEAMS/会話等) は src/data.js (先行ロード) にある。
 
 const state = {
   screen: "setup",
@@ -221,6 +40,7 @@ const state = {
   ballMotion: null,   // ⚽スプライト挙動 { mode, from, to }
   commandMenu: null,  // 原作Bボタン式の方向コマンドメニュー (上ドリブル/左パス/右シュート/下ワンツー)
   drawerOpen: false,  // 補助ドロワー (ログ/ステータス/チームCG)。 原作CT3に無いので試合中は既定で畳む。
+  helperSrcTeamId: null, // 助っ人ピッカーで展開中の借り元チーム (非永続のUI状態)
 };
 
 const SAVE_KEY = "touhouSpellFutsalSaveV1";
@@ -328,7 +148,19 @@ function defaultProgress() {
     playerXp: {},
     animSpeed: "normal",
     autoAdvance: false,
+    helper: null, // 助っ人1枠: { teamId, playerId, outId } (rank22 ライト混成)
   };
+}
+
+// 助っ人設定の検疫: 形状 / 借り元が解放済み / 選手が借り元に実在 しなければ null。
+// outId はチーム変更で無効化しうるため、ここでは検証せず試合開始時 (resolveHelper) に遅延解決する。
+function sanitizeHelper(helper, unlockedTeams) {
+  if (!helper || typeof helper !== "object") return null;
+  if (typeof helper.teamId !== "string" || typeof helper.playerId !== "string") return null;
+  if (!unlockedTeams.includes(helper.teamId)) return null;
+  const src = findTeam(helper.teamId);
+  if (!src || !src.members.some((m) => m.id === helper.playerId)) return null;
+  return { teamId: helper.teamId, playerId: helper.playerId, outId: typeof helper.outId === "string" ? helper.outId : null };
 }
 
 function loadProgress() {
@@ -356,6 +188,7 @@ function loadProgress() {
       playerXp: (parsed.playerXp && typeof parsed.playerXp === "object") ? parsed.playerXp : {},
       animSpeed: ["normal", "fast", "instant"].includes(parsed.animSpeed) ? parsed.animSpeed : "normal",
       autoAdvance: Boolean(parsed.autoAdvance),
+      helper: sanitizeHelper(parsed.helper, unlockedTeams),
     };
   } catch (_error) {
     return fallback;
@@ -581,552 +414,13 @@ const audio = {
   },
 };
 
-const AVAILABLE_PORTRAITS = new Set([
-  "aya",
-  "bakeneko",
-  "baketanuki",
-  "byakuren",
-  "byoudou",
-  "cirno",
-  "clownpiece",
-  "daiyousei",
-  "disciple",
-  "eirin",
-  "flandre",
-  "futatsuiwa",
-  "futo",
-  "guardian",
-  "hangyakushi",
-  "hecatia",
-  "hina",
-  "ichirin",
-  "iku",
-  "jigoku",
-  "junko",
-  "kagerou",
-  "kageyachie",
-  "kaguya",
-  "kanako",
-  "kasen",
-  "kasha",
-  "kisume",
-  "koakuma",
-  "kogasa",
-  "koishi",
-  "kuroni",
-  "kyouko",
-  "lily",
-  "lunasa",
-  "lyrica",
-  "mamizou",
-  "marisa",
-  "mayumi",
-  "medicine",
-  "meiling",
-  "merlin",
-  "miko",
-  "minoriko",
-  "mokou",
-  "momiji",
-  "mononobe",
-  "murasa",
-  "myouon",
-  "nazrin",
-  "nitori",
-  "nue",
-  "oniko",
-  "oniwaka",
-  "orin",
-  "parsee",
-  "patchouli",
-  "reimu",
-  "reisen",
-  "remilia",
-  "ringo",
-  "ringo2",
-  "rumia",
-  "sakuya",
-  "sanae",
-  "satori",
-  "seiga",
-  "seija",
-  "seiran",
-  "shinmyoumaru",
-  "shizuha",
-  "shou",
-  "sogashadow",
-  "suika",
-  "suwako",
-  "tei",
-  "tojiko",
-  "tokiko",
-  "tsukuyomi",
-  "unzan",
-  "utsuho",
-  "wriggle",
-  "yachie",
-  "yamame",
-  "yoshika",
-  "youmu",
-  "yuugi",
-  "yuuka",
-]);
-
-const AVAILABLE_CUTINS = new Set([
-  "aya",
-  "bakeneko",
-  "baketanuki",
-  "byakuren",
-  "byoudou",
-  "cirno",
-  "clownpiece",
-  "daiyousei",
-  "disciple",
-  "eirin",
-  "flandre",
-  "futatsuiwa",
-  "futo",
-  "guardian",
-  "hangyakushi",
-  "hecatia",
-  "hina",
-  "ichirin",
-  "iku",
-  "jigoku",
-  "junko",
-  "kagerou",
-  "kageyachie",
-  "kaguya",
-  "kanako",
-  "kasen",
-  "kasha",
-  "kisume",
-  "koakuma",
-  "kogasa",
-  "koishi",
-  "kuroni",
-  "kyouko",
-  "lily",
-  "lunasa",
-  "lyrica",
-  "mamizou",
-  "marisa",
-  "mayumi",
-  "medicine",
-  "meiling",
-  "merlin",
-  "miko",
-  "minoriko",
-  "mokou",
-  "momiji",
-  "mononobe",
-  "murasa",
-  "myouon",
-  "nazrin",
-  "nitori",
-  "nue",
-  "oniko",
-  "oniwaka",
-  "orin",
-  "parsee",
-  "patchouli",
-  "reimu",
-  "reisen",
-  "remilia",
-  "ringo",
-  "ringo2",
-  "rumia",
-  "sakuya",
-  "sanae",
-  "satori",
-  "seiga",
-  "seija",
-  "seiran",
-  "shinmyoumaru",
-  "shizuha",
-  "shou",
-  "sogashadow",
-  "suika",
-  "suwako",
-  "tei",
-  "tojiko",
-  "tokiko",
-  "tsukuyomi",
-  "unzan",
-  "utsuho",
-  "wriggle",
-  "yachie",
-  "yamame",
-  "yoshika",
-  "youmu",
-  "yuugi",
-  "yuuka",
-]);
-
-const RESULT_DIALOGUES = {
-  hakurei: {
-    speaker: "reimu",
-    win: "よし、異変解決に一歩前進ね。この調子で全部勝つわ。",
-    lose: "まだ終わりじゃないわ。次は守り方を変える。",
-    draw: "決着は持ち越しね。もう一試合やるわよ。",
-  },
-  kouma: {
-    speaker: "remilia",
-    win: "運命は最初からこちらに傾いていたのよ。",
-    lose: "面白いじゃない。紅魔館を本気にさせたわね。",
-    draw: "引き分けなんて退屈ね。次は決着をつけるわ。",
-  },
-  youkai_mountain: {
-    speaker: "aya",
-    win: "今の突破、号外にできますね。風向きは完全にこちらです。",
-    lose: "記事にはしません。再戦で上書きしますから。",
-    draw: "いい試合でした。けど見出しには勝利が必要です。",
-  },
-  eientei: {
-    speaker: "kaguya",
-    win: "永い夜の中では、焦った方から崩れるのよ。",
-    lose: "少し遊びすぎたわね。次は月の策でいくわ。",
-    draw: "退屈しない勝負ね。もう少し続けましょう。",
-  },
-  chireiden: {
-    speaker: "satori",
-    win: "次に何をするか、全部読めていました。",
-    lose: "読めても止められない力がありますね。",
-    draw: "心の揺れがそのままスコアに出ました。",
-  },
-  myouren: {
-    speaker: "byakuren",
-    win: "力だけではなく、信じる連携が勝利を呼びました。",
-    lose: "敗北も修行です。次は迷いなく踏み込みます。",
-    draw: "互いに譲らぬ良い試合でした。",
-  },
-  shinreibyo: {
-    speaker: "miko",
-    win: "人の声もボールの流れも、私には聞こえています。",
-    lose: "この敗北、次の布石として受け取りましょう。",
-    draw: "まだ天命は結論を出していないようですね。",
-  },
-  rebel_beast: {
-    speaker: "shinmyoumaru",
-    win: "小さくても勝てるって、これで証明できたでしょ。",
-    lose: "くやしい。でも反逆はここからだよ。",
-    draw: "引き分けなら、まだひっくり返せるってことだね。",
-  },
-};
-
-const PRE_MATCH_DIALOGUES = {
-  kouma: {
-    speaker: "remilia",
-    message: "夜の芝に出るなんて悪くないわ。博麗の巫女、運命ごと蹴り返してあげる。",
-  },
-  youkai_mountain: {
-    speaker: "aya",
-    message: "天狗の取材対象として最高ですね。勝敗まで含めて一面にします。",
-  },
-  eientei: {
-    speaker: "kaguya",
-    message: "焦るほど足元が乱れるわ。永い夜のペースについてこられるかしら。",
-  },
-  chireiden: {
-    speaker: "satori",
-    message: "作戦はもう読めています。あとはボールが心の通りに動くかどうかです。",
-  },
-  myouren: {
-    speaker: "byakuren",
-    message: "勝負は修行、連携は信仰。正々堂々、最後まで走りましょう。",
-  },
-  shinreibyo: {
-    speaker: "miko",
-    message: "歓声も迷いも聞こえています。この試合の流れ、私が導きます。",
-  },
-  rebel_beast: {
-    speaker: "shinmyoumaru",
-    message: "大きいチームだけが勝つなんて決まり、ひっくり返してみせるよ。",
-  },
-};
-
-function p(id, name, role, stats, spell, spellText) {
-  return { id, name, role, stats, spell, spellText };
-}
-
-const STORY_OPENING = [
-  { speaker: "reimu",   text: "また異変ね。「幻想郷フットボール協会」だって？聞いたこともない団体が、賞金付きの大会を勝手に開いてる。胡散臭いったらない。", cast: ["reimu", "marisa"] },
-  { speaker: "marisa",  text: "胡散臭いから面白いんじゃないか。賞金は祠の修繕費、私のキノコ採取資金、お賽銭箱の補強……山分けでいいよな霊夢？", cast: ["reimu", "marisa"] },
-  { speaker: "reimu",   text: "山分けじゃなくて全部神社の金庫よ。ともかく、相手は紅魔館、永遠亭、命蓮寺、神霊廟……どれも一筋縄じゃいかない連中ばかり。", cast: ["reimu", "marisa", "sanae"] },
-  { speaker: "sanae",   text: "外の世界と同じ11対11、前後半30分制。ロスタイムがどれだけ延びるかは神のみぞ知る。守矢一同、必勝の祝詞を上げてきます！", cast: ["sanae", "kanako", "suwako"] },
-  { speaker: "youmu",   text: "幽々子様より「優勝旗は美味しそうだから持ち帰ってきて」とのご命令を承りました。半霊と二人分、ご期待に応えます。", cast: ["youmu", "reimu"] },
-  { speaker: "suika",   text: "DFラインは鬼の私に任せろ。萃集無能力で相手を集めて、ぜんぶまとめて吹き飛ばすからな。お酒も忘れずに……。", cast: ["suika", "youmu", "reimu"] },
-  { speaker: "reimu",   text: "幻想郷トーナメント、博麗神社一同で挑む。覚悟しなさい、相手チームたち。", cast: ["reimu", "marisa", "sanae", "youmu", "suika"] },
-];
-
-const STORY_PRE = {
-  kouma: [
-    { speaker: "remilia",   text: "夜の芝に出てくるなんて運命の悪戯ね、博麗の巫女。紅霧異変で私を退治した借りは、ここで返してもらうわ。", cast: ["remilia", "sakuya", "flandre", "patchouli"] },
-    { speaker: "sakuya",    text: "時を止められない試合は不慣れですが、お嬢様のために完璧なメイドが完璧な司令塔を演じます。", cast: ["sakuya", "remilia"] },
-    { speaker: "patchouli", text: "魔理沙……無断借用された蔵書全72冊、そろそろ返すか、シュート1本ごとに利息を払いなさい。", cast: ["patchouli", "marisa"] },
-    { speaker: "marisa",    text: "図書館の本？まあ……研究中だぜ。利息は試合で払ってやる。マスタースパーク、避けるなよ？", cast: ["marisa", "patchouli"] },
-    { speaker: "flandre",   text: "お姉さま、観客席の壊し方は知ってる？4枚の羽根、ピッチの上で全開にしていい？", cast: ["flandre", "remilia"] },
-    { speaker: "reimu",     text: "1回戦から紅魔館とはツイてない。でも吸血鬼相手なら、ただ太陽が出るまで耐えればいい。前後半60分、押し切る。", cast: ["reimu", "marisa", "suika"] },
-  ],
-  youkai_mountain: [
-    { speaker: "aya",     text: "文々。新聞 号外！『博麗チーム、紅魔館撃破！次なる獲物は妖怪山か』──見出しはこれで決まりですね。", cast: ["aya", "momiji", "nitori"] },
-    { speaker: "kanako",  text: "守矢の名にかけて、神奈子は御柱ロングシュートで天を裂く。早苗、見ているか？母なる神の本気を。", cast: ["kanako", "sanae", "suwako"] },
-    { speaker: "sanae",   text: "神奈子様……守矢の御柱と博麗の御幣、どちらが強いか今日決めましょう。子孫として恥ずかしくない戦いをします。", cast: ["sanae", "kanako"] },
-    { speaker: "suwako",  text: "ケロちゃん、土着神は柔軟だから何でもありね。GKでもFWでもこなしてみせるよ。", cast: ["suwako", "kanako"] },
-    { speaker: "momiji",  text: "白狼天狗の千里眼カット、絶対に外しません。文先輩、私が後ろは固めますから。", cast: ["momiji", "aya"] },
-    { speaker: "marisa",  text: "風読みの天狗か。マスタースパークは光速だ。読まれる前に撃ち抜くだけだぜ。", cast: ["marisa", "aya"] },
-  ],
-  eientei: [
-    { speaker: "kaguya",  text: "永い夜の中では、焦った方から崩れるのよ。蓬莱の薬を一千年飲み続けた私の前で、巫女ごときが息切れせずにいられて？", cast: ["kaguya", "eirin", "reisen"] },
-    { speaker: "eirin",   text: "1300年前、私が妹紅にも飲ませた薬。その因縁の試合を、今宵もう一度。妹紅、君も覚悟はあるね？", cast: ["eirin", "mokou", "kaguya"] },
-    { speaker: "mokou",   text: "永琳……お前を恨むのは1000年ほど前にやめた。輝夜、お前への恨みも忘れた。だがフィールドの上では遠慮しない。私の不死鳥ボレーで決める。", cast: ["mokou", "kaguya", "eirin"] },
-    { speaker: "reisen",  text: "狂気のフェイントで、皆さまの目を狂わせます。月の兎、敗北は知りません。", cast: ["reisen", "tei"] },
-    { speaker: "youmu",   text: "幽々子様のお友達である輝夜様……失礼ながら、楼観剣の切れ味は変わりません。半霊で月の夜を断ち切ります。", cast: ["youmu", "kaguya"] },
-    { speaker: "sanae",   text: "奇跡のスルーパス、永遠の夜を切り裂けるかは私たちの団結次第です！", cast: ["sanae", "youmu", "reimu"] },
-  ],
-  chireiden: [
-    { speaker: "satori",  text: "全員の作戦、もう読めています。霊夢、貴女の最初のコマンドが見える……ふふ、わかってしまえば怖くないでしょう？", cast: ["satori", "koishi", "orin", "utsuho"] },
-    { speaker: "koishi",  text: "お姉様、私は心を閉じてるから読めないわよ。無意識ドリブルでマーカーすり抜けて、ふらっとゴール決めるだけ。", cast: ["koishi", "satori"] },
-    { speaker: "utsuho",  text: "神奈子様にもらった八咫烏の力で、核熱シュートを撃つわ。芝が燃えても気にしないでね。", cast: ["utsuho", "orin"] },
-    { speaker: "yuugi",   text: "萃香、また会えたな！四天王の鬼同士、フィールドでも力比べだ！怪力パンチング、もちろん耐えてくれよな！", cast: ["yuugi", "suika"] },
-    { speaker: "suika",   text: "勇儀！！長いこと地下でくすぶってないで、今日は鬼神同士で本気の角ぶつけ合おうぜ。萃集無能力、解禁だ。", cast: ["suika", "yuugi"] },
-    { speaker: "youmu",   text: "半霊は心を持たない。さとり様が読めるのは私の生身だけ。半身に任せれば、思考も気持ちも空欄のまま勝負できます。", cast: ["youmu", "satori"] },
-  ],
-  myouren: [
-    { speaker: "byakuren",  text: "勝負は修行、連携は信仰。仏の道に背くことなく、命蓮寺一同、全力で挑みます。早苗、神道側との因縁、今日決着しましょう。", cast: ["byakuren", "shou", "ichirin", "murasa", "nazrin"] },
-    { speaker: "sanae",     text: "聖さん、神道と仏教の代理戦争にする気はありませんが……守矢の血脈、ここで負けるわけにはいきません！", cast: ["sanae", "byakuren"] },
-    { speaker: "shou",      text: "毘沙門天の眷属として、宝塔レーザーパスで聖さまの道を開きます。ナズーリン、ダウジングで的確に。", cast: ["shou", "nazrin", "byakuren"] },
-    { speaker: "ichirin",   text: "雲山、信じてるよ。あなたの鉄拳ブロック、何本でも止めて。", cast: ["ichirin", "unzan"] },
-    { speaker: "murasa",    text: "沈没アンカーで全シュートを海の底に沈める。妖夢、私は船幽霊、亡霊同士、礼儀正しく勝負しよう。", cast: ["murasa", "youmu"] },
-    { speaker: "marisa",    text: "聖はマジで強い。封印されてた千年妖怪だぜ。トーナメントの山場にふさわしい相手だな、霊夢！", cast: ["marisa", "reimu"] },
-  ],
-  shinreibyo: [
-    { speaker: "miko",      text: "聖徳道士、豊聡耳神子。十七条の条文ごとに、十七人分の声を聞き分ける耳で、貴女方の作戦も全て見抜く。", cast: ["miko", "futo", "tojiko", "seiga"] },
-    { speaker: "futo",      text: "蘇我のあやつらにこの皿陣を破られて以来、何百年。今日は物部一族の名誉をかけて、屠自古めを抑えながら勝つ。", cast: ["futo", "miko"] },
-    { speaker: "tojiko",    text: "布都……お前と組まされるのは1400年経っても気が進まんがな。雷鳴ミドル、お前の頭上をかすめて飛ばすぞ。", cast: ["tojiko", "futo"] },
-    { speaker: "seiga",     text: "邪仙トラップで、ドリブルしてくる相手の足を地面に縫い付けてあげる。芳香、後ろは任せたわよ。", cast: ["seiga", "yoshika"] },
-    { speaker: "byakuren",  text: "(観戦中) 太子……仏教を排した道教者として、千年越しの遺恨があるが……今は応援する側ではない。霊夢、頼んだ。", cast: ["byakuren", "miko"] },
-    { speaker: "reimu",     text: "十七条のレーザー、当たれば終わり。早苗、サナエ・スルーパスで先手必勝。一気に決める。", cast: ["reimu", "sanae", "suika", "marisa"] },
-  ],
-  rebel_beast: [
-    { speaker: "shinmyoumaru", text: "決勝の舞台に小さい私が立ってる。ひっくり返ってるでしょ？それが反逆獣連合よ。輝針城の主の意地、見せてあげる。", cast: ["shinmyoumaru", "seija", "yachie", "kagerou"] },
-    { speaker: "seija",        text: "「常識を破る天邪鬼」、ここで博麗の巫女を倒すのが私の悲願よ。リバースフェイントで攻守逆転、楽しみだわ。", cast: ["seija", "shinmyoumaru"] },
-    { speaker: "yachie",       text: "獣の道に従う者として、組長の采配で全員が動く。霊夢、退治屋として歴代の獣たちを倒してきた貴女、覚悟は？", cast: ["yachie", "kagerou", "shinmyoumaru"] },
-    { speaker: "kagerou",      text: "椛、お前は白狼天狗で、私は妖狼……月が満ちる夜、結局狼は走る。満月プレスで止めてみせる。", cast: ["kagerou", "yachie"] },
-    { speaker: "mayumi",       text: "埴輪兵団の名にかけて、決勝戦の枠内シュートはひとつも入れさせません。", cast: ["mayumi", "shinmyoumaru"] },
-    { speaker: "marisa",       text: "輝針城の異変からずっと待ってたぜ。あの小槌、また見られるとはな。", cast: ["marisa", "shinmyoumaru"] },
-    { speaker: "reimu",        text: "ここまで来た。決勝戦。博麗神社が幻想郷を代表する。負けるわけにはいかない。", cast: ["reimu", "marisa", "sanae", "youmu", "suika"] },
-  ],
-};
-
-const STORY_WIN = {
-  kouma: [
-    { speaker: "remilia",   text: "面白いじゃない。1回戦で散る紅魔館は紅魔館じゃないけれど……運命を打ち返した巫女、認めてあげる。", cast: ["remilia", "flandre", "sakuya"] },
-    { speaker: "patchouli", text: "(本を渡しながら) 魔理沙、利息分の本、今日返してくれた。次は新しい呪文書を貸してあげる。但しシュート1本につき1ページよ。", cast: ["patchouli", "marisa"] },
-    { speaker: "flandre",   text: "お姉さま、また外で遊ばせてね。今度はゴルフがいいかな……ボール壊しちゃうかも。", cast: ["flandre", "remilia"] },
-    { speaker: "marisa",    text: "夜より先に決まる勝負はないって聞いてたぜ。次は妖怪山だ。", cast: ["marisa", "reimu"] },
-  ],
-  youkai_mountain: [
-    { speaker: "kanako",  text: "御柱は折れた。だが守矢は再建する。早苗、母の負けを糧にもっと強くなりなさい。", cast: ["kanako", "sanae", "suwako"] },
-    { speaker: "sanae",   text: "神奈子様……勝てました。守矢の血、博麗神社で恥じない働きができた、と思います。", cast: ["sanae", "kanako"] },
-    { speaker: "aya",     text: "号外！博麗チーム快進撃中、優勝候補に躍り出る、と書きましょう。文々。新聞、博麗チームの応援に転向です。", cast: ["aya", "marisa"] },
-    { speaker: "reimu",   text: "風読みも結局は走るしかなかった。永遠亭、次に来なさい。", cast: ["reimu", "sanae"] },
-  ],
-  eientei: [
-    { speaker: "kaguya",  text: "少し遊びすぎたわね。月の策でなく、地上の意地に押し切られたわ。蓬莱の薬の名折れね、永琳。", cast: ["kaguya", "eirin"] },
-    { speaker: "mokou",   text: "輝夜……負けたが、お前と肩を並べて戦ったのは妙な気分だった。1000年の恨みは……まあ、もう少し預ける。", cast: ["mokou", "kaguya"] },
-    { speaker: "eirin",   text: "妹紅、お前を不老不死にした罪滅ぼしに、薬学を授けようか。月の薬じゃない、地の薬を。", cast: ["eirin", "mokou"] },
-    { speaker: "sanae",   text: "奇跡を信じる勝負、私たちが上でした。次は地霊殿……心を読まれます。", cast: ["sanae", "youmu", "reimu"] },
-  ],
-  chireiden: [
-    { speaker: "satori",  text: "読めても、止められない力がありますね。完敗です。心を持つということ、力でもあると今日学びました。", cast: ["satori", "koishi"] },
-    { speaker: "yuugi",   text: "萃香！いい試合だった！次は地下で一杯やろう！萃集無能力もパンチングも、酒のつまみだったな！", cast: ["yuugi", "suika"] },
-    { speaker: "utsuho",  text: "(神奈子に向かって) おかーさまから貰った力、ぜんぶ使ったのに負けちゃった……ごめんなさい。", cast: ["utsuho", "kanako", "satori"] },
-    { speaker: "youmu",   text: "半霊は心を持たないと言ったが、皆の心が私を勝たせてくれた。半身に礼を言うべきは、こちら側だな。", cast: ["youmu", "reimu"] },
-  ],
-  myouren: [
-    { speaker: "byakuren",  text: "敗北も修行。次に向けて、命蓮寺で皆を鍛え直しましょう。早苗、神道側の勝利、今日は素直に祝福します。", cast: ["byakuren", "shou", "sanae"] },
-    { speaker: "shou",      text: "(ナズーリンに) 毘沙門天の眷属としても、敗北の重みを受け止めねば。命蓮寺、来年こそ。", cast: ["shou", "nazrin"] },
-    { speaker: "ichirin",   text: "雲山、ありがとう。あなたの拳は最後まで止まらなかった。", cast: ["ichirin", "unzan"] },
-    { speaker: "marisa",    text: "聖を倒した！残り神霊廟と反逆獣連合だぜ霊夢！", cast: ["marisa", "reimu", "suika"] },
-  ],
-  shinreibyo: [
-    { speaker: "miko",   text: "この敗北、次の布石として受け取りましょう。十七条憲法、いずれサッカーにも条文を追加します。", cast: ["miko", "futo", "tojiko"] },
-    { speaker: "futo",   text: "屠自古め、お前の雷鳴で皿陣が崩れた瞬間、まあ……協力したな。一度だけ礼を言うぞ、千四百年ぶりに。", cast: ["futo", "tojiko"] },
-    { speaker: "tojiko", text: "(布都に) フ、ン。1400年ぶりの礼で気が抜けるとは、お前らしくないな布都。次は逆に私が敗ける番、ということだ。", cast: ["tojiko", "futo"] },
-    { speaker: "suika",  text: "決勝に手が届いた！反逆獣、ぶっ飛ばすぞ霊夢！萃集無能力も全開だ！", cast: ["suika", "reimu", "marisa"] },
-  ],
-  rebel_beast: [
-    { speaker: "shinmyoumaru", text: "くやしい……でも反逆はここからだよ。小さくても次は勝つ。覚えてなさい博麗の巫女！", cast: ["shinmyoumaru", "seija"] },
-    { speaker: "seija",        text: "天邪鬼として『今日は負ける』と言うのが本来の私……ふん、敗北の天邪鬼、舐めるな。", cast: ["seija", "shinmyoumaru"] },
-    { speaker: "yachie",       text: "組長として一礼。博麗神社、幻想郷の頂、お見事。獣連合、貴女方を認める。", cast: ["yachie", "shinmyoumaru", "kagerou"] },
-    { speaker: "kagerou",      text: "(椛に向かって) 椛、白い狼と灰色の狼、結局は同じ月を見上げてるな。次は満月の夜に勝負だ。", cast: ["kagerou", "momiji"] },
-  ],
-};
-
-// 因縁ペア (carrier_id|defender_id ソート済 string)
-// 各 entry は 1-3 panel の短い掛け合い VN。 contact 時に確率で挿入。
-const RIVALRY_DIALOGUES = {
-  "reimu|remilia": [
-    { speaker: "remilia", text: "博麗の巫女、紅霧異変の借りを今宵返す。運命ごと吹き飛ばしてあげる。", cast: ["reimu", "remilia"] },
-    { speaker: "reimu",   text: "夜のうちに片付けないと、面倒くさい吸血鬼。あの時と同じ、結界で抑え込む。", cast: ["reimu", "remilia"] },
-  ],
-  "marisa|patchouli": [
-    { speaker: "patchouli", text: "魔理沙……返却期限を 18 ヶ月過ぎてる本が、まだ我が館に大量にあるのよね。", cast: ["marisa", "patchouli"] },
-    { speaker: "marisa",    text: "それを言うなって。研究中なんだぜ。今日はサッカーで利息を返す。", cast: ["marisa", "patchouli"] },
-  ],
-  "marisa|flandre": [
-    { speaker: "flandre",   text: "魔理沙ー、お姉さまが言ってたよ。「あいつは私の友達」って。手加減してあげる！", cast: ["marisa", "flandre"] },
-    { speaker: "marisa",    text: "おう、フランは可愛いから手加減してくれよな。レーヴァテインだけは勘弁な。", cast: ["marisa", "flandre"] },
-  ],
-  "marisa|meiling": [
-    { speaker: "meiling",   text: "また門を勝手にすり抜けて図書館に行く気だな、魔理沙！今日は通さん！", cast: ["marisa", "meiling"] },
-    { speaker: "marisa",    text: "美鈴、サッカーで真面目に守ろうとするの初めて見たぜ。きっと寝てたんだろ普段。", cast: ["marisa", "meiling"] },
-  ],
-  "sanae|kanako": [
-    { speaker: "kanako",   text: "早苗、守矢の血脈、母の前で見せてごらん。神々しき御柱、ロングシュートで貫く。", cast: ["sanae", "kanako"] },
-    { speaker: "sanae",    text: "神奈子様、子孫として恥ずかしくない走りをします。奇跡のスルーパス、神の上を行きます！", cast: ["sanae", "kanako"] },
-  ],
-  "sanae|suwako": [
-    { speaker: "suwako",   text: "ケロケロ、早苗ちゃん、土着神は身軽だよー。ピョン！", cast: ["sanae", "suwako"] },
-    { speaker: "sanae",    text: "諏訪子様、その身軽さで上を狙うのですね。私もボールを神の如く扱います！", cast: ["sanae", "suwako"] },
-  ],
-  "sanae|byakuren": [
-    { speaker: "byakuren", text: "早苗、神道と仏教、今宵フィールドで決着しましょう。", cast: ["sanae", "byakuren"] },
-    { speaker: "sanae",    text: "聖さん、宗教論争は試合後にしましょう。今は純粋にサッカーで挑みます。", cast: ["sanae", "byakuren"] },
-  ],
-  "kaguya|mokou": [
-    { speaker: "mokou",   text: "輝夜……このピッチで千年の決着を。私の不死鳥ボレー、お前の永遠を断ち切る。", cast: ["kaguya", "mokou"] },
-    { speaker: "kaguya", text: "妹紅、サッカーで歴史を変える気？永遠の夜の中で、お前は何度蘇るのかしら。", cast: ["kaguya", "mokou"] },
-  ],
-  "mokou|eirin": [
-    { speaker: "mokou",  text: "永琳……お前を恨むのは 1000 年ほど前にやめた。だが今日は別だ。", cast: ["mokou", "eirin"] },
-    { speaker: "eirin",  text: "妹紅、あの薬の罪は今もこの胸にある。せめてフィールドで償わせて。", cast: ["mokou", "eirin"] },
-  ],
-  "kaguya|eirin": [
-    { speaker: "eirin",  text: "輝夜様、後ろは私が固めます。蓬莱の薬を一千年分、足腰に効かせてください。", cast: ["kaguya", "eirin"] },
-    { speaker: "kaguya", text: "永琳、月の頃の話みたいね。あなたが居れば、夜は永遠よ。", cast: ["kaguya", "eirin"] },
-  ],
-  "suika|yuugi": [
-    { speaker: "yuugi",  text: "萃香！四天王の鬼同士、フィールドで本気の角ぶつけ合おうじゃないか！", cast: ["suika", "yuugi"] },
-    { speaker: "suika",  text: "勇儀！地下から出てきたな！萃集無能力で散らかしたあと、酒で乾杯だ！", cast: ["suika", "yuugi"] },
-  ],
-  "reimu|satori": [
-    { speaker: "satori", text: "霊夢、次の動きが見えますよ……ふふ、心を読まれる気分はいかが？", cast: ["reimu", "satori"] },
-    { speaker: "reimu",  text: "さとり、読めても止められないわよ。私の動きは私の心より速い。", cast: ["reimu", "satori"] },
-  ],
-  "marisa|satori": [
-    { speaker: "satori", text: "魔理沙、次もマスタースパーク？読みやすすぎますよ。", cast: ["marisa", "satori"] },
-    { speaker: "marisa", text: "読まれてもいいんだ。マスタースパークは光速、避けられないからな。", cast: ["marisa", "satori"] },
-  ],
-  "utsuho|kanako": [
-    { speaker: "utsuho", text: "おかーさま！八咫烏の力、ぜんぶ使うね！核熱シュート、見ててね！", cast: ["utsuho", "kanako"] },
-    { speaker: "kanako", text: "お空、その力は授けた私が責任を持って受け止める。お母さんの胸に飛び込んで来なさい。", cast: ["utsuho", "kanako"] },
-  ],
-  "byakuren|miko": [
-    { speaker: "byakuren", text: "太子……仏教を排した道教者として、千年越しの遺恨があるけれど、今はピッチの上。", cast: ["byakuren", "miko"] },
-    { speaker: "miko",     text: "聖、私は十七条で「和を以て貴しと為す」と書いた。フィールドの上では和を破ろう。", cast: ["byakuren", "miko"] },
-  ],
-  "byakuren|futo": [
-    { speaker: "futo",     text: "仏教徒め、千四百年経ってもこの皿陣の前では止まるしかない！", cast: ["byakuren", "futo"] },
-    { speaker: "byakuren", text: "布都、物部の名にかけてもサッカーは別物。仏の慈悲はフィールド外で。", cast: ["byakuren", "futo"] },
-  ],
-  "futo|tojiko": [
-    { speaker: "futo",   text: "屠自古め、お前と組まされるのは 1400 年経っても気が進まんがな。", cast: ["futo", "tojiko"] },
-    { speaker: "tojiko", text: "フ、ン。私もだ。だが太子様の御為だ、雷鳴ミドル、お前の頭上をかすめて飛ばすぞ。", cast: ["futo", "tojiko"] },
-  ],
-  "miko|futo": [
-    { speaker: "miko",   text: "布都、皿陣の左を抑えて。屠自古の雷鳴を活かす道を作る。", cast: ["miko", "futo"] },
-    { speaker: "futo",   text: "御意、太子様。物部一族、フィールドの上でも忠誠は揺るぎませぬ。", cast: ["miko", "futo"] },
-  ],
-  "miko|tojiko": [
-    { speaker: "miko",   text: "屠自古、お前の感電シュートで決める。蘇我の名誉、ピッチで示せ。", cast: ["miko", "tojiko"] },
-    { speaker: "tojiko", text: "太子様の御為、千年経っても変わりません。雷鳴、行きます。", cast: ["miko", "tojiko"] },
-  ],
-  "shinmyoumaru|reimu": [
-    { speaker: "shinmyoumaru", text: "博麗の巫女！輝針城の異変では追い詰められたけど、今日はサッカーで反逆するよ！", cast: ["shinmyoumaru", "reimu"] },
-    { speaker: "reimu",        text: "針妙丸、小槌で大きくならないように見張ってる。サッカーは小さい方が有利じゃないわよ。", cast: ["shinmyoumaru", "reimu"] },
-  ],
-  "shinmyoumaru|marisa": [
-    { speaker: "marisa",       text: "針妙丸、その小槌、また見られるとはな。輝針城ぶりだぜ。", cast: ["shinmyoumaru", "marisa"] },
-    { speaker: "shinmyoumaru", text: "魔理沙！あの時の仕返し、トリックシュートでGKを抜いてやる！", cast: ["shinmyoumaru", "marisa"] },
-  ],
-  "seija|reimu": [
-    { speaker: "seija", text: "霊夢、天邪鬼に常識通用しないよ？私の動き、リバースだから読むの無駄。", cast: ["reimu", "seija"] },
-    { speaker: "reimu", text: "正邪、常識じゃ動かない方が読みやすいわよ。逆を予想すればいいだけ。", cast: ["reimu", "seija"] },
-  ],
-  "seija|marisa": [
-    { speaker: "seija",  text: "魔理沙ー、輝針城のあの仕打ち、忘れてないわよ。今日はひっくり返してやる。", cast: ["marisa", "seija"] },
-    { speaker: "marisa", text: "リバースフェイント、面白いじゃん。だがマスタースパークは真っ直ぐだぜ。", cast: ["marisa", "seija"] },
-  ],
-  "kagerou|momiji": [
-    { speaker: "kagerou", text: "椛、白い狼と灰色の狼、結局は同じ月を見上げてる。今夜は満月、本気だよ。", cast: ["kagerou", "momiji"] },
-    { speaker: "momiji",  text: "影狼、白狼天狗の千里眼、お前の動きは全部見えてる。月の力に頼るなら、私の眼に頼られる。", cast: ["kagerou", "momiji"] },
-  ],
-  "aya|momiji": [
-    { speaker: "aya",    text: "椛、新聞の取材中の判定は私にお任せ。あなたは後ろを固めて。", cast: ["aya", "momiji"] },
-    { speaker: "momiji", text: "文先輩、その「取材」って言葉、走り回るための言い訳ですよね。", cast: ["aya", "momiji"] },
-  ],
-  "kanako|suwako": [
-    { speaker: "kanako",  text: "諏訪子、御柱と土着神、守矢神社の二柱で 11 人を圧倒する。", cast: ["kanako", "suwako"] },
-    { speaker: "suwako",  text: "ケロちゃん、ロングシュートとカエル跳び、コンビネーション決めようね。", cast: ["kanako", "suwako"] },
-  ],
-  "ringo2|reisen": [
-    { speaker: "ringo2", text: "鈴仙先輩！同じ月の兎として、私も負けません！", cast: ["ringo2", "reisen"] },
-    { speaker: "reisen", text: "鈴瑚、月から地上へ降りて来てなお団子を持ってるの、貴女くらいよ。狂気で行くわ。", cast: ["ringo2", "reisen"] },
-  ],
-  "seiran|reisen": [
-    { speaker: "seiran", text: "鈴仙先輩、月の戦士として、地上のスペル抜きで本気のドリブル見せます！", cast: ["seiran", "reisen"] },
-    { speaker: "reisen", text: "清蘭、月の俊敏さ……月から見ていたあの頃と変わらないわね。", cast: ["seiran", "reisen"] },
-  ],
-  "youmu|murasa": [
-    { speaker: "murasa", text: "妖夢、亡霊と半霊、海と地、似て非なるものね。沈没アンカーで沈めてあげる。", cast: ["youmu", "murasa"] },
-    { speaker: "youmu",  text: "村紗、亡霊同士礼儀正しく勝負しよう。半霊と二人分で挑む。", cast: ["youmu", "murasa"] },
-  ],
-  "youmu|shinmyoumaru": [
-    { speaker: "shinmyoumaru", text: "妖夢のお姉さま！その楼観剣、小槌でひっくり返してやる！", cast: ["youmu", "shinmyoumaru"] },
-    { speaker: "youmu",        text: "針妙丸、剣と小槌、刃物 vs 玩具の図だな。だが斬る方が勝つ。", cast: ["youmu", "shinmyoumaru"] },
-  ],
-  "yuugi|byakuren": [
-    { speaker: "yuugi",    text: "聖、地下の鬼が浮かれて出てきたぞ！パンチング、お経で止めてみるか？", cast: ["yuugi", "byakuren"] },
-    { speaker: "byakuren", text: "勇儀、地下に閉じ込められていた頃の同志として、今日は本気でぶつかる。", cast: ["yuugi", "byakuren"] },
-  ],
-  "patchouli|sanae": [
-    { speaker: "patchouli", text: "五行を司る私の前で、神道の祝詞がどこまで通用するか拝見しましょう。", cast: ["patchouli", "sanae"] },
-    { speaker: "sanae",     text: "パチュリーさん、魔法と神術、ここで五分五分にしますよ！", cast: ["patchouli", "sanae"] },
-  ],
-};
-
 function rivalryKey(a, b) {
   return [a.id, b.id].sort().join("|");
-}
-
-// データ側のキーは人間が「攻め|受け」の語順で書いており、 lookup の rivalryKey は sort 済み。
-// 正規化しないと 32 ペア中 16 ペア (決勝の因縁含む) が永久に発火しない。 ここで一度だけキーを揃える。
-for (const k of Object.keys(RIVALRY_DIALOGUES)) {
-  const sortedKey = k.split("|").sort().join("|");
-  if (sortedKey !== k) {
-    RIVALRY_DIALOGUES[sortedKey] = RIVALRY_DIALOGUES[k];
-    delete RIVALRY_DIALOGUES[k];
-  }
 }
 
 function findRivalryDialogue(a, b) {
   return RIVALRY_DIALOGUES[rivalryKey(a, b)] || null;
 }
-
-const STORY_ENDING = [
-  { speaker: "reimu",    text: "幻想郷トーナメント、優勝。賞金で本殿の屋根が直せそうね。", cast: ["reimu", "marisa", "sanae"] },
-  { speaker: "marisa",   text: "マスタースパーク何発撃ったかもう数えてないぜ。最高のサッカーだった。", cast: ["marisa", "youmu", "suika"] },
-  { speaker: "sanae",    text: "守矢の名にもかけて、外の世界の競技を持ち込んだ意義、ありました！", cast: ["sanae", "kanako", "suwako"] },
-  { speaker: "remilia",  text: "私たちも次は本気の本気を見せるわ。覚悟しておきなさい。", cast: ["remilia", "sakuya", "flandre", "patchouli"] },
-  { speaker: "byakuren", text: "敗北を経て、次の修行が始まる。命蓮寺、再起します。", cast: ["byakuren", "shou", "ichirin", "murasa"] },
-  { speaker: "miko",     text: "天命に逆らえぬが、次回大会では十七条の真の意味を見せよう。", cast: ["miko", "futo", "tojiko"] },
-  { speaker: "shinmyoumaru", text: "今日の敗北は、明日の反逆だよ。覚えてなさい博麗の巫女！", cast: ["shinmyoumaru", "seija", "yachie", "kagerou"] },
-  { speaker: "reimu",    text: "全員、また異変があれば呼んでね。今度は別の競技で。次回作にご期待ください。", cast: ["reimu", "marisa", "sanae", "youmu", "suika"] },
-  { speaker: "marisa",   text: "  ─── 完 ─── 幻想郷フットボール協会 公認 / 制作: 博麗神社 / 開発: Claude × Stayg", cast: ["reimu", "marisa", "sanae", "youmu", "suika", "suwako", "kanako", "byakuren"] },
-];
-
 
 function mirrorSlot(slot) {
   return { x: 100 - slot.x, y: slot.y };
@@ -1179,11 +473,50 @@ function redistributeForFormation(members, formationKey) {
   return [...buckets.GK, ...buckets.DF, ...buckets.MF, ...buckets.FW];
 }
 
-function cloneTeam(team, side) {
+// 助っ人で外せない選手: 各チームのリザルト代表 (resultDialogue が players[0] fallback で
+// 別人が代表セリフを喋る事故の防止) + 博麗はストーリーVNの主役格5名 (campaign の物語整合)。
+const PROTECTED_SPEAKERS = {
+  hakurei: ["reimu", "marisa", "sanae", "youmu", "suika"],
+  kouma: ["remilia"],
+  youkai_mountain: ["aya"],
+  eientei: ["kaguya"],
+  chireiden: ["satori"],
+  myouren: ["byakuren"],
+  shinreibyo: ["miko"],
+  rebel_beast: ["shinmyoumaru"],
+};
+
+// 助っ人1枠の解決 (rank22 ライト混成)。 該当しなければ null = 助っ人なし。
+// 同役割スワップで 1GK/4DF/4MF/2FW を維持し、redistributeForFormation を無改修で通す。
+function resolveHelper(team, opponentId) {
+  const h = sanitizeHelper(state.progress && state.progress.helper, (state.progress && state.progress.unlockedTeams) || []);
+  if (!h) return null;
+  if (h.teamId === team.id) return null; // 借り元=自チーム (free でチーム変更した場合)
+  if (h.teamId === opponentId) return { benched: true, srcName: findTeam(h.teamId).name }; // 古巣戦は自動ベンチ (VN整合+同一キャラ両軍を回避)
+  const src = findTeam(h.teamId);
+  const inMember = src.members.find((m) => m.id === h.playerId);
+  if (!inMember) return null;
+  const protectedIds = new Set(PROTECTED_SPEAKERS[team.id] || []);
+  const outCandidates = team.members.filter((m) => m.role === inMember.role && !protectedIds.has(m.id));
+  if (!outCandidates.length) return null;
+  const statSum = (m) => Object.values(m.stats).reduce((s, v) => s + v, 0);
+  const out = outCandidates.find((m) => m.id === h.outId)
+    || [...outCandidates].sort((a, b) => statSum(a) - statSum(b))[0]; // 指定なしは地力最小を自動ベンチ
+  return { in: inMember, out, srcId: src.id, srcName: src.name };
+}
+
+function cloneTeam(team, side, opts = {}) {
   const userFormation = side === "home" ? (state.progress && state.progress.formation) || team.formation || "4-4-2" : team.formation || "4-4-2";
   const slots = formationSlots(userFormation, side);
   const usedSlots = { GK: 0, DF: 0, MF: 0, FW: 0 };
-  const redistributed = redistributeForFormation(team.members, userFormation);
+  // 助っ人差し替え (home のみ)。 TEAMS はミューテートせず clone 時のコピーだけ差し替える。
+  const helper = side === "home" ? resolveHelper(team, opts.opponentId) : null;
+  const baseMembers = helper && helper.in
+    ? team.members.map((m) => (m.id === helper.out.id
+      ? { ...helper.in, isHelper: true, originTeamId: helper.srcId, originTeamName: helper.srcName }
+      : m))
+    : team.members;
+  const redistributed = redistributeForFormation(baseMembers, userFormation);
   return {
     ...team,
     side,
@@ -1590,9 +923,16 @@ function startMatchCore(options = {}) {
   const awayId = options.awayTeamId || state.awayTeamId;
   state.homeTeamId = homeId;
   state.awayTeamId = awayId;
-  const home = cloneTeam(findTeam(homeId), "home");
+  const home = cloneTeam(findTeam(homeId), "home", { opponentId: awayId });
   const away = cloneTeam(findTeam(awayId), "away");
   applyClearReward(home);
+  // 助っ人の参戦/古巣戦ベンチをログで明示 (差し替えに気づけるように)。
+  const helperInfo = resolveHelper(findTeam(homeId), awayId);
+  const helperLog = helperInfo && helperInfo.in
+    ? `助っ人: ${helperInfo.in.name} (${helperInfo.srcName}) が参戦。${helperInfo.out.name}はベンチ。`
+    : helperInfo && helperInfo.benched
+      ? `助っ人は古巣・${helperInfo.srcName}との対戦のため今日はベンチ。`
+      : null;
   const carrier = home.players.find((player) => player.role === "MF") || home.players[1];
   state.match = {
     matchToken: ++matchSeq,
@@ -1623,6 +963,7 @@ function startMatchCore(options = {}) {
   const bonus = rewardSpiritBonus();
   state.logs = [
     `${home.name} vs ${away.name}、キックオフ。${carrier.name}がボールを持った。`,
+    ...(helperLog ? [helperLog] : []),
     ...(bonus ? [`制覇報酬で自チーム全員の初期霊力+${bonus}。`] : []),
   ];
   state.screen = "match";
@@ -2326,17 +1667,28 @@ function openBattle(type, skipRivalry = false) {
   if (!carrier || !defender) return;
   // 因縁掛け合い VN (1 試合 1 ペア 1 回まで、 50% 確率)
   if (!skipRivalry && state.match && state.match.rivalryShown) {
-    const key = rivalryKey(carrier, defender);
-    const dialogue = findRivalryDialogue(carrier, defender);
-    if (dialogue && !state.match.rivalryShown[key] && rng() < 0.5) {
-      state.match.rivalryShown[key] = true;
-      const token = state.match.matchToken;
-      audio.play("encounter");
-      startVn(dialogue, `因縁: ${carrier.name} vs ${defender.name}`, () => {
-        if (!matchAlive(token)) return; // VN 中に試合差し替え / 終了したら通常 flow に戻さない
-        openBattle(type, true); // 通常 flow へ
-      });
-      return;
+    // 敵対ペア (carrier vs defender) に加え、 ワンツーでは壁役との同チームペアも対象にする。
+    // 同チーム因縁 (霊夢&魔理沙等10ペア) は敵対経路では構造的に発火しないため、ここが唯一の出口。
+    const wallMate = type === "oneTwo" && passExtra.wallId
+      ? allPlayers().find((p) => p.id === passExtra.wallId)
+      : null;
+    const candidates = [
+      { other: defender, title: `因縁: ${carrier.name} vs ${defender.name}` },
+      ...(wallMate ? [{ other: wallMate, title: `コンビ: ${carrier.name} & ${wallMate.name}` }] : []),
+    ];
+    for (const cand of candidates) {
+      const key = rivalryKey(carrier, cand.other);
+      const dialogue = findRivalryDialogue(carrier, cand.other);
+      if (dialogue && !state.match.rivalryShown[key] && rng() < 0.5) {
+        state.match.rivalryShown[key] = true;
+        const token = state.match.matchToken;
+        audio.play("encounter");
+        startVn(dialogue, cand.title, () => {
+          if (!matchAlive(token)) return; // VN 中に試合差し替え / 終了したら通常 flow に戻さない
+          openBattle(type, true); // 通常 flow へ
+        });
+        return;
+      }
     }
   }
   audio.play("battle");
@@ -3014,6 +2366,10 @@ function endTurnBookkeeping() {
     }
     const result = match.winner === "draw" ? "引き分け" : match.winner === "home" ? `${match.home.name}の勝利` : `${match.away.name}の勝利`;
     log(`試合終了。${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}。${result}。`);
+    // 敗北専用VN: campaign で負けたら相手の勝ち名乗り→悔しさ→再戦決意を見せる (「再戦する」導線の物語裏付け)。
+    if (state.mode === "campaign" && match.winner === "away" && STORY_LOSE[match.away.id]) {
+      startVn(STORY_LOSE[match.away.id], `敗北… ${match.away.name}戦`, null);
+    }
     // 試合で稼いだ playerXp(成長)を確実に永続化。 旧版は設定を触らない限り flush されず次回起動で巻き戻っていた。
     saveProgress();
   } else {
@@ -3521,6 +2877,9 @@ function clamp(value, min, max) {
 }
 
 function render() {
+  // 演出速度を CSS の一発系アニメ (スペルカットイン/競り合い/クラッシュ) にも伝える。
+  // JS 寿命 (animMs) だけ縮めると高速/瞬間でアニメが尻切れになるため、duration を同率スケール。
+  document.documentElement.style.setProperty("--anim-scale", animScale());
   // 決着系モーダルが「新たに開いた」瞬間を検出して入力猶予を張る (連打誤爆防止)。
   const modalKey = state.battle ? `b:${state.battle.carrierId}:${state.battle.type}` : state.gkChoice ? "gk" : state.interrupt ? "int" : "";
   if (modalKey && modalKey !== state.lastModalKey) state.inputGuardUntil = Date.now() + animMs(230);
@@ -3602,6 +2961,7 @@ function renderSetup() {
         <button class="${state.progress.tactic === "defensive" ? "selected-mode" : ""}" data-action="tactic" data-tactic="defensive">守備的</button>
         <button class="${state.progress.tactic === "counter" ? "selected-mode" : ""}" data-action="tactic" data-tactic="counter">カウンター</button>
       </div>
+      ${renderHelperRow()}
       <div class="anim-speed-row difficulty-row">
         <span class="formation-label">演出速度</span>
         <button class="${state.progress.animSpeed === "normal" ? "selected-mode" : ""}" data-action="animSpeed" data-speed="normal">標準</button>
@@ -3634,6 +2994,31 @@ function renderSetup() {
         <button class="primary" data-action="${state.mode === "campaign" ? "startCampaign" : "start"}">${state.mode === "campaign" ? "異変開始" : "試合開始"}</button>
       </div>
     </section>
+  `;
+}
+
+// 助っ人1枠の編成UI (rank22 ライト混成)。 解放が博麗のみの間は丸ごと非表示。
+function renderHelperRow() {
+  const lendable = state.progress.unlockedTeams.filter((id) => id !== state.homeTeamId && findTeam(id));
+  if (!lendable.length) return "";
+  const h = sanitizeHelper(state.progress.helper, state.progress.unlockedTeams);
+  const srcOpen = state.helperSrcTeamId && lendable.includes(state.helperSrcTeamId) ? findTeam(state.helperSrcTeamId) : null;
+  const current = h ? findTeam(h.teamId).members.find((m) => m.id === h.playerId) : null;
+  let summary = "";
+  if (h && current) {
+    const resolved = resolveHelper(findTeam(state.homeTeamId), null);
+    const outName = resolved && resolved.out ? resolved.out.name : "(候補なし)";
+    summary = `<div class="helper-summary">IN <strong>${current.name}</strong> (${current.role}/${findTeam(h.teamId).name}) ⇄ OUT <button data-action="helperOutCycle">${outName} ▸</button><button data-action="helperClear">解除</button></div>`;
+  }
+  return `
+    <div class="helper-row difficulty-row">
+      <span class="formation-label">助っ人</span>
+      <button class="${!h && !srcOpen ? "selected-mode" : ""}" data-action="helperClear">なし</button>
+      ${lendable.map((id) => `<button class="${(h && h.teamId === id) || state.helperSrcTeamId === id ? "selected-mode" : ""}" data-action="helperTeam" data-team="${id}">${findTeam(id).name}</button>`).join("")}
+    </div>
+    ${srcOpen ? `<div class="helper-pick-row">${srcOpen.members.map((m) => `<button class="helper-chip ${h && h.playerId === m.id ? "selected-mode" : ""}" data-action="helperPick" data-team="${srcOpen.id}" data-player="${m.id}">${m.name}<span class="helper-chip-role">${m.role}</span></button>`).join("")}</div>` : ""}
+    ${summary}
+    ${state.mode === "campaign" && h ? `<p class="campaign-note helper-note">古巣との対戦では自動的にベンチ。物語の主役格 (霊夢/魔理沙/早苗/妖夢/萃香) とは交代できない。</p>` : ""}
   `;
 }
 
@@ -3767,6 +3152,14 @@ function renderMatch() {
         <div class="drawer-head">
           <span class="drawer-title">詳細 / ログ</span>
           <button class="drawer-close" data-action="toggleDrawer">✕</button>
+        </div>
+        <div class="panel-section drawer-speed-row">
+          <h2 class="section-title">演出速度</h2>
+          <div class="anim-speed-row">
+            <button class="${state.progress.animSpeed === "normal" ? "selected-mode" : ""}" data-action="animSpeed" data-speed="normal">標準</button>
+            <button class="${state.progress.animSpeed === "fast" ? "selected-mode" : ""}" data-action="animSpeed" data-speed="fast">高速</button>
+            <button class="${state.progress.animSpeed === "instant" ? "selected-mode" : ""}" data-action="animSpeed" data-speed="instant">瞬間</button>
+          </div>
         </div>
         <div class="team-cg-strip">
           <img src="${teamCg(match.home)}" alt="${match.home.name}" />
@@ -4159,7 +3552,7 @@ function renderStatusCard(player) {
       <div class="stat-card identity-card">
         ${renderPortrait(player, "mini")}
         <span>
-          <strong>${player.name}</strong>${player.teamName} / ${player.role}${lv > 1 ? ` <span class="lv-badge">Lv${lv}${boost > 0 ? ` +${boost}` : ""}</span>` : ""}
+          <strong>${player.name}</strong>${player.teamName} / ${player.role}${player.isHelper ? ` <span class="helper-badge">助っ人/${player.originTeamName}</span>` : ""}${lv > 1 ? ` <span class="lv-badge">Lv${lv}${boost > 0 ? ` +${boost}` : ""}</span>` : ""}
           <div class="meter"><span style="width:${Math.round(Math.min(1, player.maxGuts > 0 ? player.guts / player.maxGuts : 0) * 100)}%"></span></div>
           <span class="guts-num">霊力 ${player.guts}/${player.maxGuts}</span>
         </span>
@@ -4255,6 +3648,7 @@ function renderBattle() {
           </div>
         </div>
         <div class="battle-body">
+          ${QUIPS[carrier.id] ? `<p class="battle-quip">${carrier.name}「${QUIPS[carrier.id]}」</p>` : ""}
           <p class="battle-message">${battleText(state.battle.type, carrier, defender)}</p>
           ${isPlayersBattle ? `
           <div class="battle-actions tier-actions">
@@ -4304,6 +3698,11 @@ function bindEvents() {
       if (button.dataset.select === "away") state.awayTeamId = button.dataset.team;
       if (state.homeTeamId === state.awayTeamId) {
         state.awayTeamId = TEAMS.find((team) => team.id !== state.homeTeamId).id;
+      }
+      // 助っ人の借り元を自チームにしたら助っ人は解消 (自分から自分は借りられない)。
+      if (state.progress.helper && state.progress.helper.teamId === state.homeTeamId) {
+        state.progress.helper = null;
+        saveProgress();
       }
       render();
     });
@@ -4378,6 +3777,38 @@ function bindEvents() {
       if (action === "tactic") {
         state.progress.tactic = button.dataset.tactic;
         saveProgress();
+        render();
+      }
+      if (action === "helperClear") {
+        state.progress.helper = null;
+        state.helperSrcTeamId = null;
+        saveProgress();
+        render();
+      }
+      if (action === "helperTeam") {
+        state.helperSrcTeamId = state.helperSrcTeamId === button.dataset.team ? null : button.dataset.team;
+        render();
+      }
+      if (action === "helperPick") {
+        state.progress.helper = { teamId: button.dataset.team, playerId: button.dataset.player, outId: null };
+        state.helperSrcTeamId = null;
+        saveProgress();
+        render();
+      }
+      if (action === "helperOutCycle") {
+        // OUT (ベンチに下げる自チーム選手) を同役割候補内で循環させる。
+        const h = sanitizeHelper(state.progress.helper, state.progress.unlockedTeams);
+        if (h) {
+          const homeTeam = findTeam(state.homeTeamId);
+          const inMember = findTeam(h.teamId).members.find((m) => m.id === h.playerId);
+          const protectedIds = new Set(PROTECTED_SPEAKERS[homeTeam.id] || []);
+          const candidates = homeTeam.members.filter((m) => m.role === inMember.role && !protectedIds.has(m.id));
+          if (candidates.length) {
+            const idx = candidates.findIndex((m) => m.id === h.outId);
+            state.progress.helper = { ...h, outId: candidates[(idx + 1) % candidates.length].id };
+            saveProgress();
+          }
+        }
         render();
       }
       if (action === "animSpeed") {
@@ -4747,6 +4178,35 @@ window.__touhouSpellFutsalDebug = {
   skipVnAll() {
     while (state.vnScene) skipVn();
   },
+  // 助っ人設定の注入/確認 (テスト用)。
+  setHelper(teamId, playerId, outId = null) {
+    state.progress.helper = { teamId, playerId, outId };
+    saveProgress();
+    render();
+    return sanitizeHelper(state.progress.helper, state.progress.unlockedTeams);
+  },
+  activeHelper() {
+    if (!state.match) return null;
+    const p = state.match.home.players.find((pl) => pl.isHelper);
+    return p ? { id: p.id, name: p.name, role: p.role, originTeamId: p.originTeamId } : null;
+  },
+  // 試合を即時に敗北で終了させる (敗北VN/再戦導線の確認用。autoWinMatch の敗北版)。
+  autoLoseMatch() {
+    if (!state.match) return;
+    state.vsScreen = null;
+    state.judge = null;
+    state.passPicker = null;
+    state.battle = null;
+    state.gkChoice = null;
+    state.interrupt = null;
+    state.vnScene = null;
+    state.match.score.away = state.match.score.home + 2;
+    state.match.half = 2;
+    state.match.clock = 99; // タイムアップ (ロスタイム超過)
+    state.match.possession = "home";
+    endTurn();
+    render();
+  },
   triggerEnding() {
     startVn(STORY_ENDING, "幻想郷トーナメント 優勝", () => {
       state.screen = "setup";
@@ -4784,10 +4244,11 @@ window.__touhouSpellFutsalDebug = {
         (panel.cast || []).forEach((c) => { if (!ids.has(c)) problems.push(`unknown-cast:${key}:${c}`); });
       });
     }
-    [STORY_OPENING, STORY_ENDING, ...Object.values(STORY_PRE), ...Object.values(STORY_WIN)].flat().forEach((panel) => {
+    [STORY_OPENING, STORY_ENDING, ...Object.values(STORY_PRE), ...Object.values(STORY_WIN), ...Object.values(STORY_LOSE)].flat().forEach((panel) => {
       if (!ids.has(panel.speaker)) problems.push(`story-unknown-speaker:${panel.speaker}`);
       (panel.cast || []).forEach((c) => { if (!ids.has(c)) problems.push(`story-unknown-cast:${c}`); });
     });
+    Object.keys(QUIPS).forEach((id) => { if (!ids.has(id)) problems.push(`quip-unknown-id:${id}`); });
     return problems;
   },
   // 進行スナップショット (検証ハーネス用: DOM由来でない実進行シグナル)。

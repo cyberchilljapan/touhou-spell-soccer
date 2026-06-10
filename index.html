@@ -11,6 +11,8 @@
   </head>
   <body>
     <main id="app"></main>
+    <!-- data.js (全データ定義) → game.js (ロジック) の順。 defer は文書順実行を保証する。 -->
+    <script defer src="./src/data.js"></script>
     <script defer src="./src/game.js"></script>
   </body>
 </html>
