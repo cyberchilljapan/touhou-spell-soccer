@@ -3616,11 +3616,16 @@ function renderSetup() {
       </div>
       <div class="team-select-grid">
         <div>
-          <h2 class="section-title">自チーム${state.mode === "campaign" ? ` <span class="campaign-note">ストーリーは博麗神社専用</span>` : ""}</h2>
-          <div class="team-list">${TEAMS.map((team) => teamButton(team, "home", state.mode === "campaign" && team.id !== "hakurei")).join("")}</div>
+          <h2 class="section-title">自チーム${state.mode === "campaign" ? ` <span class="campaign-note">ストーリーは博麗神社専用</span>` : ` <span class="campaign-note">ストーリーで撃破したチームを使える</span>`}</h2>
+          <div class="team-list">${TEAMS.map((team) => teamButton(
+            team,
+            "home",
+            // campaign=博麗専用 / free=解放済みのみ (解放を「表示だけのご褒美」にしない実ゲート)
+            state.mode === "campaign" ? team.id !== "hakurei" : !state.progress.unlockedTeams.includes(team.id),
+          )).join("")}</div>
         </div>
         <div>
-          <h2 class="section-title">相手チーム</h2>
+          <h2 class="section-title">相手チーム${state.mode === "campaign" ? ` <span class="campaign-note">対戦順は固定 (紅魔館から7連戦)</span>` : ""}</h2>
           <div class="team-list">${TEAMS.map((team) => teamButton(team, "away", state.mode === "campaign" && team.id === "hakurei")).join("")}</div>
         </div>
       </div>
@@ -3635,14 +3640,15 @@ function renderSetup() {
 function teamButton(team, side, locked = false) {
   const selected = side === "home" ? state.homeTeamId === team.id : state.awayTeamId === team.id;
   const unlocked = state.progress.unlockedTeams.includes(team.id);
-  // locked = ストーリーモードで博麗神社以外の自チーム枠 (POV 整合のため選択不可)。
+  // locked = campaign では博麗神社以外の自チーム枠 (POV整合)、 free では未解放の自チーム枠 (解放報酬の実ゲート)。
   const attrs = locked ? "disabled" : `data-select="${side}" data-team="${team.id}"`;
+  const lockLabel = state.mode === "campaign" ? "ストーリー対象外" : "ストーリーで撃破して解放";
   return `
     <button class="team-button ${selected ? "selected" : ""} ${unlocked ? "unlocked" : "locked"} ${locked ? "campaign-locked" : ""}" ${attrs}>
       <img src="${teamCg(team)}" alt="${team.name}" />
       <span class="team-button-copy">
         <strong>${team.name}</strong>
-        <span>${locked ? "ストーリー対象外" : `${team.style} / ${unlocked ? "解放済み" : "未解放"}`}</span>
+        <span>${locked ? `🔒 ${lockLabel}` : `${team.style} / ${unlocked ? "解放済み" : "未解放"}`}</span>
         <span class="team-members">${team.members.map((member) => member.name).join(" / ")}</span>
       </span>
     </button>
@@ -3928,7 +3934,7 @@ function renderGallery() {
       <div class="gallery-grid team-gallery">
         ${TEAMS.map((team) => `
           <figure>
-            <img src="${teamCg(team)}" alt="${team.name}" />
+            <img src="${teamCg(team)}" alt="${team.name}" loading="lazy" decoding="async" />
             <figcaption>${team.name}</figcaption>
           </figure>
         `).join("")}
@@ -3937,7 +3943,7 @@ function renderGallery() {
       <div class="gallery-grid portrait-gallery">
         ${players.map((player) => `
           <figure>
-            <img src="${portraitPath(player)}" alt="${player.name}" />
+            <img src="${portraitPath(player)}" alt="${player.name}" loading="lazy" decoding="async" />
             <figcaption>${player.name}</figcaption>
           </figure>
         `).join("")}
@@ -3946,7 +3952,7 @@ function renderGallery() {
       <div class="gallery-grid cutin-gallery">
         ${players.map((player) => `
           <figure>
-            <img src="${cutinPath(player)}" alt="${player.spell}" />
+            <img src="${cutinPath(player)}" alt="${player.spell}" loading="lazy" decoding="async" />
             <figcaption>${player.name}</figcaption>
           </figure>
         `).join("")}
@@ -4008,7 +4014,7 @@ function renderHelp() {
         </article>
         <article>
           <h2>守備介入 (Interrupt)</h2>
-          <p>敵のターン中に約 30% で「タックル / インターセプト / 待機」 prompt。霊力を消費して敵を止められる。</p>
+          <p>敵のドリブル / パス / シュートに自軍 DF が近い (距離30以内) と十字の守備プロンプトが出ます。↑タックル / ←パスカット / →ブロック / ↓うごかない (数字 1-4 も可)。霊力を消費して敵を止められる。</p>
         </article>
         <article>
           <h2>ストーリー</h2>
@@ -4016,7 +4022,7 @@ function renderHelp() {
         </article>
         <article>
           <h2>スペルカード (固有技)</h2>
-          <p>スペル / 究極を選ぶと、各キャラ固有のスペルカード名 (例: マスタースパークシュート、禁忌レーヴァテイン) とフレーバーがカットインに表示されます。究極は「・真」付き。</p>
+          <p>スペル / 究極を選ぶとカットインが入り、技名 (行動に対応) と各キャラ固有のフレーバー (88人分) が表示されます。究極は「・真」付き。GK はスペルセーブで必殺に必殺で対抗できます。</p>
         </article>
         <article>
           <h2>演出速度</h2>
@@ -4037,6 +4043,10 @@ function renderHelp() {
         <article>
           <h2>判定演出</h2>
           <p>GOAL!! (画面爆発+フィールド振動)、SAVE!! (水色 セービング)、BREAK!! (突破)、CUT!! (パスカット)、SUPPORT!! (連携)。</p>
+        </article>
+        <article class="help-credits">
+          <h2>クレジット / 二次創作表記</h2>
+          <p>本作は上海アリス幻樂団 (ZUN氏) の「東方Project」の二次創作です。原作の権利は上海アリス幻樂団に帰属し、東方Project二次創作ガイドラインに準拠して制作されています。キャラクターCG / ポートレート / カットインは ComfyUI による AI 生成物です。開発: Claude (Anthropic) × Stayg。</p>
         </article>
       </div>
     </section>
@@ -4168,7 +4178,7 @@ const TIER_COSTS = {
   dribble: { normal: 8, spell: 22, ultimate: 36 },
   pass:    { normal: 6, spell: 18, ultimate: 30 },
   oneTwo:  { normal: 10, spell: 24, ultimate: 38 }, // 原作ワンツーリターン相当
-  shoot:   { normal: 12, spell: 30, ultimate: 48 },
+  shoot:   { normal: 12, spell: 30, ultimate: 52 }, // 究極48→52: FW予算で究極5発→4発に引き締め (rank8)
   team:    { normal: 8, spell: 16, ultimate: 28 },
 };
 
@@ -4181,7 +4191,8 @@ const TIER_ATK_BONUS = {
 };
 
 const TIER_TEAM_BOOST = { normal: 16, spell: 24, ultimate: 36 };
-const TIER_TEAM_RECOVER = { normal: 5, spell: 8, ultimate: 14 };
+// normal 5→3: 連携(cost8)を回すだけで caster 純減-5、 霊力タダ回復ループを締める (rank8)。
+const TIER_TEAM_RECOVER = { normal: 3, spell: 8, ultimate: 14 };
 
 function tierCost(type, tier) {
   return (TIER_COSTS[type] || {})[tier] || 0;
@@ -4320,8 +4331,12 @@ function bindEvents() {
       if (action === "mode") {
         state.mode = button.dataset.mode;
         // ストーリーは博麗神社視点専用 (VN は全編 博麗神社 POV)。
-        // 他チームはフリー対戦でのみ自チームに選べる。
+        // 他チームはフリー対戦でのみ自チームに選べる (ストーリー撃破で解放)。
         if (state.mode === "campaign") state.homeTeamId = "hakurei";
+        // 未解放チームが選択中のまま free へ入った場合のガード (リセット直後など)。
+        if (state.mode === "free" && !state.progress.unlockedTeams.includes(state.homeTeamId)) {
+          state.homeTeamId = "hakurei";
+        }
         render();
       }
       if (action === "resetProgress") {
@@ -4646,14 +4661,19 @@ window.__touhouSpellFutsalDebug = {
     return out;
   },
   // #11 回帰: 試合中にフォメ変更を模擬 → resetPositions が initialSlot 基準で一貫するか。
+  // 旧版は home の非GKしか検査しておらず、 当の退行クラス (GKがFW位置へ飛ぶ / away側の入れ替わり) を
+  // 検出できない偽green だった。 両チーム全員 + GKのゴール前固定まで検査する。
   resetPositionsAfterFormationChange(newFormation) {
     if (!state.match) return null;
     state.progress.formation = newFormation;
     resetPositions();
     render();
-    return state.match.home.players.every(
-      (p) => p.role === "GK" || (Math.abs(p.x - p.initialSlot.x) < 0.001 && Math.abs(p.y - p.initialSlot.y) < 0.001),
+    const ok = (p) => (
+      p.role === "GK"
+        ? (p.x === (p.side === "home" ? 6 : 94) && p.y === 50)
+        : (Math.abs(p.x - p.initialSlot.x) < 0.001 && Math.abs(p.y - p.initialSlot.y) < 0.001)
     );
+    return state.match.home.players.every(ok) && state.match.away.players.every(ok);
   },
   // 指定 player の霊力比率を設定し消耗ドラマを確認 (ratio 0-1)。
   setGutsRatio(playerId, ratio) {

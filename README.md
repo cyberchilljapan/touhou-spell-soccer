@@ -39,10 +39,14 @@ python -m http.server 8787 -b 127.0.0.1
 - 霊力消費と自動回復
 - 敵AIの自動行動
 - ComfyUI生成の8チーム代表CG
-- ComfyUI生成のキャラ個別ポートレート40人分
-- ComfyUI生成のスペルカットイン40人分
-- チームCG/ポートレート/カットイン閲覧ギャラリー
-- 88キャラ固有スペルカード名・フレーバーの試合内表示 (スペル/究極段)
+- ComfyUI生成のキャラ個別ポートレート88人分
+- ComfyUI生成のスペルカットイン88人分
+- ComfyUI生成のアクションスプライト (88キャラ×動作別、計2000枚超)
+- チームCG/ポートレート/カットイン閲覧ギャラリー (lazy load)
+- 88キャラ固有フレーバーのカットイン内表示 (スペル/究極段)
+- 因縁ペアの掛け合いVN (敵対22ペア、1試合1回)
+- 勝者と敗者の両視点リザルト会話
+- DotGothic16フォント同梱 (オフライン/file://でも見た目が変わらない)
 - 必殺技の2枚ディレイ式スプライトアニメ (タメ→放出) + チャージ→インパクトSE
 - 必殺シュート vs 必殺セーブのクラッシュ演出 (GKスペルセーブ + 鍔迫り合いゲージ)
 - パス/シュート等の汎用アクションスプライトカットイン (キャプ翼風)
@@ -94,7 +98,16 @@ ZIP内の `index.html` または `start_game.bat` から起動できます。
 
 ## テスト・CI
 
-`npm test` は Playwright スモーク (36本)。`playwright.config.js` が HTTP サーバを自動起動するため手動起動は不要。ローカルは Microsoft Edge、CI (GitHub Actions) は `PW_CHANNEL=chromium` でバンドル chromium を使用。バランス検証は `node scripts/balance_sim.js` (Monte Carlo シム)。
+`npm test` は Playwright スモーク (54本+)。キャンペーン7連戦→エンディングの通し、敗北→再戦、resume 経路、VN/会話データ整合も検証する。`playwright.config.js` が HTTP サーバを自動起動するため手動起動は不要。ローカルは Microsoft Edge、CI (GitHub Actions) は `PW_CHANNEL=chromium` でバンドル chromium を使用。バランス検証は `node scripts/balance_sim.js` (Monte Carlo シム)、実プレイ検証は `node scripts/validate_playthrough.js`。
+
+## アセット圧縮
+
+CGアセットは256色量子化済み (812MB→約150MB、視覚劣化なし)。ComfyUI再生成スクリプトを回した後は再圧縮する:
+
+```powershell
+python scripts/compress_assets.py        # _quantized/ へ出力 (元は触らない)
+python scripts/compress_assets.py --apply  # 確認後に反映
+```
 
 ## 次の拡張候補
 
@@ -110,5 +123,6 @@ ZIP内の `index.html` または `start_game.bat` から起動できます。
 
 - 本作は上海アリス幻樂団 (ZUN氏) の「東方Project」の二次創作です。原作の権利は上海アリス幻樂団に帰属します。
 - 同梱のキャラCG/ポートレート/カットインは ComfyUI による AI 生成物です。
+- 同梱フォント DotGothic16 は SIL Open Font License (assets/fonts/OFL.txt) です。
 - 頒布する場合は東方Project二次創作ガイドラインに準拠してください。
 - 開発: Claude (Anthropic) × Stayg

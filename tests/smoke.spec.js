@@ -11,6 +11,13 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => { window.__touhouSpellFutsalSkipStory = true; });
 });
 
+// フリー対戦の自チームは「ストーリーで撃破して解放」ゲートが掛かるため、
+// 任意チームを使うテストは事前に全解放しておく。
+const ALL_TEAM_IDS = ["hakurei", "kouma", "youkai_mountain", "eientei", "chireiden", "myouren", "shinreibyo", "rebel_beast"];
+const unlockAllTeams = (page) => page.addInitScript((ids) => {
+  window.localStorage.setItem("touhouSpellFutsalSaveV1", JSON.stringify({ unlockedTeams: ids }));
+}, ALL_TEAM_IDS);
+
 test("campaign match starts and resolves a command battle", async ({ page }) => {
   await page.goto(HTTP_URL);
   await expect(page.getByRole("heading", { name: "東方スペルサッカー" })).toBeVisible();
@@ -37,6 +44,7 @@ test("campaign match starts and resolves a command battle", async ({ page }) => 
 });
 
 test("all team portraits can appear in battle", async ({ page }) => {
+  await unlockAllTeams(page);
   const cases = [
     { team: "妖怪山", portrait: "aya.png" },
     { team: "永遠亭", portrait: "kaguya.png" },
@@ -57,6 +65,7 @@ test("all team portraits can appear in battle", async ({ page }) => {
 });
 
 test("spell command shows dedicated cut-in art", async ({ page }) => {
+  await unlockAllTeams(page);
   await page.goto(HTTP_URL);
   await page.getByRole("button", { name: "フリー対戦" }).click();
   await page.locator('[data-select="home"][data-team="youkai_mountain"]').click();
@@ -312,11 +321,12 @@ test("animation speed selection is saved", async ({ page }) => {
 test("story mode locks home to Hakurei and the enemy slot away from Hakurei", async ({ page }) => {
   await page.goto(HTTP_URL);
   // 既定はストーリーモード。自チーム枠は博麗以外 (7) が、相手チーム枠は博麗 (1) がロックされる。
-  await expect(page.locator(".campaign-note")).toContainText("博麗神社専用");
+  await expect(page.locator(".campaign-note").first()).toContainText("博麗神社専用");
   await expect(page.locator(".team-button.campaign-locked")).toHaveCount(8);
-  // フリー対戦に切替えるとロックは外れる。
+  // フリー対戦では相手枠ロックは無し。自チームは解放ゲート (初期=博麗のみ) で7チームがロックのまま。
   await page.getByRole("button", { name: "フリー対戦" }).click();
-  await expect(page.locator(".team-button.campaign-locked")).toHaveCount(0);
+  await expect(page.locator(".team-button.campaign-locked")).toHaveCount(7);
+  await expect(page.locator('[data-select="away"][data-team="hakurei"]')).toBeVisible();
 });
 
 test("spell cut-in shows the action-matched move name (dribble move)", async ({ page }) => {
@@ -374,9 +384,11 @@ test("each action pauses for message-advance (paced play-by-play)", async ({ pag
   await page.locator('[data-action="resolve"][data-option="normal"]').click();
   // 行動後はメッセージ送り待ち: 「▶ 次へ」が出て、 送るまで展開が止まる。
   await expect(page.locator(".advance-btn")).toBeVisible();
-  // 送ると進行が続く (上段は state により ピッチ or 次の結果CG。 試合ステージは常在)。
+  // 多段演出の beat 1 (仕掛け) が表示され、送ると beat 2 (守備対応) へ実際に進む。
+  // (旧アサーションは常在の .match-stage を見ていて送り動作を検証していなかった)
+  await expect(page.locator(".action-scene")).toContainText("ボールを運ぶ");
   await page.locator(".advance-btn").click();
-  await expect(page.locator(".match-stage")).toBeVisible();
+  await expect(page.locator(".action-scene")).toContainText("間合いを詰める");
 });
 
 test("auto-advance toggle is saved", async ({ page }) => {
@@ -644,6 +656,85 @@ test("victory VN stays clickable above the result overlay", async ({ page }) => 
   await page.locator(".vn-box-large").click({ timeout: 2000 }); // 覆われていると actionability で落ちる
   const after = await page.evaluate(() => window.__touhouSpellFutsalDebug.getState().vnScene.index);
   expect(after).toBe(before + 1);
+});
+
+// 回帰防止: 相手ボール保持のままセーブ→再開すると敵ターンが誰からも起動されず詰んでいた softlock。
+test("resuming an away-possession save restarts the enemy turn", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  await page.evaluate(() => {
+    const s = window.__touhouSpellFutsalDebug.getState();
+    const fw = s.match.away.players.find((p) => p.role === "FW") || s.match.away.players[0];
+    s.match.possession = "away";
+    s.match.carrierId = fw.id;
+    window.__touhouSpellFutsalDebug.saveCurrentMatch();
+  });
+  await page.reload();
+  await page.locator('[data-action="resumeMatch"]').click();
+  // 敵ターンが実際に動き出す (バトル/守備介入/多段演出/送り待ち のいずれかが数秒以内に立つ)
+  await expect.poll(() => page.evaluate(() => {
+    const s = window.__touhouSpellFutsalDebug.getState();
+    return Boolean(s.battle || s.interrupt || s.playSeq || s.advance || s.gkChoice || s.match.possession === "home");
+  }), { timeout: 8000 }).toBe(true);
+});
+
+// 回帰防止: 敵手番のバトル窓で Esc/数字キーが効いてしまい、Esc 1発で away の1手が消滅して
+// 試合が永久停止 (または 1 連打で敵スペルを normal に乗っ取り) していた問題。
+test("enemy battle window ignores player keys and still resolves", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  await page.getByRole("button", { name: "試合開始" }).click();
+  await page.evaluate(() => {
+    const s = window.__touhouSpellFutsalDebug.getState();
+    const fw = s.match.away.players.find((p) => p.role === "FW") || s.match.away.players[0];
+    s.match.possession = "away";
+    s.match.carrierId = fw.id;
+    window.__touhouSpellFutsalDebug.saveCurrentMatch();
+  });
+  await page.reload();
+  await page.locator('[data-action="resumeMatch"]').click();
+  // 敵手番の進行中に Esc / 1 を乱打しても、手番は消滅せず試合が前に進み続ける
+  for (let i = 0; i < 6; i += 1) {
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("1");
+    await page.waitForTimeout(250);
+  }
+  await expect.poll(() => page.evaluate(() => {
+    const s = window.__touhouSpellFutsalDebug.getState();
+    return Boolean(s.battle || s.interrupt || s.playSeq || s.advance || s.gkChoice || s.match.possession === "home");
+  }), { timeout: 8000 }).toBe(true);
+});
+
+// 回帰防止: 壊れた途中セーブがあるとタイトル(setup)の初回 render が TypeError で白画面になり、
+// 「破棄」ボタンにも到達できなかった問題 (loadMatch の検疫 + schemaVersion)。
+test("corrupted mid-match save does not white-screen the title", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.evaluate(() => {
+    localStorage.clear();
+    localStorage.setItem("touhouSpellSoccerMatchV1", JSON.stringify({ match: { finished: false } }));
+  });
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "東方スペルサッカー" })).toBeVisible();
+  // 壊れセーブは検疫で自動破棄され、resume バナーは出ない
+  await expect(page.locator(".resume-banner")).toHaveCount(0);
+  const cleaned = await page.evaluate(() => localStorage.getItem("touhouSpellSoccerMatchV1"));
+  expect(cleaned).toBeNull();
+});
+
+// チーム解放の実ゲート: 未解放チームはフリー対戦の自チームに選べず、解放済みなら選べる。
+test("free play locks home teams until they are unlocked", async ({ page }) => {
+  await page.goto(HTTP_URL);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole("button", { name: "フリー対戦" }).click();
+  // 初期解放は博麗神社のみ → 他チームの自チームボタンは disabled
+  await expect(page.locator('[data-select="home"][data-team="hakurei"]')).toBeVisible();
+  await expect(page.locator('.team-select-grid > div').first().locator('button.campaign-locked')).toHaveCount(7);
+  // 相手チームは自由 (スパーリング相手)
+  await expect(page.locator('[data-select="away"][data-team="kouma"]')).toBeVisible();
 });
 
 // 回帰防止: 因縁VNのキー未ソートで 16/32 ペアが永久に発火しなかった問題。

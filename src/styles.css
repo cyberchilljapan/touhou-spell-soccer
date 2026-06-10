@@ -1,3 +1,12 @@
+/* CT3 ドット字フォントを同梱 (OFL: assets/fonts/OFL.txt)。 オフライン/file:// 配布でも見た目が変わらない。 */
+@font-face {
+  font-family: "DotGothic16";
+  src: url("../assets/fonts/DotGothic16-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
   font-family: "Segoe UI", "Yu Gothic UI", "Meiryo", sans-serif;

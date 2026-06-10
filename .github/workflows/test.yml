@@ -23,3 +23,11 @@ jobs:
         run: npm test
         env:
           PW_CHANNEL: chromium
+      - name: Run real-play validator (anti fake-green)
+        run: |
+          python -m http.server 8787 -b 127.0.0.1 &
+          sleep 2
+          node scripts/validate_playthrough.js
+        env:
+          PW_CHANNEL: chromium
+          MATCHES: "2"
